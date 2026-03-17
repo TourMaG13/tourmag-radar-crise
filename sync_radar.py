@@ -79,13 +79,59 @@ def load_keywords():
 # Parsing RSS
 # ──────────────────────────────────────────────
 
+def clean_xml(raw_text):
+    """
+    Nettoie le XML brut du flux RSS pour corriger les problèmes courants :
+    - & non échappés (& tout seul, pas suivi d'un nom d'entité valide)
+    - Caractères de contrôle interdits en XML
+    - Entités HTML non standard
+    """
+    import re
+
+    # Supprimer les caractères de contrôle (sauf tab, newline, carriage return)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw_text)
+
+    # Corriger les & non échappés :
+    # Un & valide est suivi de #x...; ou #...; ou nom; (entité XML)
+    # Tout & qui n'est pas suivi de ce pattern doit devenir &amp;
+    text = re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)', '&amp;', text)
+
+    return text
+
+
 def parse_rss():
-    """Parse le flux RSS et retourne la liste des articles."""
-    feed = feedparser.parse(RSS_URL)
+    """
+    Parse le flux RSS et retourne la liste des articles.
+    Récupère d'abord le XML brut, le nettoie, puis le passe à feedparser.
+    """
+    import requests
+
+    # Récupérer le flux brut
+    try:
+        response = requests.get(RSS_URL, timeout=30, headers={
+            "User-Agent": "TourMaG-Radar/1.0"
+        })
+        response.raise_for_status()
+        raw_xml = response.text
+        print(f"RSS : flux récupéré ({len(raw_xml)} caractères)")
+    except Exception as e:
+        print(f"ERREUR fetch RSS : {e}")
+        return []
+
+    # Nettoyer le XML
+    cleaned_xml = clean_xml(raw_xml)
+
+    # Parser avec feedparser
+    feed = feedparser.parse(cleaned_xml)
 
     if feed.bozo and not feed.entries:
-        print(f"ERREUR parsing RSS : {feed.bozo_exception}")
-        return []
+        print(f"ERREUR parsing RSS après nettoyage : {feed.bozo_exception}")
+        # Tenter un fallback : parser tel quel au cas où
+        feed = feedparser.parse(raw_xml)
+        if not feed.entries:
+            print("ERREUR : aucun article même sans nettoyage")
+            return []
+        print(f"Fallback : {len(feed.entries)} articles trouvés sans nettoyage")
 
     articles = []
     for entry in feed.entries:
