@@ -1,0 +1,132 @@
+{
+  "institutionnel": {
+    "label": "Institutionnel / Affaires étrangères",
+    "keywords": [
+      "quai d'orsay", "mae", "ministère", "affaires étrangères", "ambassade",
+      "consulat", "conseils aux voyageurs", "diplomatie", "diplomatique",
+      "cellule de crise", "ressortissants", "gouvernement", "premier ministre",
+      "président", "macron", "sénat", "assemblée", "onu", "nations unies",
+      "résolution", "sanctions", "embargo", "sommet", "G7", "G20",
+      "union européenne", "commission européenne", "OTAN", "conseil de sécurité",
+      "france diplomatie", "alerte voyage", "sécurité des français",
+      "communiqué officiel", "déclaration officielle"
+    ]
+  },
+  "rapatriement": {
+    "label": "Rapatriement / Logistique",
+    "keywords": [
+      "rapatriement", "rapatrier", "rapatriés", "évacuation", "évacuer",
+      "vol spécial", "vol de rapatriement", "cellule de crise",
+      "plan d'évacuation", "convoi", "logistique", "secours",
+      "croix-rouge", "croissant-rouge", "aide humanitaire",
+      "touristes bloqués", "voyageurs bloqués", "français bloqués",
+      "retour en france", "prise en charge", "hébergement d'urgence",
+      "pont aérien"
+    ]
+  },
+  "aerien": {
+    "label": "Aérien",
+    "keywords": [
+      "vol", "vols", "compagnie aérienne", "compagnies aériennes",
+      "air france", "transavia", "easyjet", "ryanair", "lufthansa",
+      "turkish airlines", "emirates", "qatar airways", "royal jordanian",
+      "el al", "middle east airlines", "MEA", "saudia", "gulf air",
+      "etihad", "flynas", "pegasus",
+      "aéroport", "aérien", "survol", "espace aérien",
+      "suspension", "suspendre", "suspendu", "annulation de vol",
+      "déroutement", "détournement", "notam", "trafic aérien",
+      "liaison aérienne", "desserte", "hub", "escale",
+      "ben gourion", "rafic hariri", "atatürk", "CDG",
+      "orly", "reprise des vols", "programme de vols"
+    ]
+  },
+  "croisiere": {
+    "label": "Croisière",
+    "keywords": [
+      "croisière", "croisiériste", "paquebot", "navire",
+      "msc", "costa", "carnival", "royal caribbean", "celebrity cruises",
+      "norwegian cruise", "ponant", "cunard", "princess cruises",
+      "aida", "tui cruises",
+      "escale", "port", "itinéraire maritime", "déroutement",
+      "canal de suez", "mer rouge", "détroit d'ormuz", "golfe persique",
+      "golfe d'aden", "cap de bonne-espérance", "méditerranée orientale",
+      "haifa", "limassol", "pirée", "bodrum", "kusadasi",
+      "embarquement", "débarquement", "cabotage"
+    ]
+  },
+  "temoignages": {
+    "label": "Témoignages",
+    "keywords": [
+      "témoignage", "témoigner", "témoigne", "raconte", "récit",
+      "sur place", "sur le terrain", "vécu", "expérience",
+      "interview", "parole de", "portrait", "reportage",
+      "\"nous avons", "\"on a dû", "\"je suis", "\"c'est",
+      "agent de voyage", "responsable d'agence", "directeur d'agence",
+      "réceptif local", "correspondant local", "guide local",
+      "au quotidien", "jour après jour", "carnet de route"
+    ]
+  },
+  "experts": {
+    "label": "Avis d'experts",
+    "keywords": [
+      "expert", "analyse", "analyste", "géopolitique", "géopolitologue",
+      "prospective", "scénario", "prévision", "projection",
+      "économiste", "chercheur", "universitaire", "professeur",
+      "tribune", "édito", "éditorial", "opinion", "décryptage",
+      "point de vue", "regard", "éclairage",
+      "ifri", "iris", "omt", "unwto", "onu tourisme",
+      "observatoire", "baromètre", "étude", "rapport",
+      "tendance", "impact économique", "conséquences",
+      "perspectives", "horizon"
+    ]
+  },
+  "juridique": {
+    "label": "Juridique / Formalités",
+    "keywords": [
+      "juridique", "droit", "loi", "réglementation", "règlement",
+      "annulation", "remboursement", "avoir", "crédit voyage",
+      "force majeure", "circonstances exceptionnelles",
+      "assurance", "assurance voyage", "assurance annulation",
+      "garantie", "indemnisation", "indemnité",
+      "visa", "passeport", "formalités", "douane",
+      "contrat", "conditions générales", "CGV",
+      "médiation", "litige", "réclamation", "recours",
+      "code du tourisme", "directive européenne", "règlement CE",
+      "responsabilité", "obligation d'information"
+    ]
+  },
+  "solutions": {
+    "label": "Solutions trouvées par les pros",
+    "keywords": [
+      "alternative", "plan B", "solution", "remplacement",
+      "reprogrammer", "reprogrammation", "report", "reporter",
+      "substitution", "destination de remplacement",
+      "chypre", "crète", "grèce", "rhodes", "malte",
+      "reconversion", "adaptation", "réactivité",
+      "bonne pratique", "initiative", "innovation",
+      "solidarité", "entraide", "réseau",
+      "rebooking", "réacheminement", "itinéraire bis",
+      "offre adaptée", "nouveau programme", "catalogue modifié"
+    ]
+  },
+  "countries_detect": {
+    "_comment": "Mots-clés pour détecter les pays mentionnés (pour la carte)",
+    "israel": ["israël", "israel", "tel aviv", "jérusalem", "ben gourion", "haifa", "eilat"],
+    "liban": ["liban", "libanais", "beyrouth", "hariri"],
+    "iran": ["iran", "iranien", "téhéran", "ispahan", "chiraz"],
+    "irak": ["irak", "irakien", "bagdad", "erbil", "bassorah", "kurdistan"],
+    "syrie": ["syrie", "syrien", "damas"],
+    "jordanie": ["jordanie", "jordanien", "amman", "petra", "aqaba"],
+    "egypte": ["égypte", "egypte", "égyptien", "le caire", "charm el-cheikh", "hurghada", "louxor", "suez"],
+    "turquie": ["turquie", "turc", "istanbul", "antalya", "bodrum", "ankara", "cappadoce"],
+    "arabie_saoudite": ["arabie saoudite", "saoudien", "riyad", "djeddah", "la mecque", "médine"],
+    "emirats": ["émirats", "emirats", "dubai", "abu dhabi", "abou dabi"],
+    "qatar": ["qatar", "qatari", "doha"],
+    "oman": ["oman", "omanais", "mascate"],
+    "bahrein": ["bahreïn", "bahrein", "manama"],
+    "koweit": ["koweït", "koweit"],
+    "yemen": ["yémen", "yemen"],
+    "chypre": ["chypre", "chypriote", "larnaca", "paphos", "nicosie", "limassol"],
+    "grece": ["grèce", "grece", "grec", "athènes", "rhodes", "crète"]
+  }
+}
