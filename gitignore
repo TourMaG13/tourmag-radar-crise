@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.env
+*.json
+!keywords.json
+!firestore.rules
+!package.json
+venv/
+.venv/
