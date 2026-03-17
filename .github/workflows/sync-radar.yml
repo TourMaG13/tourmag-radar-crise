@@ -1,1 +1,32 @@
+name: Sync Radar Crise
 
+on:
+  schedule:
+    # Toutes les 2 heures
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    # Permet de lancer manuellement depuis l'onglet Actions
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RSS_URL: ${{ vars.RSS_URL || 'https://www.tourmag.com/xml/syndication.rss?t=crise+golfe' }}
+          CONFLICT_START_DATE: ${{ vars.CONFLICT_START_DATE || '2025-10-01' }}
+        run: python sync_radar.py
