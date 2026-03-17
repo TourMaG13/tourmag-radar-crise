@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Articles : lecture publique, pas d'écriture client
+    match /articles/{articleId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Données financières : lecture publique, pas d'écriture client
+    match /market_data/{symbolId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Config : lecture publique (le frontend en a besoin), pas d'écriture client
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Tout le reste : bloqué
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
