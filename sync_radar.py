@@ -99,15 +99,91 @@ def clean_xml(raw_text):
     return text
 
 
+def parse_html_fallback(html_bytes):
+    """
+    Parse la page HTML de la rubrique TourMaG quand le serveur
+    refuse de servir le flux RSS (blocage anti-bot datacenter).
+    Extrait les articles depuis les div.result.
+    """
+    from bs4 import BeautifulSoup
+    import re
+
+    soup = BeautifulSoup(html_bytes, "html.parser")
+    results = soup.find_all("div", class_="result")
+
+    if not results:
+        print("HTML fallback : aucun div.result trouvé")
+        return []
+
+    articles = []
+    for div in results:
+        # Titre + lien
+        h3 = div.find("h3", class_="titre")
+        if not h3:
+            continue
+        a_tag = h3.find("a", href=True)
+        if not a_tag:
+            continue
+
+        title = a_tag.get_text(strip=True)
+        link = a_tag["href"]
+        if link.startswith("/"):
+            link = "https://www.tourmag.com" + link
+
+        # Auteur + date (dans div.rubrique : "Auteur | 19/03/2026 | Rubrique")
+        author = ""
+        pub_date = None
+        rubrique = div.find("div", class_="rubrique")
+        if rubrique:
+            author_tag = rubrique.find("a", rel="author")
+            if author_tag:
+                author = author_tag.get_text(strip=True)
+
+            # Extraire la date format DD/MM/YYYY
+            rub_text = rubrique.get_text()
+            date_match = re.search(r"(\d{2}/\d{2}/\d{4})", rub_text)
+            if date_match:
+                try:
+                    pub_date = datetime.strptime(date_match.group(1), "%d/%m/%Y")
+                    pub_date = pub_date.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
+
+        # Description (dans div.texte a)
+        description = ""
+        texte_div = div.find("div", class_="texte")
+        if texte_div:
+            desc_a = texte_div.find("a")
+            if desc_a:
+                description = desc_a.get_text(strip=True)
+
+        # Image
+        image_url = ""
+        img = div.find("img")
+        if img:
+            image_url = img.get("src", img.get("data-src", ""))
+
+        articles.append({
+            "title": title,
+            "link": link,
+            "description": description,
+            "pub_date": pub_date,
+            "image_url": image_url,
+            "author": author,
+        })
+
+    print(f"HTML fallback : {len(articles)} articles extraits")
+    return articles
+
+
 def parse_rss():
     """
     Parse le flux RSS et retourne la liste des articles.
-    Le serveur TourMaG peut bloquer les requêtes venant de datacenters (GitHub Actions).
-    On utilise des headers réalistes de navigateur pour contourner ça.
+    Si le serveur renvoie du HTML (blocage anti-bot datacenter),
+    bascule automatiquement en scraping de la page HTML.
     """
     import requests
 
-    # Headers réalistes pour éviter le blocage anti-bot
     BROWSER_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "application/rss+xml, application/xml, text/xml, */*",
@@ -125,18 +201,13 @@ def parse_rss():
 
         print(f"RSS : {len(raw_bytes)} octets reçus (Content-Type: {content_type})")
 
-        # Diagnostic : vérifier si c'est bien du XML
+        # Détecter le type de contenu reçu
         starts_with_xml = raw_bytes.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed")
-        starts_with_html = b"<!DOCTYPE" in raw_bytes[:500] or b"<html" in raw_bytes[:500].lower()
+        is_html = b"<!DOCTYPE" in raw_bytes[:500] or b"<html" in raw_bytes[:500].lower()
 
-        if starts_with_html:
-            # Le serveur a renvoyé du HTML (page anti-bot, erreur, etc.)
-            print("RSS : ATTENTION — le serveur a renvoyé du HTML au lieu du XML !")
-            print("RSS : probablement un blocage anti-bot sur les IP datacenter GitHub")
-            # Afficher les 300 premiers caractères pour diagnostic
-            preview = raw_bytes[:300].decode("utf-8", errors="replace")
-            print(f"RSS : début du contenu reçu : {preview[:200]}...")
-            return []
+        if is_html:
+            print("RSS : le serveur a renvoyé du HTML — bascule en scraping HTML")
+            return parse_html_fallback(raw_bytes)
 
         if not starts_with_xml:
             print(f"RSS : contenu inattendu (pas XML, pas HTML)")
@@ -144,16 +215,14 @@ def parse_rss():
             print(f"RSS : début : {preview}...")
             return []
 
-        # Parser avec feedparser en bytes (préserve l'encodage)
+        # Parser avec feedparser en bytes
         feed = feedparser.parse(raw_bytes)
 
         if feed.entries:
-            print(f"RSS : {len(feed.entries)} articles trouvés")
+            print(f"RSS : {len(feed.entries)} articles trouvés (XML)")
         elif feed.bozo:
-            print(f"RSS : parsing échoué ({feed.bozo_exception})")
-
-            # Tentative avec nettoyage
-            print("RSS : tentative avec nettoyage XML...")
+            print(f"RSS : parsing XML échoué ({feed.bozo_exception})")
+            print("RSS : tentative nettoyage XML...")
             raw_text = raw_bytes.decode("utf-8", errors="replace")
             cleaned = clean_xml(raw_text)
             feed = feedparser.parse(cleaned)
@@ -161,7 +230,7 @@ def parse_rss():
             if feed.entries:
                 print(f"RSS : {len(feed.entries)} articles après nettoyage")
             else:
-                print("RSS : ÉCHEC total")
+                print("RSS : XML irrécupérable")
                 return []
         else:
             print("RSS : parsé mais aucun article trouvé")
