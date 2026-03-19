@@ -102,61 +102,74 @@ def clean_xml(raw_text):
 def parse_rss():
     """
     Parse le flux RSS et retourne la liste des articles.
-    Stratégie :
-    1. Essayer feedparser directement sur l'URL (il gère l'encodage lui-même)
-    2. Si ça échoue, récupérer les bytes bruts et les passer à feedparser
-    3. En dernier recours, nettoyer le texte et réessayer
+    Le serveur TourMaG peut bloquer les requêtes venant de datacenters (GitHub Actions).
+    On utilise des headers réalistes de navigateur pour contourner ça.
     """
     import requests
 
-    # Méthode 1 : feedparser directement sur l'URL (le plus fiable)
-    print("RSS : tentative directe via feedparser...")
-    feed = feedparser.parse(RSS_URL)
+    # Headers réalistes pour éviter le blocage anti-bot
+    BROWSER_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Cache-Control": "no-cache",
+    }
 
-    if not feed.bozo or feed.entries:
-        if feed.entries:
-            print(f"RSS : {len(feed.entries)} articles trouvés (méthode directe)")
-            # Continuer avec ce feed
-        else:
-            print("RSS : flux parsé mais aucun article")
-            feed = None
-    else:
-        print(f"RSS : échec méthode directe ({feed.bozo_exception})")
-        feed = None
+    try:
+        response = requests.get(RSS_URL, timeout=30, headers=BROWSER_HEADERS)
+        response.raise_for_status()
+        raw_bytes = response.content
+        content_type = response.headers.get("Content-Type", "inconnu")
 
-    # Méthode 2 : récupérer les bytes bruts et les passer à feedparser
-    if feed is None or not feed.entries:
-        print("RSS : tentative via bytes bruts...")
-        try:
-            response = requests.get(RSS_URL, timeout=30, headers={
-                "User-Agent": "TourMaG-Radar/1.0"
-            })
-            response.raise_for_status()
-            raw_bytes = response.content  # bytes, pas text !
-            print(f"RSS : flux récupéré ({len(raw_bytes)} octets)")
+        print(f"RSS : {len(raw_bytes)} octets reçus (Content-Type: {content_type})")
 
-            feed = feedparser.parse(raw_bytes)
+        # Diagnostic : vérifier si c'est bien du XML
+        starts_with_xml = raw_bytes.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed")
+        starts_with_html = b"<!DOCTYPE" in raw_bytes[:500] or b"<html" in raw_bytes[:500].lower()
 
-            if not feed.bozo or feed.entries:
-                print(f"RSS : {len(feed.entries)} articles trouvés (méthode bytes)")
-            else:
-                print(f"RSS : échec méthode bytes ({feed.bozo_exception})")
-
-                # Méthode 3 : nettoyer le texte et réessayer
-                print("RSS : tentative avec nettoyage XML...")
-                raw_text = raw_bytes.decode("utf-8", errors="replace")
-                cleaned = clean_xml(raw_text)
-                feed = feedparser.parse(cleaned)
-
-                if feed.entries:
-                    print(f"RSS : {len(feed.entries)} articles trouvés (méthode nettoyage)")
-                else:
-                    print(f"RSS : ÉCHEC total — aucun article récupéré")
-                    return []
-
-        except Exception as e:
-            print(f"ERREUR fetch RSS : {e}")
+        if starts_with_html:
+            # Le serveur a renvoyé du HTML (page anti-bot, erreur, etc.)
+            print("RSS : ATTENTION — le serveur a renvoyé du HTML au lieu du XML !")
+            print("RSS : probablement un blocage anti-bot sur les IP datacenter GitHub")
+            # Afficher les 300 premiers caractères pour diagnostic
+            preview = raw_bytes[:300].decode("utf-8", errors="replace")
+            print(f"RSS : début du contenu reçu : {preview[:200]}...")
             return []
+
+        if not starts_with_xml:
+            print(f"RSS : contenu inattendu (pas XML, pas HTML)")
+            preview = raw_bytes[:200].decode("utf-8", errors="replace")
+            print(f"RSS : début : {preview}...")
+            return []
+
+        # Parser avec feedparser en bytes (préserve l'encodage)
+        feed = feedparser.parse(raw_bytes)
+
+        if feed.entries:
+            print(f"RSS : {len(feed.entries)} articles trouvés")
+        elif feed.bozo:
+            print(f"RSS : parsing échoué ({feed.bozo_exception})")
+
+            # Tentative avec nettoyage
+            print("RSS : tentative avec nettoyage XML...")
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+            cleaned = clean_xml(raw_text)
+            feed = feedparser.parse(cleaned)
+
+            if feed.entries:
+                print(f"RSS : {len(feed.entries)} articles après nettoyage")
+            else:
+                print("RSS : ÉCHEC total")
+                return []
+        else:
+            print("RSS : parsé mais aucun article trouvé")
+            return []
+
+    except requests.exceptions.RequestException as e:
+        print(f"ERREUR fetch RSS : {e}")
+        return []
 
     articles = []
     for entry in feed.entries:
