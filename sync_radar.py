@@ -102,36 +102,61 @@ def clean_xml(raw_text):
 def parse_rss():
     """
     Parse le flux RSS et retourne la liste des articles.
-    Récupère d'abord le XML brut, le nettoie, puis le passe à feedparser.
+    Stratégie :
+    1. Essayer feedparser directement sur l'URL (il gère l'encodage lui-même)
+    2. Si ça échoue, récupérer les bytes bruts et les passer à feedparser
+    3. En dernier recours, nettoyer le texte et réessayer
     """
     import requests
 
-    # Récupérer le flux brut
-    try:
-        response = requests.get(RSS_URL, timeout=30, headers={
-            "User-Agent": "TourMaG-Radar/1.0"
-        })
-        response.raise_for_status()
-        raw_xml = response.text
-        print(f"RSS : flux récupéré ({len(raw_xml)} caractères)")
-    except Exception as e:
-        print(f"ERREUR fetch RSS : {e}")
-        return []
+    # Méthode 1 : feedparser directement sur l'URL (le plus fiable)
+    print("RSS : tentative directe via feedparser...")
+    feed = feedparser.parse(RSS_URL)
 
-    # Nettoyer le XML
-    cleaned_xml = clean_xml(raw_xml)
+    if not feed.bozo or feed.entries:
+        if feed.entries:
+            print(f"RSS : {len(feed.entries)} articles trouvés (méthode directe)")
+            # Continuer avec ce feed
+        else:
+            print("RSS : flux parsé mais aucun article")
+            feed = None
+    else:
+        print(f"RSS : échec méthode directe ({feed.bozo_exception})")
+        feed = None
 
-    # Parser avec feedparser
-    feed = feedparser.parse(cleaned_xml)
+    # Méthode 2 : récupérer les bytes bruts et les passer à feedparser
+    if feed is None or not feed.entries:
+        print("RSS : tentative via bytes bruts...")
+        try:
+            response = requests.get(RSS_URL, timeout=30, headers={
+                "User-Agent": "TourMaG-Radar/1.0"
+            })
+            response.raise_for_status()
+            raw_bytes = response.content  # bytes, pas text !
+            print(f"RSS : flux récupéré ({len(raw_bytes)} octets)")
 
-    if feed.bozo and not feed.entries:
-        print(f"ERREUR parsing RSS après nettoyage : {feed.bozo_exception}")
-        # Tenter un fallback : parser tel quel au cas où
-        feed = feedparser.parse(raw_xml)
-        if not feed.entries:
-            print("ERREUR : aucun article même sans nettoyage")
+            feed = feedparser.parse(raw_bytes)
+
+            if not feed.bozo or feed.entries:
+                print(f"RSS : {len(feed.entries)} articles trouvés (méthode bytes)")
+            else:
+                print(f"RSS : échec méthode bytes ({feed.bozo_exception})")
+
+                # Méthode 3 : nettoyer le texte et réessayer
+                print("RSS : tentative avec nettoyage XML...")
+                raw_text = raw_bytes.decode("utf-8", errors="replace")
+                cleaned = clean_xml(raw_text)
+                feed = feedparser.parse(cleaned)
+
+                if feed.entries:
+                    print(f"RSS : {len(feed.entries)} articles trouvés (méthode nettoyage)")
+                else:
+                    print(f"RSS : ÉCHEC total — aucun article récupéré")
+                    return []
+
+        except Exception as e:
+            print(f"ERREUR fetch RSS : {e}")
             return []
-        print(f"Fallback : {len(feed.entries)} articles trouvés sans nettoyage")
 
     articles = []
     for entry in feed.entries:
