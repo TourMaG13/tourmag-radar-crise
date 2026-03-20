@@ -1,6 +1,6 @@
 {
-  "mae": {
-    "label": "Destinations : que dit le MAE ?",
+  "institutionnel": {
+    "label": "Institutionnel / Affaires étrangères",
     "keywords": [
       "quai d'orsay", "mae", "ministère", "affaires étrangères", "ambassade",
       "consulat", "conseils aux voyageurs", "diplomatie", "diplomatique",
@@ -13,17 +13,18 @@
       "rapatriement", "rapatrier", "rapatriés", "évacuation", "évacuer",
       "vol spécial", "vol de rapatriement", "plan d'évacuation",
       "touristes bloqués", "voyageurs bloqués", "français bloqués",
-      "retour en france", "pont aérien", "convoi"
+      "retour en france", "pont aérien", "convoi",
+      "premier ministre", "président", "macron", "sénat", "assemblée"
     ]
   },
-  "vols": {
-    "label": "Vols : qui opère, qui suspend ?",
+  "aerien": {
+    "label": "Aérien",
     "keywords": [
       "vol", "vols", "compagnie aérienne", "compagnies aériennes",
       "air france", "transavia", "easyjet", "ryanair", "lufthansa",
       "turkish airlines", "emirates", "qatar airways", "royal jordanian",
       "el al", "middle east airlines", "MEA", "saudia", "gulf air",
-      "etihad", "flynas", "pegasus", "air mauritius", "thai",
+      "etihad", "flynas", "pegasus", "air mauritius", "thai airways",
       "aéroport", "aérien", "survol", "espace aérien",
       "suspension", "suspendre", "suspendu", "annulation de vol",
       "déroutement", "détournement", "notam", "trafic aérien",
@@ -31,11 +32,12 @@
       "ben gourion", "rafic hariri", "CDG", "orly",
       "reprise des vols", "programme de vols",
       "surcharge carburant", "surcharge", "kérosène",
-      "compagnies du golfe", "hubs du golfe"
+      "compagnies du golfe", "hubs du golfe",
+      "vol supplémentaire", "boeing", "airbus"
     ]
   },
-  "droits": {
-    "label": "Mes clients : quels droits ?",
+  "juridique": {
+    "label": "Juridique / Formalités",
     "keywords": [
       "juridique", "droit", "loi", "réglementation", "règlement",
       "annulation", "remboursement", "avoir", "crédit voyage",
@@ -46,11 +48,12 @@
       "médiation", "litige", "réclamation", "recours",
       "code du tourisme", "directive européenne", "règlement CE",
       "responsabilité", "obligation d'information",
-      "visa", "passeport", "formalités", "douane"
+      "visa", "passeport", "formalités", "douane",
+      "quels droits", "quelles sont les règles"
     ]
   },
   "solutions": {
-    "label": "Que font les TO ?",
+    "label": "Solutions des pros",
     "keywords": [
       "alternative", "plan B", "solution", "remplacement",
       "reprogrammer", "reprogrammation", "report", "reporter",
@@ -60,10 +63,25 @@
       "solidarité", "entraide", "réseau",
       "rebooking", "réacheminement", "itinéraire bis",
       "offre adaptée", "nouveau programme", "catalogue modifié",
-      "tour-opérateur", "tour opérateur", "TO ", "voyagiste",
+      "tour-opérateur", "tour opérateur", "voyagiste",
       "EDV", "SETO", "entreprises du voyage",
       "suspendre les départs", "recommandent",
       "ng travel", "tui", "fram", "club med"
+    ]
+  },
+  "temoignages": {
+    "label": "Témoignages / Sur le terrain",
+    "keywords": [
+      "témoignage", "témoigner", "témoigne", "raconte", "récit",
+      "sur place", "sur le terrain", "vécu", "expérience",
+      "interview", "parole de", "portrait", "reportage",
+      "agent de voyage", "responsable d'agence", "directeur d'agence",
+      "réceptif local", "correspondant local", "guide local",
+      "au quotidien", "jour après jour", "carnet de route",
+      "activités touristiques", "se déroulent normalement",
+      "schizophrénique", "vie des agents",
+      "visiteurs", "touristes sur place",
+      "salon mondial du tourisme"
     ]
   },
   "contexte": {
@@ -82,26 +100,11 @@
       "dollar", "euro", "devise", "parité", "change",
       "milliards", "PIB", "croissance",
       "intentions de voyage", "réservations", "sojern",
-      "salon mondial du tourisme"
-    ]
-  },
-  "terrain": {
-    "label": "Sur le terrain",
-    "keywords": [
-      "témoignage", "témoigner", "témoigne", "raconte", "récit",
-      "sur place", "sur le terrain", "vécu", "expérience",
-      "interview", "parole de", "portrait", "reportage",
-      "agent de voyage", "responsable d'agence", "directeur d'agence",
-      "réceptif local", "correspondant local", "guide local",
-      "au quotidien", "jour après jour", "carnet de route",
-      "activités touristiques", "se déroulent normalement",
-      "schizophrénique", "vie des agents",
-      "turquie", "jordanie", "chypre", "grèce",
-      "visiteurs", "touristes sur place"
+      "renonceraient", "renoncer"
     ]
   },
   "countries_detect": {
-    "_comment": "Mots-clés pour détecter les pays mentionnés (pour la carte)",
+    "_comment": "Mots-clés pour détecter les pays mentionnés",
     "israel": ["israël", "israel", "tel aviv", "jérusalem", "ben gourion", "haifa", "eilat"],
     "liban": ["liban", "libanais", "beyrouth", "hariri"],
     "iran": ["iran", "iranien", "téhéran", "ispahan", "chiraz"],
