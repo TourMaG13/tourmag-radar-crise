@@ -2,15 +2,12 @@ name: Sync Radar Crise
 
 on:
   schedule:
-    # Toutes les 2 heures
     - cron: '0 */2 * * *'
   workflow_dispatch:
-    # Permet de lancer manuellement depuis l'onglet Actions
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +24,7 @@ jobs:
       - name: Run sync
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           RSS_URL: ${{ vars.RSS_URL || 'https://www.tourmag.com/xml/syndication.rss?t=crise+golfe' }}
           CONFLICT_START_DATE: ${{ vars.CONFLICT_START_DATE || '2025-10-01' }}
         run: python sync_radar.py
