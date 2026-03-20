@@ -306,33 +306,7 @@ def scrape_mae():
                 t = p.get_text(strip=True)
                 if len(t) >= 15: all_paras.append(t)
 
-            # NIVEAU D'ALERTE: chercher UNIQUEMENT dans les 15 premiers paragraphes
-            # et EXCLURE les textes génériques (bandeau "Urgence Attentat")
-            early_text = " ".join(all_paras[:15]).lower()
-            # Retirer les phrases génériques
-            for generic in MAE_GENERIC_TEXTS:
-                early_text = early_text.replace(generic, "")
-
-            found = []
-            for lt, cd, co in ALERT_LEVELS:
-                if lt in early_text:
-                    found.append((lt, cd, co))
-
-            if found:
-                is_partial = len(found) > 1
-                if is_partial:
-                    # Le PREMIER trouvé dans les premiers paragraphes = le niveau principal
-                    main = found[0]
-                    other = found[-1]
-                    level_label = f"{main[0].capitalize()} (certaines zones : {other[0]})"
-                    level_code, level_color = main[1], main[2]
-                else:
-                    main = found[0]; is_partial = False
-                    level_label, level_code, level_color = main[0].capitalize(), main[1], main[2]
-            else:
-                level_label, level_code, level_color, is_partial = "Non déterminé", "unknown", "gray", False
-
-            # Contenu enrichi pour Groq
+            # Contenu enrichi : extraire les paragraphes pertinents D'ABORD
             relevant = []
             for t in all_paras:
                 tl = t.lower()
@@ -346,6 +320,27 @@ def scrape_mae():
                     # Exclure les textes génériques
                     if not any(g in tl for g in MAE_GENERIC_TEXTS):
                         relevant.append(t)
+
+            # NIVEAU D'ALERTE: chercher dans les paragraphes pertinents (pas les génériques)
+            relevant_text = " ".join(relevant).lower()
+
+            found = []
+            for lt, cd, co in ALERT_LEVELS:
+                if lt in relevant_text:
+                    found.append((lt, cd, co))
+
+            if found:
+                is_partial = len(found) > 1
+                if is_partial:
+                    main = found[0]
+                    other = found[-1]
+                    level_label = f"{main[0].capitalize()} (certaines zones : {other[0]})"
+                    level_code, level_color = main[1], main[2]
+                else:
+                    main = found[0]; is_partial = False
+                    level_label, level_code, level_color = main[0].capitalize(), main[1], main[2]
+            else:
+                level_label, level_code, level_color, is_partial = "Non déterminé", "unknown", "gray", False
 
             full_content = " ".join(relevant)[:1500]
             short_summary = " ".join(relevant[:3])[:500]
