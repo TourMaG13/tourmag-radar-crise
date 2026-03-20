@@ -121,7 +121,13 @@ def parse_html_fallback(html_bytes):
             if da: desc = da.get_text(strip=True)
         img = ""
         im = div.find("img")
-        if im: img = im.get("src", im.get("data-src", ""))
+        if im:
+            img = im.get("src", im.get("data-src", ""))
+            # Filtrer les fausses images (pixels de tracking, gifs 1px, etc.)
+            if img and (len(img) < 20 or "1.gif" in img or "pixel" in img or "blank" in img):
+                img = ""
+            if img and img.startswith("/"):
+                img = "https://www.tourmag.com" + img
         articles.append({"title":title,"link":link,"description":desc,"pub_date":pub_date,"image_url":img,"author":author})
     print(f"HTML fallback : {len(articles)} articles")
     return articles
