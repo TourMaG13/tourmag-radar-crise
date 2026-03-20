@@ -1,527 +1,569 @@
 #!/usr/bin/env python3
 """
-Radar Crise Moyen-Orient — Script de synchronisation v3
-Toutes les 2h via GitHub Actions :
-  1. Parse le flux RSS TourMaG (ou scrape le HTML en fallback)
-  2. Catégorise chaque article en 6 thématiques
-  3. Récupère les données financières
-  4. Scrape les alertes France Diplomatie avec gestion des zones partielles
-  5. Génère une synthèse automatique ("L'essentiel")
-  6. Écrit tout dans Firestore
+Radar Crise Moyen-Orient — v4
+  1. Parse flux RSS TourMaG (HTML fallback)
+  2. Classification IA via Groq (Llama 3)
+  3. Synthèse "L'essentiel" via Groq
+  4. Données financières (Yahoo Finance)
+  5. Alertes France Diplomatie (zones partielles)
+  6. NOTAM — fermetures d'espace aérien
+  7. Écriture Firestore
 """
 
-import json
-import hashlib
-import os
-import re
-import sys
+import json, hashlib, os, re, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import feedparser
-import requests
-import yfinance as yf
+import feedparser, requests, yfinance as yf
 from bs4 import BeautifulSoup
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-
 # ──────────────────────────────────────────────
-# Configuration
+# Config
 # ──────────────────────────────────────────────
-
 RSS_URL = os.getenv("RSS_URL", "https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE = os.getenv("CONFLICT_START_DATE", "2025-10-01")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 FINANCE_SYMBOLS = {
-    "brent":    {"symbol": "BZ=F",   "label": "Brent (baril)",     "currency": "$",  "sector": "commodity"},
-    "eurusd":   {"symbol": "EURUSD=X","label": "EUR / USD",        "currency": "",   "sector": "forex"},
-    "AF.PA":    {"symbol": "AF.PA",   "label": "Air France-KLM",   "currency": "€",  "sector": "aerien"},
-    "TUI1.DE":  {"symbol": "TUI1.DE", "label": "TUI Group",        "currency": "€",  "sector": "to"},
-    "AC.PA":    {"symbol": "AC.PA",   "label": "Accor",            "currency": "€",  "sector": "hotellerie"},
-    "BKNG":     {"symbol": "BKNG",    "label": "Booking Holdings", "currency": "$",  "sector": "ota"},
-    "CCL":      {"symbol": "CCL",     "label": "Carnival Corp",    "currency": "$",  "sector": "croisiere"},
-    "AMS.MC":   {"symbol": "AMS.MC",  "label": "Amadeus IT",       "currency": "€",  "sector": "tech"},
-    "AIR.PA":   {"symbol": "AIR.PA",  "label": "Airbus",           "currency": "€",  "sector": "aerien"},
-    "RYA.IR":   {"symbol": "RYA.IR",  "label": "Ryanair",          "currency": "€",  "sector": "aerien"},
+    "brent":   {"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},
+    "eurusd":  {"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},
+    "AF.PA":   {"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},
+    "TUI1.DE": {"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},
+    "AC.PA":   {"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},
+    "BKNG":    {"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},
+    "CCL":     {"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},
+    "AMS.MC":  {"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},
+    "AIR.PA":  {"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},
+    "RYA.IR":  {"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},
 }
 
-MAE_COUNTRY_SLUGS = {
-    "israel": "israel-palestine", "liban": "liban", "iran": "iran",
-    "irak": "irak", "syrie": "syrie", "jordanie": "jordanie",
-    "egypte": "egypte", "turquie": "turquie", "arabie_saoudite": "arabie-saoudite",
-    "emirats": "emirats-arabes-unis", "qatar": "qatar", "oman": "oman",
-    "bahrein": "bahrein", "koweit": "koweit", "yemen": "yemen",
-    "chypre": "chypre", "grece": "grece",
+MAE_SLUGS = {
+    "israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak",
+    "syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie",
+    "arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar",
+    "oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen",
+    "chypre":"chypre","grece":"grece",
 }
-
-MAE_COUNTRY_LABELS = {
-    "israel": "Israël / Palestine", "liban": "Liban", "iran": "Iran",
-    "irak": "Irak", "syrie": "Syrie", "jordanie": "Jordanie",
-    "egypte": "Égypte", "turquie": "Turquie", "arabie_saoudite": "Arabie Saoudite",
-    "emirats": "Émirats Arabes Unis", "qatar": "Qatar", "oman": "Oman",
-    "bahrein": "Bahreïn", "koweit": "Koweït", "yemen": "Yémen",
-    "chypre": "Chypre", "grece": "Grèce",
+MAE_LABELS = {
+    "israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak",
+    "syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie",
+    "arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar",
+    "oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen",
+    "chypre":"Chypre","grece":"Grèce",
 }
+MAE_BASE = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
 
-MAE_BASE_URL = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
-KEYWORDS_PATH = Path(__file__).parent / "keywords.json"
+# ICAO FIR codes pour NOTAM (espaces aériens Moyen-Orient)
+NOTAM_FIRS = {
+    "LLLL": "Israël", "OLBB": "Liban", "OIIX": "Iran", "ORBB": "Irak",
+    "OSTT": "Syrie", "OJAC": "Jordanie", "HECC": "Égypte",
+    "LTAA": "Turquie", "OEJD": "Arabie Saoudite", "OMAE": "Émirats",
+    "OTHH": "Qatar", "OOMM": "Oman", "OBBB": "Bahreïn", "OKAC": "Koweït",
+    "OYSC": "Yémen",
+}
 
 BROWSER_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
     "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
 }
 
+KEYWORDS_PATH = Path(__file__).parent / "keywords.json"
+
 
 # ──────────────────────────────────────────────
-# Firebase init
+# Firebase
 # ──────────────────────────────────────────────
-
 def init_firebase():
-    sa_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
-    if not sa_json:
-        print("ERREUR : variable FIREBASE_SERVICE_ACCOUNT manquante")
-        sys.exit(1)
-    cred = credentials.Certificate(json.loads(sa_json))
-    firebase_admin.initialize_app(cred)
+    sa = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    if not sa: print("ERREUR: FIREBASE_SERVICE_ACCOUNT manquant"); sys.exit(1)
+    firebase_admin.initialize_app(credentials.Certificate(json.loads(sa)))
     return firestore.client()
 
-
 def load_keywords():
-    with open(KEYWORDS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with open(KEYWORDS_PATH, "r", encoding="utf-8") as f: return json.load(f)
 
 
 # ──────────────────────────────────────────────
-# Parsing RSS / HTML
+# RSS / HTML parsing (inchangé)
 # ──────────────────────────────────────────────
-
-def clean_xml(raw_text):
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw_text)
-    text = re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)', '&amp;', text)
-    return text
-
+def clean_xml(t):
+    t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', t)
+    return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)', '&amp;', t)
 
 def parse_html_fallback(html_bytes):
     soup = BeautifulSoup(html_bytes, "html.parser")
-    results = soup.find_all("div", class_="result")
-    if not results:
-        print("HTML fallback : aucun div.result trouvé")
-        return []
-
     articles = []
-    for div in results:
+    for div in soup.find_all("div", class_="result"):
         h3 = div.find("h3", class_="titre")
         if not h3: continue
-        a_tag = h3.find("a", href=True)
-        if not a_tag: continue
-
-        title = a_tag.get_text(strip=True)
-        link = a_tag["href"]
+        a = h3.find("a", href=True)
+        if not a: continue
+        title = a.get_text(strip=True)
+        link = a["href"]
         if link.startswith("/"): link = "https://www.tourmag.com" + link
-
         author, pub_date = "", None
-        rubrique = div.find("div", class_="rubrique")
-        if rubrique:
-            at = rubrique.find("a", rel="author")
+        rub = div.find("div", class_="rubrique")
+        if rub:
+            at = rub.find("a", rel="author")
             if at: author = at.get_text(strip=True)
-            dm = re.search(r"(\d{2}/\d{2}/\d{4})", rubrique.get_text())
+            dm = re.search(r"(\d{2}/\d{2}/\d{4})", rub.get_text())
             if dm:
                 try: pub_date = datetime.strptime(dm.group(1), "%d/%m/%Y").replace(tzinfo=timezone.utc)
-                except ValueError: pass
-
-        description = ""
+                except: pass
+        desc = ""
         td = div.find("div", class_="texte")
         if td:
             da = td.find("a")
-            if da: description = da.get_text(strip=True)
-
-        image_url = ""
-        img = div.find("img")
-        if img: image_url = img.get("src", img.get("data-src", ""))
-
-        articles.append({"title": title, "link": link, "description": description,
-                         "pub_date": pub_date, "image_url": image_url, "author": author})
-
-    print(f"HTML fallback : {len(articles)} articles extraits")
+            if da: desc = da.get_text(strip=True)
+        img = ""
+        im = div.find("img")
+        if im: img = im.get("src", im.get("data-src", ""))
+        articles.append({"title":title,"link":link,"description":desc,"pub_date":pub_date,"image_url":img,"author":author})
+    print(f"HTML fallback : {len(articles)} articles")
     return articles
-
 
 def parse_rss():
     try:
-        response = requests.get(RSS_URL, timeout=30, headers=BROWSER_HEADERS)
-        response.raise_for_status()
-        raw_bytes = response.content
-        content_type = response.headers.get("Content-Type", "inconnu")
-        print(f"RSS : {len(raw_bytes)} octets reçus (Content-Type: {content_type})")
-
-        is_html = b"<!DOCTYPE" in raw_bytes[:500] or b"<html" in raw_bytes[:500].lower()
-        if is_html:
-            print("RSS : HTML reçu — bascule en scraping")
-            return parse_html_fallback(raw_bytes)
-
-        if not raw_bytes.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed"):
-            print("RSS : contenu inattendu")
+        r = requests.get(RSS_URL, timeout=30, headers=BROWSER_HEADERS)
+        r.raise_for_status()
+        raw = r.content
+        print(f"RSS : {len(raw)} octets (Content-Type: {r.headers.get('Content-Type','')})")
+        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower():
+            print("RSS : HTML reçu — fallback scraping")
+            return parse_html_fallback(raw)
+        if not raw.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed"):
             return []
-
-        feed = feedparser.parse(raw_bytes)
-        if feed.entries:
-            print(f"RSS : {len(feed.entries)} articles (XML)")
-        elif feed.bozo:
-            print(f"RSS : XML échoué, nettoyage...")
-            feed = feedparser.parse(clean_xml(raw_bytes.decode("utf-8", errors="replace")))
-            if not feed.entries:
-                print("RSS : irrécupérable")
-                return []
-        else:
-            return []
-
-    except requests.exceptions.RequestException as e:
-        print(f"ERREUR RSS : {e}")
-        return []
-
-    articles = []
-    for entry in feed.entries:
-        pub_date = None
-        if hasattr(entry, "published_parsed") and entry.published_parsed:
-            pub_date = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-        elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-            pub_date = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
-
-        image_url = ""
-        for attr in ["enclosures", "media_content", "media_thumbnail"]:
-            if hasattr(entry, attr):
-                items = getattr(entry, attr)
-                for item in (items if isinstance(items, list) else [items]):
-                    url = item.get("href", item.get("url", ""))
-                    if url:
-                        image_url = url
-                        break
-            if image_url: break
-
-        articles.append({
-            "title": entry.get("title", ""), "link": entry.get("link", ""),
-            "description": entry.get("summary", entry.get("description", "")),
-            "pub_date": pub_date, "image_url": image_url, "author": entry.get("author", ""),
-        })
-    return articles
+        feed = feedparser.parse(raw)
+        if not feed.entries and feed.bozo:
+            feed = feedparser.parse(clean_xml(raw.decode("utf-8", errors="replace")))
+        if not feed.entries: return []
+        articles = []
+        for e in feed.entries:
+            pd = None
+            if hasattr(e,"published_parsed") and e.published_parsed: pd = datetime(*e.published_parsed[:6],tzinfo=timezone.utc)
+            elif hasattr(e,"updated_parsed") and e.updated_parsed: pd = datetime(*e.updated_parsed[:6],tzinfo=timezone.utc)
+            img = ""
+            for attr in ["enclosures","media_content","media_thumbnail"]:
+                if hasattr(e,attr):
+                    for it in (getattr(e,attr) if isinstance(getattr(e,attr),list) else [getattr(e,attr)]):
+                        u = it.get("href",it.get("url",""))
+                        if u: img=u; break
+                if img: break
+            articles.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
+        return articles
+    except Exception as ex:
+        print(f"ERREUR RSS : {ex}"); return []
 
 
 # ──────────────────────────────────────────────
-# Catégorisation
+# Groq — classification + synthèse
 # ──────────────────────────────────────────────
+def groq_call(messages, max_tokens=2000):
+    if not GROQ_API_KEY:
+        print("  Groq : clé API manquante")
+        return None
+    try:
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={"model": "llama-3.3-70b-versatile", "messages": messages, "max_tokens": max_tokens, "temperature": 0.3},
+            timeout=30)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"  Groq ERREUR : {e}")
+        return None
 
-def categorize_article(article, keywords_data):
-    text = (article["title"] + " " + article["description"]).lower()
+def classify_articles_groq(articles):
+    """Classifie les articles via Groq en une seule requête."""
+    cats = "institutionnel, aerien, juridique, solutions, temoignages, contexte"
+    items = []
+    for i, a in enumerate(articles):
+        items.append(f"{i}. {a['title']} — {a.get('description','')[:100]}")
+
+    prompt = f"""Tu es un expert du tourisme français. Classifie chaque article dans UNE seule catégorie parmi : {cats}, general.
+
+Catégories :
+- institutionnel : MAE, diplomatie, rapatriements, conseils aux voyageurs, cellule de crise, ressortissants
+- aerien : compagnies aériennes, vols, suspensions, reprises, surcharges carburant, aéroports, hubs
+- juridique : droits des clients, annulations, remboursements, assurance, force majeure, formalités
+- solutions : initiatives des TO, reprogrammations, destinations alternatives, recommandations professionnelles (EDV, SETO)
+- temoignages : récits d'agents de voyages, réceptifs sur place, expériences terrain, salons professionnels, vie quotidienne des pros
+- contexte : analyses géopolitiques, données économiques, études de marché, tendances, pétrole, devises, intentions de voyage
+- general : si aucune catégorie ne correspond
+
+Articles :
+{chr(10).join(items)}
+
+Réponds UNIQUEMENT avec un JSON array de cette forme exacte, sans autre texte :
+[{{"id":0,"cat":"aerien"}},{{"id":1,"cat":"institutionnel"}}]"""
+
+    result = groq_call([{"role": "user", "content": prompt}])
+    if not result:
+        return None
+
+    try:
+        # Nettoyer la réponse
+        clean = result.strip()
+        if clean.startswith("```"): clean = re.sub(r'^```\w*\n?', '', clean).rstrip('`').strip()
+        classifications = json.loads(clean)
+        cat_map = {}
+        for c in classifications:
+            cat_map[c["id"]] = c["cat"]
+        print(f"  Groq classification : {len(cat_map)} articles classifiés")
+        return cat_map
+    except Exception as e:
+        print(f"  Groq parse error : {e}")
+        print(f"  Réponse brute : {result[:300]}")
+        return None
+
+def generate_synthesis_groq(articles):
+    """Génère une synthèse en bullet points via Groq."""
+    items = []
+    for a in articles[:10]:
+        items.append(f"- {a['title']}: {a.get('description','')[:150]}")
+
+    prompt = f"""Tu es un journaliste spécialisé dans le tourisme. À partir de ces articles récents sur la crise au Moyen-Orient, rédige une synthèse en 5 à 6 bullet points pour des agents de voyage français.
+
+Chaque point doit :
+- Être concis (1-2 phrases max)
+- Donner une information actionnable
+- Couvrir un aspect différent (vols, destinations, droits clients, solutions, contexte)
+
+Articles récents :
+{chr(10).join(items)}
+
+Réponds UNIQUEMENT avec un JSON array de strings, chaque string étant un bullet point. Pas d'autre texte.
+Exemple : ["Point 1...", "Point 2...", "Point 3..."]"""
+
+    result = groq_call([{"role": "user", "content": prompt}])
+    if not result:
+        return None
+
+    try:
+        clean = result.strip()
+        if clean.startswith("```"): clean = re.sub(r'^```\w*\n?', '', clean).rstrip('`').strip()
+        points = json.loads(clean)
+        if isinstance(points, list) and all(isinstance(p, str) for p in points):
+            print(f"  Groq synthèse : {len(points)} points")
+            return points
+    except Exception as e:
+        print(f"  Groq synthèse parse error : {e}")
+    return None
+
+
+# ──────────────────────────────────────────────
+# Classification fallback (mots-clés)
+# ──────────────────────────────────────────────
+def classify_keywords(article, keywords_data):
+    text = (article["title"] + " " + article.get("description","")).lower()
     scores = {}
-    for cat_key in [k for k in keywords_data if k != "countries_detect"]:
-        score = sum(1 for kw in keywords_data[cat_key]["keywords"] if kw.lower() in text)
-        if score > 0: scores[cat_key] = score
+    for cat in [k for k in keywords_data if k != "countries_detect"]:
+        s = sum(1 for kw in keywords_data[cat]["keywords"] if kw.lower() in text)
+        if s > 0: scores[cat] = s
+    return max(scores, key=scores.get) if scores else "general"
 
-    category = max(scores, key=scores.get) if scores else "general"
-
+def detect_countries(article, keywords_data):
+    text = (article["title"] + " " + article.get("description","")).lower()
     countries = []
     for ck, ckws in keywords_data.get("countries_detect", {}).items():
         if ck.startswith("_"): continue
-        if any(kw.lower() in text for kw in ckws):
-            countries.append(ck)
-
-    return category, countries
+        if any(kw.lower() in text for kw in ckws): countries.append(ck)
+    # Élargir : si "moyen-orient" ou "golfe" mentionné, ajouter les pays principaux
+    if any(kw in text for kw in ["moyen-orient", "moyen orient", "golfe", "conflit iran"]):
+        for c in ["iran", "israel", "liban", "irak", "syrie", "emirats"]:
+            if c not in countries: countries.append(c)
+    return countries
 
 
 # ──────────────────────────────────────────────
-# Données financières
+# Finance
 # ──────────────────────────────────────────────
-
-def fetch_finance_data():
+def fetch_finance():
     results = {}
     for key, cfg in FINANCE_SYMBOLS.items():
         try:
-            hist = yf.Ticker(cfg["symbol"]).history(start=CONFLICT_START_DATE)
-            if hist.empty: continue
-            cur = float(hist["Close"].iloc[-1])
-            start = float(hist["Close"].iloc[0])
-            chg = round(((cur - start) / start) * 100, 2)
-            history = [{"date": d.strftime("%Y-%m-%d"), "close": round(float(r["Close"]), 2)} for d, r in hist.iterrows()]
-            is_fx = cfg["sector"] == "forex"
-            results[key] = {
-                "symbol": cfg["symbol"], "label": cfg["label"], "currency": cfg["currency"],
-                "sector": cfg["sector"], "current_price": round(cur, 4 if is_fx else 2),
-                "start_price": round(start, 4 if is_fx else 2), "change_pct": chg,
-                "history": history, "last_update": datetime.now(timezone.utc).isoformat(),
-            }
+            h = yf.Ticker(cfg["symbol"]).history(start=CONFLICT_START_DATE)
+            if h.empty: continue
+            cur = float(h["Close"].iloc[-1]); start = float(h["Close"].iloc[0])
+            chg = round(((cur-start)/start)*100, 2)
+            hist = [{"date":d.strftime("%Y-%m-%d"),"close":round(float(r["Close"]),2)} for d,r in h.iterrows()]
+            fx = cfg["sector"]=="forex"
+            results[key] = {"symbol":cfg["symbol"],"label":cfg["label"],"currency":cfg["currency"],
+                "sector":cfg["sector"],"current_price":round(cur,4 if fx else 2),
+                "start_price":round(start,4 if fx else 2),"change_pct":chg,
+                "history":hist,"last_update":datetime.now(timezone.utc).isoformat()}
             print(f"  Finance : {cfg['label']} = {cur:.2f} ({chg:+.2f}%)")
-        except Exception as e:
-            print(f"  Finance ERREUR {cfg['symbol']} : {e}")
+        except Exception as e: print(f"  Finance ERREUR {cfg['symbol']} : {e}")
     return results
 
 
 # ──────────────────────────────────────────────
-# Scraping MAE — avec gestion zones partielles
+# MAE — zones partielles
 # ──────────────────────────────────────────────
+ALERT_LEVELS = [
+    ("formellement déconseillé", "formellement_deconseille", "red"),
+    ("déconseillé sauf raison impérative", "deconseille_sauf_ri", "orange"),
+    ("déconseillé sauf raison", "deconseille_sauf_ri", "orange"),
+    ("vigilance renforcée", "vigilance_renforcee", "yellow"),
+    ("vigilance normale", "vigilance_normale", "green"),
+]
 
-def scrape_mae_alerts():
+def scrape_mae():
     results = {}
-
-    ALERT_LEVELS = [
-        ("formellement déconseillé", "formellement_deconseille", "red"),
-        ("déconseillé sauf raison impérative", "deconseille_sauf_ri", "orange"),
-        ("déconseillé sauf raison", "deconseille_sauf_ri", "orange"),
-        ("vigilance renforcée", "vigilance_renforcee", "yellow"),
-        ("vigilance normale", "vigilance_normale", "green"),
-    ]
-
-    for country_key, slug in MAE_COUNTRY_SLUGS.items():
-        url = f"{MAE_BASE_URL}{slug}/"
+    for ck, slug in MAE_SLUGS.items():
+        url = f"{MAE_BASE}{slug}/"
         try:
-            resp = requests.get(url, timeout=15, headers=BROWSER_HEADERS)
-            if resp.status_code != 200:
-                print(f"  MAE {country_key} : HTTP {resp.status_code}")
-                results[country_key] = _mae_fallback(country_key, url, "HTTP " + str(resp.status_code))
-                continue
+            r = requests.get(url, timeout=15, headers=BROWSER_HEADERS)
+            if r.status_code != 200:
+                results[ck] = _mae_fb(ck, url, f"HTTP {r.status_code}"); continue
 
-            soup = BeautifulSoup(resp.content, "html.parser")
-            text = soup.get_text()
-            text_lower = text.lower()
+            soup = BeautifulSoup(r.content, "html.parser")
+            text_lower = soup.get_text().lower()
+            text_raw = soup.get_text()
 
-            # Détecter TOUS les niveaux présents (pour les zones partielles)
-            levels_found = []
-            for level_text, code, color in ALERT_LEVELS:
-                if level_text in text_lower:
-                    levels_found.append((level_text, code, color))
+            # Trouver TOUS les niveaux présents
+            found = [(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in text_lower]
 
-            if levels_found:
-                # Le niveau le plus grave
-                main_level = levels_found[0]
-                level_label = main_level[0].capitalize()
-                level_code = main_level[1]
-                level_color = main_level[2]
-
-                # Détecter les zones partielles : si plusieurs niveaux, c'est partiel
-                is_partial = len(levels_found) > 1
+            if found:
+                is_partial = len(found) > 1
                 if is_partial:
-                    other_levels = [l[0] for l in levels_found[1:]]
-                    level_label += f" (certaines zones : {other_levels[0]})"
+                    # Niveau principal = le MOINS grave (majorité du territoire)
+                    main = found[-1]
+                    worst = found[0]
+                    level_label = f"{main[0].capitalize()} (certaines zones : {worst[0]})"
+                    level_code = main[1]
+                    level_color = main[2]
+                else:
+                    main = found[0]
+                    level_label = main[0].capitalize()
+                    level_code = main[1]
+                    level_color = main[2]
+                    is_partial = False
             else:
-                level_label = "Non déterminé"
-                level_code = "unknown"
-                level_color = "gray"
-                is_partial = False
+                level_label = "Non déterminé"; level_code = "unknown"; level_color = "gray"; is_partial = False
 
-            # Résumé enrichi : extraire les 2-3 premiers paragraphes pertinents
-            summary_parts = []
+            # Résumé enrichi
+            parts = []
             for p in soup.find_all("p"):
                 t = p.get_text(strip=True)
                 if len(t) < 20: continue
-                if any(k in t.lower() for k in [
-                    "déconseillé", "vigilance", "quitter", "se rendre",
-                    "invités à", "recommandé", "risque", "sécurité",
-                    "éviter", "limiter", "prudence", "frappes"
-                ]):
-                    summary_parts.append(t)
-                    if len(summary_parts) >= 3:
-                        break
-
-            summary = " ".join(summary_parts)[:800] if summary_parts else ""
-
-            # Si pas de résumé, prendre la meta description
+                if any(k in t.lower() for k in ["déconseillé","vigilance","quitter","se rendre","invités à","recommandé","risque","frappes","prudence"]):
+                    parts.append(t)
+                    if len(parts) >= 3: break
+            summary = " ".join(parts)[:800]
             if not summary:
-                meta = soup.find("meta", attrs={"name": "description"})
+                meta = soup.find("meta", attrs={"name":"description"})
                 if meta:
-                    s = meta.get("content", "").strip()
-                    if s and "ministère" not in s.lower():
-                        summary = s[:500]
+                    s = meta.get("content","").strip()
+                    if s and "ministère" not in s.lower(): summary = s[:500]
 
-            # Date de dernière mise à jour
-            last_update = ""
-            um = re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})', text.replace('\n', ' '))
-            if um: last_update = um.group(1).strip()
+            upd = ""
+            um = re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})', text_raw.replace('\n',' '))
+            if um: upd = um.group(1).strip()
 
-            results[country_key] = {
-                "country": country_key,
-                "label": MAE_COUNTRY_LABELS.get(country_key, country_key),
-                "level": level_label,
-                "level_code": level_code,
-                "color": level_color,
-                "is_partial": is_partial,
-                "summary": summary,
-                "url": url,
-                "last_update_mae": last_update,
-                "last_scraped": datetime.now(timezone.utc).isoformat(),
+            results[ck] = {"country":ck,"label":MAE_LABELS.get(ck,ck),"level":level_label,
+                "level_code":level_code,"color":level_color,"is_partial":is_partial,
+                "summary":summary,"url":url,"last_update_mae":upd,
+                "last_scraped":datetime.now(timezone.utc).isoformat()}
+            print(f"  MAE {ck} : {level_label}")
+        except Exception as e:
+            print(f"  MAE ERREUR {ck} : {e}")
+            results[ck] = _mae_fb(ck, url, str(e)[:200])
+    return results
+
+def _mae_fb(ck, url, msg):
+    return {"country":ck,"label":MAE_LABELS.get(ck,ck),"level":"Indisponible",
+        "level_code":"unknown","color":"gray","is_partial":False,
+        "summary":msg,"url":url,"last_update_mae":"","last_scraped":datetime.now(timezone.utc).isoformat()}
+
+
+# ──────────────────────────────────────────────
+# NOTAM — fermetures d'espace aérien
+# ──────────────────────────────────────────────
+def fetch_notams():
+    """
+    Récupère les NOTAM actifs via l'API FAA NOTAM.
+    Filtre les fermetures d'espace aérien (type AIRSPACE) pour le Moyen-Orient.
+    """
+    results = []
+    notam_url = "https://external-api.faa.gov/notamapi/v1/notams"
+
+    for fir_code, country_name in NOTAM_FIRS.items():
+        try:
+            params = {
+                "domesticLocation": fir_code,
+                "notamType": "N",
+                "sortBy": "effectiveStartDate",
+                "sortOrder": "DESC",
+                "pageSize": 5,
             }
-            print(f"  MAE {country_key} : {level_label} {'(partiel)' if is_partial else ''} (MàJ: {last_update or 'n/a'})")
+            r = requests.get(notam_url, params=params, timeout=10, headers={
+                "Accept": "application/json",
+                "User-Agent": "TourMaG-Radar/1.0"
+            })
+
+            if r.status_code == 200:
+                data = r.json()
+                items = data.get("items", [])
+                for item in items:
+                    props = item.get("properties", {})
+                    core = props.get("coreNOTAMData", {}).get("notam", {})
+                    text = core.get("text", "")
+                    # Filtrer : garder seulement les NOTAM liés aux fermetures/restrictions
+                    if any(kw in text.upper() for kw in ["CLSD", "CLOSED", "PROHIB", "RESTRICTED", "DANGER AREA", "NO FLY"]):
+                        results.append({
+                            "fir": fir_code,
+                            "country": country_name,
+                            "id": core.get("id", ""),
+                            "text": text[:500],
+                            "effective": core.get("effectiveStart", ""),
+                            "expire": core.get("effectiveEnd", ""),
+                            "classification": core.get("classification", ""),
+                        })
+                if items:
+                    filtered = len([x for x in results if x["fir"] == fir_code])
+                    print(f"  NOTAM {fir_code} ({country_name}) : {len(items)} trouvés, {filtered} pertinents")
+            else:
+                print(f"  NOTAM {fir_code} : HTTP {r.status_code}")
 
         except Exception as e:
-            print(f"  MAE ERREUR {country_key} : {e}")
-            results[country_key] = _mae_fallback(country_key, url, str(e)[:200])
+            print(f"  NOTAM ERREUR {fir_code} : {e}")
 
+        time.sleep(0.5)  # Rate limiting
+
+    print(f"NOTAM total : {len(results)} restrictions actives")
     return results
 
 
-def _mae_fallback(country_key, url, error_msg):
-    return {
-        "country": country_key,
-        "label": MAE_COUNTRY_LABELS.get(country_key, country_key),
-        "level": "Information indisponible",
-        "level_code": "unknown", "color": "gray", "is_partial": False,
-        "summary": error_msg, "url": url,
-        "last_update_mae": "",
-        "last_scraped": datetime.now(timezone.utc).isoformat(),
-    }
-
-
 # ──────────────────────────────────────────────
-# Synthèse automatique — "L'essentiel"
+# Firestore writes
 # ──────────────────────────────────────────────
+def gen_id(link): return hashlib.md5(link.encode("utf-8")).hexdigest()[:16]
 
-def generate_synthesis(articles):
-    """
-    Génère une synthèse à partir des 5-7 derniers articles.
-    Extrait titre + première phrase de la description.
-    """
-    synthesis_points = []
+def sync_articles(db, articles, keywords_data, groq_cats):
+    ref = db.collection("articles"); new_count = 0
+    for i, a in enumerate(articles):
+        if not a["link"]: continue
+        did = gen_id(a["link"])
+        if ref.document(did).get().exists: continue
 
-    # Prendre les 7 derniers articles (ils sont déjà triés par date desc)
-    for article in articles[:7]:
-        title = article.get("title", "")
-        desc = article.get("description", "")
+        # Classification : Groq si dispo, sinon mots-clés
+        if groq_cats and i in groq_cats:
+            cat = groq_cats[i]
+        else:
+            cat = classify_keywords(a, keywords_data)
 
-        # Extraire la première phrase de la description
-        first_sentence = ""
-        if desc:
-            # Couper à la première phrase (point suivi d'une majuscule ou fin)
-            match = re.match(r'^(.+?[.!?])\s', desc)
-            if match:
-                first_sentence = match.group(1)
-            else:
-                first_sentence = desc[:150] + "..." if len(desc) > 150 else desc
+        countries = detect_countries(a, keywords_data)
 
-        synthesis_points.append({
-            "title": title,
-            "summary": first_sentence,
-            "link": article.get("link", ""),
-            "date": article.get("pub_date").isoformat() if article.get("pub_date") else "",
-            "author": article.get("author", ""),
-        })
-
-    return {
-        "points": synthesis_points,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "article_count": len(articles),
-    }
-
-
-# ──────────────────────────────────────────────
-# Écriture Firestore
-# ──────────────────────────────────────────────
-
-def generate_article_id(link):
-    return hashlib.md5(link.encode("utf-8")).hexdigest()[:16]
-
-
-def sync_articles(db, articles, keywords_data):
-    ref = db.collection("articles")
-    new_count = 0
-    for article in articles:
-        if not article["link"]: continue
-        doc_id = generate_article_id(article["link"])
-        doc_ref = ref.document(doc_id)
-        if doc_ref.get().exists: continue
-
-        category, countries = categorize_article(article, keywords_data)
-        doc_ref.set({
-            "title": article["title"], "link": article["link"],
-            "description": article["description"], "image_url": article["image_url"],
-            "author": article["author"], "pub_date": article["pub_date"],
-            "category": category, "countries": countries,
-            "created_at": firestore.SERVER_TIMESTAMP,
-        })
+        ref.document(did).set({
+            "title":a["title"],"link":a["link"],"description":a.get("description",""),
+            "image_url":a.get("image_url",""),"author":a.get("author",""),
+            "pub_date":a["pub_date"],"category":cat,"countries":countries,
+            "created_at":firestore.SERVER_TIMESTAMP})
         new_count += 1
-        print(f"  + [{category}] {article['title'][:60]}...")
-    print(f"Articles : {new_count} nouveaux sur {len(articles)} dans le flux")
+        print(f"  + [{cat}] {a['title'][:60]}...")
+    print(f"Articles : {new_count} nouveaux sur {len(articles)}")
     return new_count
-
 
 def sync_finance(db, data):
     ref = db.collection("market_data")
-    for key, d in data.items(): ref.document(key).set(d)
-    print(f"Finance : {len(data)} symboles mis à jour")
+    for k,d in data.items(): ref.document(k).set(d)
+    print(f"Finance : {len(data)} symboles")
 
-
-def sync_mae_alerts(db, data):
+def sync_mae(db, data):
     ref = db.collection("mae_alerts")
-    for key, d in data.items(): ref.document(key).set(d)
-    print(f"MAE : {len(data)} pays mis à jour")
+    for k,d in data.items(): ref.document(k).set(d)
+    print(f"MAE : {len(data)} pays")
 
+def sync_notams(db, data):
+    db.collection("config").document("notams").set({
+        "items": data,
+        "count": len(data),
+        "last_scraped": datetime.now(timezone.utc).isoformat(),
+    })
+    print(f"NOTAM : {len(data)} restrictions")
 
-def sync_synthesis(db, synthesis):
-    db.collection("config").document("synthesis").set(synthesis)
-    print(f"Synthèse : {len(synthesis['points'])} points générés")
+def sync_synthesis(db, points):
+    db.collection("config").document("synthesis").set({
+        "points": points,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    print(f"Synthèse : {len(points)} points")
 
-
-def update_config(db, new_articles_count):
+def update_config(db, n):
     db.collection("config").document("radar").set({
-        "last_sync": datetime.now(timezone.utc).isoformat(),
-        "conflict_start_date": CONFLICT_START_DATE,
-        "rss_url": RSS_URL,
-        "last_new_articles": new_articles_count,
-    }, merge=True)
+        "last_sync":datetime.now(timezone.utc).isoformat(),
+        "conflict_start_date":CONFLICT_START_DATE,
+        "rss_url":RSS_URL,"last_new_articles":n}, merge=True)
 
 
 # ──────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────
-
 def main():
-    print("=" * 50)
-    print(f"Radar Crise — Sync {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
-    print("=" * 50)
+    print("="*50)
+    print(f"Radar Crise v4 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    print("="*50)
 
     db = init_firebase()
-    keywords_data = load_keywords()
+    kw = load_keywords()
 
-    # 1. Parse RSS / HTML
+    # 1. RSS
     print("\n--- RSS ---")
     articles = parse_rss()
 
-    # 2. Sync articles
+    # 2. Classification Groq
+    groq_cats = None
+    if articles and GROQ_API_KEY:
+        print("\n--- Classification Groq ---")
+        groq_cats = classify_articles_groq(articles)
+
+    # 3. Sync articles
     if articles:
         print("\n--- Articles → Firestore ---")
-        new_count = sync_articles(db, articles, keywords_data)
+        new_count = sync_articles(db, articles, kw, groq_cats)
     else:
-        new_count = 0
-        print("Aucun article à traiter")
+        new_count = 0; print("Aucun article")
 
-    # 3. Données financières
+    # 4. Synthèse Groq
+    if articles and GROQ_API_KEY:
+        print("\n--- Synthèse Groq ---")
+        points = generate_synthesis_groq(articles)
+        if points:
+            sync_synthesis(db, points)
+        else:
+            # Fallback : titres simples
+            sync_synthesis(db, [a["title"] for a in articles[:5]])
+
+    # 5. Finance
     print("\n--- Finance ---")
-    finance_data = fetch_finance_data()
-    if finance_data:
+    fd = fetch_finance()
+    if fd:
         print("\n--- Finance → Firestore ---")
-        sync_finance(db, finance_data)
+        sync_finance(db, fd)
 
-    # 4. Alertes MAE
-    print("\n--- France Diplomatie (MAE) ---")
-    mae_data = scrape_mae_alerts()
-    if mae_data:
+    # 6. MAE
+    print("\n--- France Diplomatie ---")
+    mae = scrape_mae()
+    if mae:
         print("\n--- MAE → Firestore ---")
-        sync_mae_alerts(db, mae_data)
+        sync_mae(db, mae)
 
-    # 5. Synthèse automatique
-    if articles:
-        print("\n--- Synthèse ---")
-        synthesis = generate_synthesis(articles)
-        sync_synthesis(db, synthesis)
+    # 7. NOTAM
+    print("\n--- NOTAM ---")
+    notams = fetch_notams()
+    sync_notams(db, notams)
 
-    # 6. Update config
+    # 8. Config
     update_config(db, new_count)
 
-    print("\n" + "=" * 50)
+    print("\n" + "="*50)
     print("Sync terminée")
-    print("=" * 50)
-
+    print("="*50)
 
 if __name__ == "__main__":
     main()
