@@ -2,21 +2,25 @@
 """
 Radar Crise Moyen-Orient — Script de synchronisation
 Toutes les 2h via GitHub Actions :
-  1. Parse le flux RSS TourMaG (rubrique crise golfe)
-  2. Catégorise chaque article par thématique (mots-clés)
+  1. Parse le flux RSS TourMaG (ou scrape le HTML en fallback)
+  2. Catégorise chaque article en 6 thématiques orientées action
   3. Récupère les données financières (Brent, EUR/USD, actions tourisme)
-  4. Écrit tout dans Firestore
+  4. Scrape les alertes France Diplomatie (MAE) par pays
+  5. Écrit tout dans Firestore
 """
 
 import json
 import hashlib
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
+import requests
 import yfinance as yf
+from bs4 import BeautifulSoup
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -45,7 +49,58 @@ FINANCE_SYMBOLS = {
     "RYA.IR":   {"symbol": "RYA.IR",  "label": "Ryanair",          "currency": "€",  "sector": "aerien"},
 }
 
+# Slugs France Diplomatie par pays
+MAE_COUNTRY_SLUGS = {
+    "israel":          "israel-palestine",
+    "liban":           "liban",
+    "iran":            "iran",
+    "irak":            "irak",
+    "syrie":           "syrie",
+    "jordanie":        "jordanie",
+    "egypte":          "egypte",
+    "turquie":         "turquie",
+    "arabie_saoudite": "arabie-saoudite",
+    "emirats":         "emirats-arabes-unis",
+    "qatar":           "qatar",
+    "oman":            "oman",
+    "bahrein":         "bahrein",
+    "koweit":          "koweit",
+    "yemen":           "yemen",
+    "chypre":          "chypre",
+    "grece":           "grece",
+}
+
+MAE_COUNTRY_LABELS = {
+    "israel": "Israël / Palestine",
+    "liban": "Liban",
+    "iran": "Iran",
+    "irak": "Irak",
+    "syrie": "Syrie",
+    "jordanie": "Jordanie",
+    "egypte": "Égypte",
+    "turquie": "Turquie",
+    "arabie_saoudite": "Arabie Saoudite",
+    "emirats": "Émirats Arabes Unis",
+    "qatar": "Qatar",
+    "oman": "Oman",
+    "bahrein": "Bahreïn",
+    "koweit": "Koweït",
+    "yemen": "Yémen",
+    "chypre": "Chypre",
+    "grece": "Grèce",
+}
+
+MAE_BASE_URL = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
+
 KEYWORDS_PATH = Path(__file__).parent / "keywords.json"
+
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+}
 
 
 # ──────────────────────────────────────────────
@@ -53,12 +108,10 @@ KEYWORDS_PATH = Path(__file__).parent / "keywords.json"
 # ──────────────────────────────────────────────
 
 def init_firebase():
-    """Initialise Firebase avec le service account depuis les secrets GitHub."""
     sa_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
     if not sa_json:
         print("ERREUR : variable FIREBASE_SERVICE_ACCOUNT manquante")
         sys.exit(1)
-
     sa_dict = json.loads(sa_json)
     cred = credentials.Certificate(sa_dict)
     firebase_admin.initialize_app(cred)
@@ -70,44 +123,22 @@ def init_firebase():
 # ──────────────────────────────────────────────
 
 def load_keywords():
-    """Charge le dictionnaire de mots-clés depuis keywords.json."""
     with open(KEYWORDS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 # ──────────────────────────────────────────────
-# Parsing RSS
+# Parsing RSS / HTML
 # ──────────────────────────────────────────────
 
 def clean_xml(raw_text):
-    """
-    Nettoie le XML brut du flux RSS pour corriger les problèmes courants :
-    - & non échappés (& tout seul, pas suivi d'un nom d'entité valide)
-    - Caractères de contrôle interdits en XML
-    - Entités HTML non standard
-    """
-    import re
-
-    # Supprimer les caractères de contrôle (sauf tab, newline, carriage return)
     text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw_text)
-
-    # Corriger les & non échappés :
-    # Un & valide est suivi de #x...; ou #...; ou nom; (entité XML)
-    # Tout & qui n'est pas suivi de ce pattern doit devenir &amp;
     text = re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)', '&amp;', text)
-
     return text
 
 
 def parse_html_fallback(html_bytes):
-    """
-    Parse la page HTML de la rubrique TourMaG quand le serveur
-    refuse de servir le flux RSS (blocage anti-bot datacenter).
-    Extrait les articles depuis les div.result.
-    """
-    from bs4 import BeautifulSoup
-    import re
-
+    """Parse la page HTML TourMaG quand le serveur refuse le RSS."""
     soup = BeautifulSoup(html_bytes, "html.parser")
     results = soup.find_all("div", class_="result")
 
@@ -117,7 +148,6 @@ def parse_html_fallback(html_bytes):
 
     articles = []
     for div in results:
-        # Titre + lien
         h3 = div.find("h3", class_="titre")
         if not h3:
             continue
@@ -130,7 +160,6 @@ def parse_html_fallback(html_bytes):
         if link.startswith("/"):
             link = "https://www.tourmag.com" + link
 
-        # Auteur + date (dans div.rubrique : "Auteur | 19/03/2026 | Rubrique")
         author = ""
         pub_date = None
         rubrique = div.find("div", class_="rubrique")
@@ -138,10 +167,7 @@ def parse_html_fallback(html_bytes):
             author_tag = rubrique.find("a", rel="author")
             if author_tag:
                 author = author_tag.get_text(strip=True)
-
-            # Extraire la date format DD/MM/YYYY
-            rub_text = rubrique.get_text()
-            date_match = re.search(r"(\d{2}/\d{2}/\d{4})", rub_text)
+            date_match = re.search(r"(\d{2}/\d{2}/\d{4})", rubrique.get_text())
             if date_match:
                 try:
                     pub_date = datetime.strptime(date_match.group(1), "%d/%m/%Y")
@@ -149,7 +175,6 @@ def parse_html_fallback(html_bytes):
                 except ValueError:
                     pass
 
-        # Description (dans div.texte a)
         description = ""
         texte_div = div.find("div", class_="texte")
         if texte_div:
@@ -157,7 +182,6 @@ def parse_html_fallback(html_bytes):
             if desc_a:
                 description = desc_a.get_text(strip=True)
 
-        # Image
         image_url = ""
         img = div.find("img")
         if img:
@@ -177,22 +201,7 @@ def parse_html_fallback(html_bytes):
 
 
 def parse_rss():
-    """
-    Parse le flux RSS et retourne la liste des articles.
-    Si le serveur renvoie du HTML (blocage anti-bot datacenter),
-    bascule automatiquement en scraping de la page HTML.
-    """
-    import requests
-
-    BROWSER_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "application/rss+xml, application/xml, text/xml, */*",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Cache-Control": "no-cache",
-    }
-
+    """Parse le flux RSS, avec fallback HTML si le serveur bloque."""
     try:
         response = requests.get(RSS_URL, timeout=30, headers=BROWSER_HEADERS)
         response.raise_for_status()
@@ -201,39 +210,31 @@ def parse_rss():
 
         print(f"RSS : {len(raw_bytes)} octets reçus (Content-Type: {content_type})")
 
-        # Détecter le type de contenu reçu
-        starts_with_xml = raw_bytes.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed")
         is_html = b"<!DOCTYPE" in raw_bytes[:500] or b"<html" in raw_bytes[:500].lower()
 
         if is_html:
-            print("RSS : le serveur a renvoyé du HTML — bascule en scraping HTML")
+            print("RSS : le serveur a renvoyé du HTML — bascule en scraping")
             return parse_html_fallback(raw_bytes)
 
+        starts_with_xml = raw_bytes.lstrip()[:5] in (b"<?xml", b"<rss ", b"<feed")
         if not starts_with_xml:
-            print(f"RSS : contenu inattendu (pas XML, pas HTML)")
-            preview = raw_bytes[:200].decode("utf-8", errors="replace")
-            print(f"RSS : début : {preview}...")
+            print(f"RSS : contenu inattendu")
             return []
 
-        # Parser avec feedparser en bytes
         feed = feedparser.parse(raw_bytes)
 
         if feed.entries:
             print(f"RSS : {len(feed.entries)} articles trouvés (XML)")
         elif feed.bozo:
-            print(f"RSS : parsing XML échoué ({feed.bozo_exception})")
-            print("RSS : tentative nettoyage XML...")
-            raw_text = raw_bytes.decode("utf-8", errors="replace")
-            cleaned = clean_xml(raw_text)
+            print(f"RSS : parsing XML échoué ({feed.bozo_exception}), tentative nettoyage...")
+            cleaned = clean_xml(raw_bytes.decode("utf-8", errors="replace"))
             feed = feedparser.parse(cleaned)
-
             if feed.entries:
                 print(f"RSS : {len(feed.entries)} articles après nettoyage")
             else:
                 print("RSS : XML irrécupérable")
                 return []
         else:
-            print("RSS : parsé mais aucun article trouvé")
             return []
 
     except requests.exceptions.RequestException as e:
@@ -248,7 +249,6 @@ def parse_rss():
         elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
             pub_date = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
 
-        # Extraire l'image si présente (enclosure ou media)
         image_url = ""
         if hasattr(entry, "enclosures") and entry.enclosures:
             for enc in entry.enclosures:
@@ -274,7 +274,7 @@ def parse_rss():
             "author": entry.get("author", ""),
         })
 
-    print(f"RSS : {len(articles)} articles trouvés")
+    print(f"RSS : {len(articles)} articles parsés")
     return articles
 
 
@@ -283,14 +283,8 @@ def parse_rss():
 # ──────────────────────────────────────────────
 
 def categorize_article(article, keywords_data):
-    """
-    Catégorise un article en scannant titre + description.
-    Retourne la catégorie avec le plus de matchs, ou 'general' si aucun.
-    Retourne aussi la liste des pays détectés.
-    """
     text = (article["title"] + " " + article["description"]).lower()
 
-    # Scoring par thématique
     scores = {}
     thematic_keys = [k for k in keywords_data.keys() if k != "countries_detect"]
 
@@ -303,13 +297,8 @@ def categorize_article(article, keywords_data):
         if score > 0:
             scores[cat_key] = score
 
-    # Catégorie = celle avec le meilleur score, ou 'general'
-    if scores:
-        category = max(scores, key=scores.get)
-    else:
-        category = "general"
+    category = max(scores, key=scores.get) if scores else "general"
 
-    # Détection des pays
     countries = []
     countries_data = keywords_data.get("countries_detect", {})
     for country_key, country_keywords in countries_data.items():
@@ -328,20 +317,12 @@ def categorize_article(article, keywords_data):
 # ──────────────────────────────────────────────
 
 def fetch_finance_data():
-    """
-    Récupère les cours actuels et l'historique depuis la date de début du conflit.
-    Retourne un dict par symbole avec : current_price, change_pct, history[].
-    """
     results = {}
-
-    symbols_list = [v["symbol"] for v in FINANCE_SYMBOLS.values()]
 
     for key, config in FINANCE_SYMBOLS.items():
         sym = config["symbol"]
         try:
             ticker = yf.Ticker(sym)
-
-            # Historique depuis début du conflit
             hist = ticker.history(start=CONFLICT_START_DATE)
 
             if hist.empty:
@@ -352,7 +333,6 @@ def fetch_finance_data():
             start_price = float(hist["Close"].iloc[0])
             change_pct = round(((current_price - start_price) / start_price) * 100, 2)
 
-            # Historique journalier (date + close) pour sparklines
             history = []
             for date, row in hist.iterrows():
                 history.append({
@@ -381,19 +361,124 @@ def fetch_finance_data():
 
 
 # ──────────────────────────────────────────────
+# Scraping France Diplomatie (MAE)
+# ──────────────────────────────────────────────
+
+def scrape_mae_alerts():
+    """
+    Scrape les conseils aux voyageurs depuis diplomatie.gouv.fr.
+    Extrait le niveau d'alerte et le résumé pour chaque pays.
+    """
+    results = {}
+
+    # Niveaux d'alerte du plus grave au moins grave
+    ALERT_LEVELS = [
+        ("formellement déconseillé", "formellement_deconseille", "red"),
+        ("déconseillé sauf raison impérative", "deconseille_sauf_ri", "orange"),
+        ("déconseillé sauf raison", "deconseille_sauf_ri", "orange"),
+        ("vigilance renforcée", "vigilance_renforcee", "yellow"),
+        ("vigilance normale", "vigilance_normale", "green"),
+    ]
+
+    for country_key, slug in MAE_COUNTRY_SLUGS.items():
+        url = f"{MAE_BASE_URL}{slug}/"
+        try:
+            response = requests.get(url, timeout=15, headers=BROWSER_HEADERS)
+
+            if response.status_code != 200:
+                print(f"  MAE {country_key} : HTTP {response.status_code}")
+                results[country_key] = {
+                    "country": country_key,
+                    "label": MAE_COUNTRY_LABELS.get(country_key, country_key),
+                    "level": "indisponible",
+                    "level_code": "unknown",
+                    "color": "gray",
+                    "summary": "Information indisponible",
+                    "url": url,
+                    "last_update_mae": "",
+                    "last_scraped": datetime.now(timezone.utc).isoformat(),
+                }
+                continue
+
+            soup = BeautifulSoup(response.content, "html.parser")
+            text = soup.get_text()
+
+            # Extraire le niveau d'alerte
+            level_label = "Non déterminé"
+            level_code = "unknown"
+            level_color = "gray"
+
+            for level_text, code, color in ALERT_LEVELS:
+                if level_text in text.lower():
+                    level_label = level_text.capitalize()
+                    level_code = code
+                    level_color = color
+                    break
+
+            # Extraire la meta description (résumé)
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            summary = ""
+            if meta_desc:
+                summary = meta_desc.get("content", "").strip()
+
+            # Si la meta desc est générique, chercher le premier paragraphe pertinent
+            if not summary or "ministère" in summary.lower():
+                for p in soup.find_all("p"):
+                    t = p.get_text(strip=True)
+                    if any(k in t.lower() for k in ["déconseillé", "vigilance", "quitter", "se rendre", "invités à"]):
+                        if 20 < len(t) < 500:
+                            summary = t
+                            break
+
+            # Extraire la date de dernière mise à jour
+            last_update = ""
+            update_match = re.search(
+                r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})',
+                text.replace('\n', ' ')
+            )
+            if update_match:
+                last_update = update_match.group(1).strip()
+
+            results[country_key] = {
+                "country": country_key,
+                "label": MAE_COUNTRY_LABELS.get(country_key, country_key),
+                "level": level_label,
+                "level_code": level_code,
+                "color": level_color,
+                "summary": summary[:500] if summary else "",
+                "url": url,
+                "last_update_mae": last_update,
+                "last_scraped": datetime.now(timezone.utc).isoformat(),
+            }
+
+            print(f"  MAE {country_key} : {level_label} (MàJ: {last_update or 'n/a'})")
+
+        except Exception as e:
+            print(f"  MAE ERREUR {country_key} : {e}")
+            results[country_key] = {
+                "country": country_key,
+                "label": MAE_COUNTRY_LABELS.get(country_key, country_key),
+                "level": "Erreur de récupération",
+                "level_code": "error",
+                "color": "gray",
+                "summary": str(e)[:200],
+                "url": url,
+                "last_update_mae": "",
+                "last_scraped": datetime.now(timezone.utc).isoformat(),
+            }
+
+    return results
+
+
+# ──────────────────────────────────────────────
 # Écriture Firestore
 # ──────────────────────────────────────────────
 
 def generate_article_id(link):
-    """Génère un ID unique et stable à partir du lien de l'article."""
     return hashlib.md5(link.encode("utf-8")).hexdigest()[:16]
 
 
 def sync_articles(db, articles, keywords_data):
-    """
-    Synchronise les articles dans Firestore.
-    Ne met à jour que les nouveaux articles (détection par ID/lien).
-    """
     articles_ref = db.collection("articles")
     new_count = 0
 
@@ -404,14 +489,11 @@ def sync_articles(db, articles, keywords_data):
         doc_id = generate_article_id(article["link"])
         doc_ref = articles_ref.document(doc_id)
 
-        # Vérifier si l'article existe déjà
         if doc_ref.get().exists:
             continue
 
-        # Catégoriser
         category, countries = categorize_article(article, keywords_data)
 
-        # Préparer le document
         doc_data = {
             "title": article["title"],
             "link": article["link"],
@@ -433,17 +515,21 @@ def sync_articles(db, articles, keywords_data):
 
 
 def sync_finance(db, finance_data):
-    """Écrit les données financières dans Firestore."""
     market_ref = db.collection("market_data")
-
     for key, data in finance_data.items():
         market_ref.document(key).set(data)
-
     print(f"Finance : {len(finance_data)} symboles mis à jour")
 
 
+def sync_mae_alerts(db, mae_data):
+    """Écrit les alertes MAE dans Firestore."""
+    mae_ref = db.collection("mae_alerts")
+    for key, data in mae_data.items():
+        mae_ref.document(key).set(data)
+    print(f"MAE : {len(mae_data)} pays mis à jour")
+
+
 def update_config(db, new_articles_count):
-    """Met à jour le document de config avec le timestamp de dernière sync."""
     db.collection("config").document("radar").set({
         "last_sync": datetime.now(timezone.utc).isoformat(),
         "conflict_start_date": CONFLICT_START_DATE,
@@ -461,15 +547,14 @@ def main():
     print(f"Radar Crise — Sync {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 50)
 
-    # Init
     db = init_firebase()
     keywords_data = load_keywords()
 
-    # 1. Parse RSS
+    # 1. Parse RSS / HTML
     print("\n--- RSS ---")
     articles = parse_rss()
 
-    # 2. Sync articles dans Firestore
+    # 2. Sync articles
     if articles:
         print("\n--- Articles → Firestore ---")
         new_count = sync_articles(db, articles, keywords_data)
@@ -480,12 +565,18 @@ def main():
     # 3. Données financières
     print("\n--- Finance ---")
     finance_data = fetch_finance_data()
-
     if finance_data:
         print("\n--- Finance → Firestore ---")
         sync_finance(db, finance_data)
 
-    # 4. Update config
+    # 4. Alertes MAE
+    print("\n--- France Diplomatie (MAE) ---")
+    mae_data = scrape_mae_alerts()
+    if mae_data:
+        print("\n--- MAE → Firestore ---")
+        sync_mae_alerts(db, mae_data)
+
+    # 5. Update config
     update_config(db, new_count)
 
     print("\n" + "=" * 50)
