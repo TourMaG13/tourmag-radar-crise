@@ -6,47 +6,56 @@
       "consulat", "conseils aux voyageurs", "diplomatie", "diplomatique",
       "cellule de crise", "ressortissants", "gouvernement",
       "france diplomatie", "alerte voyage", "sécurité des français",
-      "communiqué officiel", "déclaration officielle",
-      "onu", "nations unies", "résolution", "sanctions", "embargo",
-      "union européenne", "commission européenne", "OTAN",
       "formellement déconseillé", "déconseillé sauf", "vigilance renforcée",
       "rapatriement", "rapatrier", "rapatriés", "évacuation", "évacuer",
       "vol spécial", "vol de rapatriement", "plan d'évacuation",
       "touristes bloqués", "voyageurs bloqués", "français bloqués",
       "retour en france", "pont aérien", "convoi",
-      "premier ministre", "président", "macron", "sénat", "assemblée"
+      "premier ministre", "macron", "onu", "nations unies", "sanctions"
     ]
   },
   "aerien": {
     "label": "Aérien",
     "keywords": [
-      "vol", "vols", "compagnie aérienne", "compagnies aériennes",
+      "compagnie aérienne", "compagnies aériennes",
       "air france", "transavia", "easyjet", "ryanair", "lufthansa",
       "turkish airlines", "emirates", "qatar airways", "royal jordanian",
-      "el al", "middle east airlines", "MEA", "saudia", "gulf air",
+      "el al", "middle east airlines", "saudia", "gulf air",
       "etihad", "flynas", "pegasus", "air mauritius", "thai airways",
       "aéroport", "aérien", "survol", "espace aérien",
-      "suspension", "suspendre", "suspendu", "annulation de vol",
-      "déroutement", "détournement", "notam", "trafic aérien",
+      "suspension de vol", "suspendre", "suspendu", "annulation de vol",
+      "déroutement", "notam", "trafic aérien",
       "liaison aérienne", "desserte", "hub", "escale",
-      "ben gourion", "rafic hariri", "CDG", "orly",
       "reprise des vols", "programme de vols",
       "surcharge carburant", "surcharge", "kérosène",
       "compagnies du golfe", "hubs du golfe",
-      "vol supplémentaire", "boeing", "airbus"
+      "vol supplémentaire", "équipages", "répercussions"
+    ]
+  },
+  "croisiere": {
+    "label": "Croisière",
+    "keywords": [
+      "croisière", "croisiériste", "paquebot", "navire",
+      "msc", "costa", "carnival", "royal caribbean", "celebrity cruises",
+      "norwegian cruise", "ponant", "cunard", "princess cruises",
+      "escale", "port", "itinéraire maritime", "déroutement maritime",
+      "canal de suez", "mer rouge", "détroit d'ormuz", "golfe persique",
+      "golfe d'aden", "cap de bonne-espérance", "méditerranée orientale",
+      "haifa", "limassol", "pirée", "bodrum", "kusadasi",
+      "embarquement", "débarquement"
     ]
   },
   "juridique": {
     "label": "Juridique / Formalités",
     "keywords": [
-      "juridique", "droit", "loi", "réglementation", "règlement",
+      "juridique", "droit", "loi", "réglementation",
       "annulation", "remboursement", "avoir", "crédit voyage",
       "force majeure", "circonstances exceptionnelles",
       "assurance", "assurance voyage", "assurance annulation",
       "garantie", "indemnisation", "indemnité",
       "contrat", "conditions générales", "CGV",
       "médiation", "litige", "réclamation", "recours",
-      "code du tourisme", "directive européenne", "règlement CE",
+      "code du tourisme", "directive européenne",
       "responsabilité", "obligation d'information",
       "visa", "passeport", "formalités", "douane",
       "quels droits", "quelles sont les règles"
@@ -57,10 +66,9 @@
     "keywords": [
       "alternative", "plan B", "solution", "remplacement",
       "reprogrammer", "reprogrammation", "report", "reporter",
-      "substitution", "destination de remplacement",
-      "reconversion", "adaptation", "réactivité",
+      "destination de remplacement",
       "bonne pratique", "initiative", "innovation",
-      "solidarité", "entraide", "réseau",
+      "solidarité", "entraide",
       "rebooking", "réacheminement", "itinéraire bis",
       "offre adaptée", "nouveau programme", "catalogue modifié",
       "tour-opérateur", "tour opérateur", "voyagiste",
@@ -77,50 +85,54 @@
       "interview", "parole de", "portrait", "reportage",
       "agent de voyage", "responsable d'agence", "directeur d'agence",
       "réceptif local", "correspondant local", "guide local",
-      "au quotidien", "jour après jour", "carnet de route",
+      "au quotidien", "jour après jour",
       "activités touristiques", "se déroulent normalement",
       "schizophrénique", "vie des agents",
-      "visiteurs", "touristes sur place",
-      "salon mondial du tourisme"
+      "salon mondial du tourisme", "visiteurs", "voyageurs"
     ]
   },
   "contexte": {
     "label": "Contexte & analyses",
     "keywords": [
-      "expert", "analyse", "analyste", "géopolitique", "géopolitologue",
+      "expert", "analyse", "analyste", "géopolitique",
       "prospective", "scénario", "prévision", "projection",
-      "économiste", "chercheur", "universitaire", "professeur",
-      "tribune", "édito", "éditorial", "opinion", "décryptage",
-      "point de vue", "regard", "éclairage",
-      "ifri", "iris", "omt", "unwto", "onu tourisme",
-      "observatoire", "baromètre", "étude", "rapport",
+      "économiste", "chercheur",
+      "tribune", "décryptage", "éclairage",
+      "omt", "unwto", "observatoire", "baromètre", "étude",
       "tendance", "impact économique", "conséquences",
-      "perspectives", "horizon",
       "pétrole", "baril", "brent", "cours du pétrole",
       "dollar", "euro", "devise", "parité", "change",
-      "milliards", "PIB", "croissance",
+      "milliards", "PIB",
       "intentions de voyage", "réservations", "sojern",
-      "renonceraient", "renoncer"
+      "renonceraient", "renoncer", "modifier leurs projets"
+    ]
+  },
+  "edito": {
+    "label": "Édito",
+    "keywords": [
+      "édito", "éditorial", "billet", "chronique", "humeur",
+      "mon avis", "coup de gueule", "en mars les emm",
+      "ça repart", "point de vue de la rédaction"
     ]
   },
   "countries_detect": {
-    "_comment": "Mots-clés pour détecter les pays mentionnés",
+    "_comment": "Détection stricte par nom de pays/ville uniquement",
     "israel": ["israël", "israel", "tel aviv", "jérusalem", "ben gourion", "haifa", "eilat"],
-    "liban": ["liban", "libanais", "beyrouth", "hariri"],
-    "iran": ["iran", "iranien", "téhéran", "ispahan", "chiraz"],
-    "irak": ["irak", "irakien", "bagdad", "erbil", "bassorah", "kurdistan"],
+    "liban": ["liban", "libanais", "beyrouth"],
+    "iran": ["iran", "iranien", "téhéran"],
+    "irak": ["irak", "irakien", "bagdad", "erbil"],
     "syrie": ["syrie", "syrien", "damas"],
     "jordanie": ["jordanie", "jordanien", "amman", "petra", "aqaba"],
-    "egypte": ["égypte", "egypte", "égyptien", "le caire", "charm el-cheikh", "hurghada", "louxor", "suez"],
+    "egypte": ["égypte", "egypte", "égyptien", "le caire", "charm el-cheikh", "hurghada", "suez"],
     "turquie": ["turquie", "turc", "istanbul", "antalya", "bodrum", "ankara", "cappadoce"],
-    "arabie_saoudite": ["arabie saoudite", "saoudien", "riyad", "djeddah", "la mecque", "médine"],
-    "emirats": ["émirats", "emirats", "dubai", "abu dhabi", "abou dabi"],
+    "arabie_saoudite": ["arabie saoudite", "saoudien", "riyad", "djeddah"],
+    "emirats": ["émirats", "emirats", "dubai", "abu dhabi"],
     "qatar": ["qatar", "qatari", "doha"],
     "oman": ["oman", "omanais", "mascate"],
     "bahrein": ["bahreïn", "bahrein", "manama"],
     "koweit": ["koweït", "koweit"],
     "yemen": ["yémen", "yemen"],
-    "chypre": ["chypre", "chypriote", "larnaca", "paphos", "nicosie", "limassol"],
+    "chypre": ["chypre", "chypriote", "larnaca", "paphos", "limassol"],
     "grece": ["grèce", "grece", "grec", "athènes", "rhodes", "crète"]
   }
 }
