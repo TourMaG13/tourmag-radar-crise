@@ -259,17 +259,25 @@ Réponds UNIQUEMENT JSON : [{{"id":0,"citation":"La citation...","auteur_role":"
 # Groq — reformulation MAE pour le tourisme
 # ──────────────────────────────────────────────
 def reformulate_mae_groq(mae_data):
-    """Reformule les conseils MAE en langage tourisme."""
+    """Reformule les conseils MAE en fiches tourisme complètes."""
     items = []
     for k, v in mae_data.items():
-        items.append(f"- {v['label']}: niveau={v['level']}. Résumé MAE: {v.get('summary','')[:200]}")
+        content = v.get('full_content', v.get('summary', ''))[:400]
+        items.append(f"- {v['label']}: niveau={v['level']}. Contenu MAE: {content}")
 
-    prompt = f"""Tu es expert tourisme. Pour chaque pays, reformule le conseil aux voyageurs en 1-2 phrases claires et actionnables pour un agent de voyage. Indique si la destination est vendable ou non, et les précautions.
+    prompt = f"""Tu es un expert tourisme qui conseille des agents de voyage français. Pour chaque pays, rédige une fiche conseil pratique de 2-3 phrases basée sur les informations du MAE. 
+
+Chaque fiche doit contenir :
+1. Si la destination est vendable ou à suspendre
+2. Les zones précises à éviter ou les zones sûres (si applicable)
+3. Un conseil pratique (visa, précautions, alternatives)
+
+Sois concis mais informatif. Utilise un langage professionnel adapté aux agents de voyage.
 
 Pays :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT JSON : [{{"country":"liban","conseil_tourisme":"Le Liban est à suspendre..."}}]"""
+Réponds UNIQUEMENT JSON : [{{"country":"liban","conseil_tourisme":"Le Liban est à suspendre totalement..."}}]"""
 
     result = parse_json_response(groq_call([{"role":"user","content":prompt}], max_tokens=3000))
     if result and isinstance(result, list):
@@ -349,19 +357,35 @@ def scrape_mae():
             else:
                 level_label, level_code, level_color, is_partial = "Non déterminé", "unknown", "gray", False
 
-            parts = []
+            # Extraire un résumé enrichi : récupérer BEAUCOUP plus de contenu
+            # On prend tous les paragraphes pertinents (sécurité, recommandations, entrée, visa)
+            all_relevant = []
             for p in soup.find_all("p"):
                 t = p.get_text(strip=True)
-                if len(t) < 20: continue
-                if any(k in t.lower() for k in ["déconseillé","vigilance","quitter","se rendre","invités à","recommandé","risque","frappes","prudence"]):
-                    parts.append(t)
-                    if len(parts) >= 3: break
-            summary = " ".join(parts)[:800]
-            if not summary:
+                if len(t) < 15: continue
+                tl = t.lower()
+                if any(k in tl for k in [
+                    "déconseillé", "vigilance", "quitter", "se rendre", "invités à",
+                    "recommandé", "risque", "frappes", "prudence", "sécurité",
+                    "visa", "passeport", "entrée", "séjour", "douane",
+                    "ambassade", "consulat", "urgence", "numéro",
+                    "zone", "éviter", "déplacement", "transport",
+                    "attentat", "enlèvement", "manifestation",
+                    "assurance", "santé", "vaccin", "hôpital",
+                    "vol", "aéroport", "frontière", "terrestre"
+                ]):
+                    all_relevant.append(t)
+
+            # Limiter à ~1500 chars pour Groq
+            full_summary = " ".join(all_relevant)[:1500]
+
+            # Garder aussi le résumé court pour l'affichage sans Groq
+            short_summary = " ".join(all_relevant[:3])[:500]
+            if not short_summary:
                 meta = soup.find("meta", attrs={"name":"description"})
                 if meta:
                     s = meta.get("content","").strip()
-                    if s and "ministère" not in s.lower(): summary = s[:500]
+                    if s and "ministère" not in s.lower(): short_summary = s[:500]
 
             upd = ""
             um = re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})', text_raw.replace('\n',' '))
@@ -369,10 +393,11 @@ def scrape_mae():
 
             results[ck] = {"country":ck,"label":MAE_LABELS.get(ck,ck),"level":level_label,
                 "level_code":level_code,"color":level_color,"is_partial":is_partial,
-                "summary":summary,"url":url,"last_update_mae":upd,
+                "summary":short_summary,"full_content":full_summary,
+                "url":url,"last_update_mae":upd,
                 "conseil_tourisme":"",
                 "last_scraped":datetime.now(timezone.utc).isoformat()}
-            print(f"  MAE {ck} : {level_label}")
+            print(f"  MAE {ck} : {level_label} ({len(all_relevant)} paragraphes extraits)")
         except Exception as e:
             print(f"  MAE ERREUR {ck} : {e}")
             results[ck] = _mae_fb(ck, url, str(e)[:200])
@@ -381,7 +406,7 @@ def scrape_mae():
 def _mae_fb(ck, url, msg):
     return {"country":ck,"label":MAE_LABELS.get(ck,ck),"level":"Indisponible",
         "level_code":"unknown","color":"gray","is_partial":False,
-        "summary":msg,"url":url,"last_update_mae":"","conseil_tourisme":"",
+        "summary":msg,"full_content":"","url":url,"last_update_mae":"","conseil_tourisme":"",
         "last_scraped":datetime.now(timezone.utc).isoformat()}
 
 
