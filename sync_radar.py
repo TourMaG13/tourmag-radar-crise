@@ -100,18 +100,30 @@ def scrape_article_content(url):
         print(f"  Scrape article ERREUR : {e}"); return ""
 
 # ── Groq ──
-def gcall(msgs,mt=2000):
+def gcall(msgs,mt=2000,retries=2):
     if not GROQ_API_KEY: return None
-    try:
-        r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
-        r.raise_for_status(); return r.json()["choices"][0]["message"]["content"]
-    except Exception as e: print(f"  Groq ERREUR : {e}"); return None
+    for attempt in range(retries):
+        try:
+            r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
+            r.raise_for_status(); return r.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            print(f"  Groq ERREUR (tentative {attempt+1}/{retries}) : {e}")
+            if attempt<retries-1: time.sleep(3)
+    return None
 def pj(t):
-    if not t: return None
+    if not t: print("  pj: réponse Groq vide"); return None
     c=t.strip()
     if c.startswith("```"): c=re.sub(r'^```\w*\n?','',c).rstrip('`').strip()
     try: return json.loads(c)
-    except: return None
+    except Exception as e:
+        print(f"  pj: JSON invalide — {e}")
+        print(f"  pj: début réponse = {c[:200]}")
+        # Tenter d'extraire un array JSON même si entouré de texte
+        m=re.search(r'\[.*\]',c,re.DOTALL)
+        if m:
+            try: return json.loads(m.group())
+            except: pass
+        return None
 
 def classify_groq(articles):
     cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, contexte, edito"
