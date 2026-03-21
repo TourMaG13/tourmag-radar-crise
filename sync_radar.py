@@ -32,8 +32,19 @@ def clean_xml(t):
     return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t))
 def vimg(u):
     if not u or len(u)<20: return ""
-    if any(x in u for x in ["1.gif","pixel","blank","spacer"]): return ""
+    if any(x in u for x in ["1.gif","pixel","blank","spacer","logo"]): return ""
     return ("https://www.tourmag.com"+u) if u.startswith("/") else u
+
+def check_image_url(url):
+    """Vérifie qu'une URL d'image est réellement accessible (HEAD request)."""
+    if not url: return False
+    try:
+        r=requests.head(url,timeout=5,headers=HDR,allow_redirects=True)
+        ct=r.headers.get("Content-Type","")
+        cl=int(r.headers.get("Content-Length","0") or 0)
+        return r.status_code==200 and "image" in ct and cl>2000
+    except:
+        return False
 
 # ── RSS/HTML ──
 def parse_html_fb(hb):
@@ -91,11 +102,16 @@ def scrape_article_content(url):
         r=requests.get(url,timeout=15,headers=HDR)
         if r.status_code!=200: return ""
         soup=BeautifulSoup(r.content,"html.parser")
-        # TourMaG article body is typically in div.article or div.contenu
         body=soup.find("div",class_="contenu") or soup.find("article") or soup.find("div",class_="article")
         if not body: body=soup
-        paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>30]
-        return " ".join(paras)[:5000]
+        paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>20]
+        full_text=" ".join(paras)
+        # Pré-extraire les citations entre guillemets pour aider Groq
+        citations=re.findall(r'[«""\u201c](.{30,500}?)[»""\u201d]',full_text)
+        if citations:
+            cit_block="\n--- CITATIONS TROUVÉES ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in citations[:8])
+            return full_text[:4000]+cit_block
+        return full_text[:5000]
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
@@ -205,17 +221,18 @@ def timeline_groq(articles):
     prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique.
 
 RÈGLES IMPÉRATIVES :
-- Chaque événement doit être un FAIT PRÉCIS ET DATÉ, pas un résumé vague
-- Le champ "event" fait entre 8 et 15 mots, avec des NOMS PROPRES (compagnies, pays, personnes)
-- Exemples de BON format : "Air France suspend tous ses vols vers Beyrouth et Téhéran", "Le Quai d'Orsay déconseille formellement le Liban"
-- Exemples de MAUVAIS format : "Tensions au Moyen-Orient" (trop vague), "Situation aérienne perturbée" (aucun fait précis)
+- Chaque événement doit être rédigé comme une VRAIE PHRASE avec sujet, verbe, complément, commençant par une majuscule et se terminant par un point
+- Utilise des NOMS PROPRES (compagnies aériennes, pays, organisations, personnes)
+- La phrase fait entre 8 et 18 mots
+- Exemples de BON format : "Air France suspend tous ses vols vers Beyrouth et Téhéran.", "Le Quai d'Orsay déconseille formellement les voyages au Liban.", "Celestyal Cruises annule ses croisières en Méditerranée orientale."
+- Exemples de MAUVAIS format : "Tensions au Moyen-Orient" (pas une phrase), "Turquie : activités touristiques normales" (style télégraphique, pas une phrase)
 - Utilise les vraies dates des articles, pas des dates inventées
 - Privilégie les événements qui impactent directement le tourisme français
 
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend ses vols vers Beyrouth et Téhéran"}}]"""
+JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend tous ses vols vers Beyrouth et Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
     return None
@@ -405,6 +422,23 @@ def main():
     print("\n--- Finance ---")
     fd=fetch_fin()
     if fd: sync_fin(db,fd)
+
+    # Featured article (article à la une avec photo vérifiée)
+    if articles:
+        print("\n--- Article à la une ---")
+        featured=None
+        for a in articles[:15]:
+            img=a.get("image_url","")
+            if img and check_image_url(img):
+                featured={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":img,"author":a.get("author",""),"pub_date":a["pub_date"].isoformat() if a.get("pub_date") else ""}
+                print(f"  Featured : {a['title'][:60]}... (image OK)")
+                break
+            elif img:
+                print(f"  Skip : {a['title'][:40]}... (image inaccessible)")
+        if featured:
+            db.collection("config").document("radar").set({"featured_article":featured},merge=True)
+        else:
+            print("  Aucun article avec photo valide trouvé")
 
     # MAE
     print("\n--- France Diplomatie ---")
