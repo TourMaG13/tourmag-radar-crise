@@ -95,7 +95,7 @@ def scrape_article_content(url):
         body=soup.find("div",class_="contenu") or soup.find("article") or soup.find("div",class_="article")
         if not body: body=soup
         paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>30]
-        return " ".join(paras)[:3000]
+        return " ".join(paras)[:5000]
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
@@ -135,42 +135,72 @@ JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
     return None
 
 def synthesis_groq(articles):
-    items=[f"- {a['title']}: {a.get('description','')[:150]}" for a in articles[:10]]
-    prompt=f"""Journaliste tourisme. 5-6 bullet points sur la crise Moyen-Orient pour agents de voyage. Concis, actionnable.
-Articles :
+    items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
+    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 phrases de synthèse sur la crise au Moyen-Orient destinées aux agents de voyage français.
+
+RÈGLES IMPÉRATIVES :
+- Chaque phrase doit être une VRAIE SYNTHÈSE RÉDIGÉE (sujet + verbe + complément), PAS un titre d'article recopié
+- Chaque phrase fait 15-25 mots, est factuelle et actionnable
+- Couvre 6 angles différents : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
+- Utilise le présent de l'indicatif
+- Exemple de BON format : "Air France maintient la suspension de ses vols vers Beyrouth et Téhéran jusqu'à nouvel ordre."
+- Exemple de MAUVAIS format : "Air France : suspension des vols vers le Liban" (c'est un titre, pas une synthèse)
+
+Articles récents :
 {chr(10).join(items)}
-JSON array de strings uniquement."""
-    r=pj(gcall([{"role":"user","content":prompt}]))
-    if r and isinstance(r,list): print(f"  Synthèse : {len(r)} pts"); return r
+
+Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
+    if r and isinstance(r,list) and len(r)>=3:
+        # Vérifier que ce ne sont pas des titres recopiés
+        titles_lower={a['title'].lower().strip() for a in articles}
+        filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles_lower and len(p)>30]
+        if len(filtered)>=3:
+            print(f"  Synthèse : {len(filtered)} pts (filtrés)"); return filtered[:6]
+        print(f"  Synthèse : {len(r)} pts (non filtrés)"); return r[:6]
     return None
 
 def citations_groq(articles_with_content):
     """Extract REAL citations from full article content."""
     items=[]
     for i,(a,content) in enumerate(articles_with_content):
-        items.append(f'{i}. Titre: "{a["title"]}"\nContenu: {content[:800]}')
-    prompt=f"""Pour chaque article ci-dessous, extrais la VRAIE citation d'un professionnel du tourisme interviewé dans l'article. Donne le VRAI nom et la VRAIE fonction de la personne citée. Si tu ne trouves pas de citation directe, reformule le propos principal en gardant le vrai nom.
-La citation doit être complète (2-3 phrases).
+        items.append(f'{i}. Titre: "{a["title"]}"\nAuteur article (JOURNALISTE, ne PAS utiliser comme source de citation): {a.get("author","")}\nContenu complet: {content[:1500]}')
+    prompt=f"""Pour chaque article ci-dessous, extrais la VRAIE citation d'un professionnel du tourisme INTERVIEWÉ dans l'article.
+
+RÈGLES IMPÉRATIVES :
+- La citation doit être entre guillemets dans l'article original (discours direct)
+- Le nom doit être celui de la PERSONNE CITÉE (un professionnel du tourisme : agent de voyage, directeur d'agence, responsable TO, réceptif...), JAMAIS le nom du journaliste/auteur de l'article
+- La fonction doit inclure le poste ET le nom de l'entreprise (ex: "Directeur commercial, Voyages Leclerc Marseille")
+- La citation doit être COMPLÈTE, entre 2 et 4 phrases, sans troncature. Recopie-la intégralement.
+- Si l'article ne contient aucune citation directe d'un professionnel, renvoie citation vide ""
 
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"id":0,"citation":"La vraie citation...","nom":"Jean Dupont","fonction":"Directeur de l'agence XYZ, Lyon"}}]"""
-    r=pj(gcall([{"role":"user","content":prompt}],mt=2000))
+JSON uniquement : [{{"id":0,"citation":"La citation complète sans troncature...","nom":"Prénom Nom du professionnel cité","fonction":"Poste, Nom de l'entreprise"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["id"]:{"citation":c.get("citation",""),"nom":c.get("nom",""),"fonction":c.get("fonction","")} for c in r if "id" in c}
         print(f"  Citations : {len(m)}"); return m
     return None
 
 def timeline_groq(articles):
-    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}" for a in articles[:20]]
-    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique. Chaque événement : une date (YYYY-MM-DD) et un titre court (max 15 mots).
+    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']} — {a.get('description','')[:120]}" for a in articles[:25]]
+    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique.
+
+RÈGLES IMPÉRATIVES :
+- Chaque événement doit être un FAIT PRÉCIS ET DATÉ, pas un résumé vague
+- Le champ "event" fait entre 8 et 15 mots, avec des NOMS PROPRES (compagnies, pays, personnes)
+- Exemples de BON format : "Air France suspend tous ses vols vers Beyrouth et Téhéran", "Le Quai d'Orsay déconseille formellement le Liban"
+- Exemples de MAUVAIS format : "Tensions au Moyen-Orient" (trop vague), "Situation aérienne perturbée" (aucun fait précis)
+- Utilise les vraies dates des articles, pas des dates inventées
+- Privilégie les événements qui impactent directement le tourisme français
 
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"date":"2025-10-01","event":"Début des frappes iraniennes"}}]"""
-    r=pj(gcall([{"role":"user","content":prompt}]))
+JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend ses vols vers Beyrouth et Téhéran"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
     return None
 
@@ -313,7 +343,7 @@ def main():
     # Citations: scrape full content of top 3 temoignages
     cit=None
     if articles and GROQ_API_KEY and gc:
-        temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
+        temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:4]
         if temo_idx:
             print("\n--- Scraping articles témoignages ---")
             arts_with_content=[]
@@ -338,7 +368,10 @@ def main():
     if articles and GROQ_API_KEY:
         print("\n--- Synthèse ---")
         pts=synthesis_groq(articles)
-        sync_synth(db,pts if pts else [a["title"] for a in articles[:5]])
+        if pts:
+            sync_synth(db,pts)
+        else:
+            print("  Synthèse Groq indisponible, pas de mise à jour (on garde l'ancienne)")
 
     # Timeline
     if articles and GROQ_API_KEY:
