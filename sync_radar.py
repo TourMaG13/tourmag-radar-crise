@@ -1,348 +1,374 @@
 #!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v5.2"""
-
-import json, hashlib, os, re, sys, time
-from datetime import datetime, timezone
+"""Radar Crise Moyen-Orient — v6
+Adds: full article scraping for temoignages, timeline, airline status via Groq
+"""
+import json,hashlib,os,re,sys,time
+from datetime import datetime,timezone
 from pathlib import Path
-import feedparser, requests, yfinance as yf
+import feedparser,requests,yfinance as yf
 from bs4 import BeautifulSoup
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials,firestore
 
-RSS_URL = os.getenv("RSS_URL", "https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
-CONFLICT_START_DATE = os.getenv("CONFLICT_START_DATE", "2025-10-01")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
+CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
+GROQ_API_KEY=os.getenv("GROQ_API_KEY","")
+FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"}}
+MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
+MAE_LABELS={"israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak","syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie","arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar","oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen","chypre":"Chypre","grece":"Grèce"}
+MAE_BASE="https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
+ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
+MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants français à l'étranger","appel à la vigilance maximale"]
+HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
+KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 
-FINANCE_SYMBOLS = {
-    "brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},
-    "eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},
-    "AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},
-    "TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},
-    "AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},
-    "BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},
-    "CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},
-    "AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},
-    "AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},
-    "RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},
-}
-MAE_SLUGS = {"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
-MAE_LABELS = {"israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak","syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie","arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar","oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen","chypre":"Chypre","grece":"Grèce"}
-MAE_BASE = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
-ALERT_LEVELS = [("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
-MAE_GENERIC = ["urgence attentat","vigilance renforcée pour les ressortissants français à l'étranger","appel à la vigilance maximale"]
-BROWSER_HEADERS = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9","Accept-Encoding":"gzip, deflate, br"}
-KEYWORDS_PATH = Path(__file__).parent / "keywords.json"
-
-def init_firebase():
-    sa = os.getenv("FIREBASE_SERVICE_ACCOUNT")
-    if not sa: sys.exit("ERREUR: FIREBASE_SERVICE_ACCOUNT manquant")
-    firebase_admin.initialize_app(credentials.Certificate(json.loads(sa)))
-    return firestore.client()
-def load_keywords():
+def init_fb():
+    sa=os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    if not sa: sys.exit("ERREUR: FIREBASE_SERVICE_ACCOUNT")
+    firebase_admin.initialize_app(credentials.Certificate(json.loads(sa))); return firestore.client()
+def load_kw():
     with open(KEYWORDS_PATH,"r",encoding="utf-8") as f: return json.load(f)
 def clean_xml(t):
-    t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t)
-    return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',t)
-def valid_image(url):
-    if not url or len(url)<20: return ""
-    if any(x in url for x in ["1.gif","pixel","blank","spacer"]): return ""
-    if url.startswith("/"): return "https://www.tourmag.com"+url
-    return url
+    return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t))
+def vimg(u):
+    if not u or len(u)<20: return ""
+    if any(x in u for x in ["1.gif","pixel","blank","spacer"]): return ""
+    return ("https://www.tourmag.com"+u) if u.startswith("/") else u
 
 # ── RSS/HTML ──
-def parse_html_fallback(html_bytes):
-    soup=BeautifulSoup(html_bytes,"html.parser"); articles=[]
-    for div in soup.find_all("div",class_="result"):
-        h3=div.find("h3",class_="titre")
+def parse_html_fb(hb):
+    soup=BeautifulSoup(hb,"html.parser"); arts=[]
+    for d in soup.find_all("div",class_="result"):
+        h3=d.find("h3",class_="titre")
         if not h3: continue
         a=h3.find("a",href=True)
         if not a: continue
-        title,link=a.get_text(strip=True),a["href"]
-        if link.startswith("/"): link="https://www.tourmag.com"+link
-        author,pub_date="",None
-        rub=div.find("div",class_="rubrique")
+        t,l=a.get_text(strip=True),a["href"]
+        if l.startswith("/"): l="https://www.tourmag.com"+l
+        au,pd="",None
+        rub=d.find("div",class_="rubrique")
         if rub:
-            at=rub.find("a",rel="author")
-            if at: author=at.get_text(strip=True)
+            at2=rub.find("a",rel="author")
+            if at2: au=at2.get_text(strip=True)
             dm=re.search(r"(\d{2}/\d{2}/\d{4})",rub.get_text())
             if dm:
-                try: pub_date=datetime.strptime(dm.group(1),"%d/%m/%Y").replace(tzinfo=timezone.utc)
+                try: pd=datetime.strptime(dm.group(1),"%d/%m/%Y").replace(tzinfo=timezone.utc)
                 except: pass
         desc=""
-        td=div.find("div",class_="texte")
+        td=d.find("div",class_="texte")
         if td and td.find("a"): desc=td.find("a").get_text(strip=True)
-        img=valid_image(div.find("img").get("src","") if div.find("img") else "")
-        articles.append({"title":title,"link":link,"description":desc,"pub_date":pub_date,"image_url":img,"author":author})
-    print(f"HTML fallback : {len(articles)} articles"); return articles
+        img=vimg(d.find("img").get("src","") if d.find("img") else "")
+        arts.append({"title":t,"link":l,"description":desc,"pub_date":pd,"image_url":img,"author":au})
+    print(f"HTML fallback : {len(arts)} articles"); return arts
 
 def parse_rss():
     try:
-        r=requests.get(RSS_URL,timeout=30,headers=BROWSER_HEADERS); r.raise_for_status(); raw=r.content
-        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower(): return parse_html_fallback(raw)
+        r=requests.get(RSS_URL,timeout=30,headers=HDR); r.raise_for_status(); raw=r.content
+        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower(): return parse_html_fb(raw)
         if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"): return []
         feed=feedparser.parse(raw)
         if not feed.entries and feed.bozo: feed=feedparser.parse(clean_xml(raw.decode("utf-8",errors="replace")))
         if not feed.entries: return []
-        articles=[]
+        arts=[]
         for e in feed.entries:
             pd=None
             if hasattr(e,"published_parsed") and e.published_parsed: pd=datetime(*e.published_parsed[:6],tzinfo=timezone.utc)
             elif hasattr(e,"updated_parsed") and e.updated_parsed: pd=datetime(*e.updated_parsed[:6],tzinfo=timezone.utc)
             img=""
-            for attr in ["enclosures","media_content","media_thumbnail"]:
-                if hasattr(e,attr):
-                    for it in (getattr(e,attr) if isinstance(getattr(e,attr),list) else [getattr(e,attr)]):
+            for at in ["enclosures","media_content","media_thumbnail"]:
+                if hasattr(e,at):
+                    for it in (getattr(e,at) if isinstance(getattr(e,at),list) else [getattr(e,at)]):
                         u=it.get("href",it.get("url",""))
-                        if u: img=valid_image(u); break
+                        if u: img=vimg(u); break
                 if img: break
-            articles.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
-        return articles
+            arts.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
+        return arts
     except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
 
+# ── Scrape full article content ──
+def scrape_article_content(url):
+    try:
+        r=requests.get(url,timeout=15,headers=HDR)
+        if r.status_code!=200: return ""
+        soup=BeautifulSoup(r.content,"html.parser")
+        # TourMaG article body is typically in div.article or div.contenu
+        body=soup.find("div",class_="contenu") or soup.find("article") or soup.find("div",class_="article")
+        if not body: body=soup
+        paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>30]
+        return " ".join(paras)[:3000]
+    except Exception as e:
+        print(f"  Scrape article ERREUR : {e}"); return ""
+
 # ── Groq ──
-def groq_call(msgs,max_tokens=2000):
+def gcall(msgs,mt=2000):
     if not GROQ_API_KEY: return None
     try:
-        r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":max_tokens,"temperature":0.3},timeout=60)
+        r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
         r.raise_for_status(); return r.json()["choices"][0]["message"]["content"]
     except Exception as e: print(f"  Groq ERREUR : {e}"); return None
-def pjson(text):
-    if not text: return None
-    c=text.strip()
+def pj(t):
+    if not t: return None
+    c=t.strip()
     if c.startswith("```"): c=re.sub(r'^```\w*\n?','',c).rstrip('`').strip()
     try: return json.loads(c)
     except: return None
 
-def classify_articles_groq(articles):
+def classify_groq(articles):
     cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, contexte, edito"
     items=[f"{i}. {a['title']} — {a.get('description','')[:100]}" for i,a in enumerate(articles)]
-    prompt=f"""Classifie chaque article dans UNE catégorie parmi : {cats}, general.
-
-- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs, cellule de crise
-- aerien : compagnies, vols, suspensions, reprises, surcharges carburant, aéroports, hubs, équipages
-- croisiere : paquebots, ports, mer Rouge, canal de Suez, itinéraires maritimes
-- juridique : droits clients, annulations, remboursements, assurance, force majeure, formalités
-- solutions : initiatives TO, reprogrammations, destinations alternatives, recommandations EDV/SETO
-- temoignages : récits agents de voyage, réceptifs sur place, salons pros, vie quotidienne des pros, expériences terrain
-- contexte : analyses géopolitiques, données économiques, études marché, pétrole, devises, intentions voyage
-- edito : éditorial, billet d'humeur, chronique, opinion personnelle, inventaire des peurs/craintes, "même pas peur", "les galères"
-- general : si aucune ne correspond
-
+    prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
+- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
+- aerien : compagnies, vols, suspensions, reprises, surcharges, aéroports, équipages
+- croisiere : paquebots, ports, mer Rouge, canal de Suez
+- juridique : droits clients, annulations, remboursements, assurance, force majeure
+- solutions : initiatives TO, reprogrammations, destinations alternatives, EDV/SETO
+- temoignages : récits agents de voyage, réceptifs, salons pros, vie quotidienne pros
+- contexte : analyses géopolitiques, données économiques, études, intentions voyage
+- edito : éditorial, billet d'humeur, chronique, opinion, inventaire peurs/craintes, "même pas peur"
+- general : si aucune
 Articles :
 {chr(10).join(items)}
-
-Réponds UNIQUEMENT JSON : [{{"id":0,"cat":"aerien"}}]"""
-    r=pjson(groq_call([{"role":"user","content":prompt}]))
+JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}]))
     if r and isinstance(r,list):
-        m={c["id"]:c["cat"] for c in r if "id" in c and "cat" in c}
-        print(f"  Groq classification : {len(m)} articles"); return m
+        m={c["id"]:c["cat"] for c in r if "id" in c}; print(f"  Groq classif : {len(m)}"); return m
     return None
 
-def generate_synthesis_groq(articles):
+def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:150]}" for a in articles[:10]]
-    prompt=f"""Tu es journaliste tourisme. Rédige 5-6 bullet points synthétiques sur la crise au Moyen-Orient pour des agents de voyage français. Chaque point : 1-2 phrases, info actionnable, aspect différent.
-Articles récents :
-{chr(10).join(items)}
-Réponds UNIQUEMENT JSON array de strings : ["Point 1...","Point 2..."]"""
-    r=pjson(groq_call([{"role":"user","content":prompt}]))
-    if r and isinstance(r,list): print(f"  Groq synthèse : {len(r)} points"); return r
-    return None
-
-def extract_citations_groq(articles):
-    items=[f'{i}. "{a["title"]}" — {a.get("description","")[:200]}' for i,a in enumerate(articles)]
-    if not items: return None
-    prompt=f"""Pour chaque article, génère une citation percutante et réaliste qu'un professionnel du tourisme aurait pu dire. La citation doit être COMPLÈTE (2-3 phrases), pas tronquée. Ton de témoignage direct.
+    prompt=f"""Journaliste tourisme. 5-6 bullet points sur la crise Moyen-Orient pour agents de voyage. Concis, actionnable.
 Articles :
 {chr(10).join(items)}
-Réponds UNIQUEMENT JSON : [{{"id":0,"citation":"La citation complète ici...","auteur_role":"Directrice d'agence, Paris"}}]"""
-    r=pjson(groq_call([{"role":"user","content":prompt}]))
-    if r and isinstance(r,list):
-        m={c["id"]:{"citation":c.get("citation",""),"auteur_role":c.get("auteur_role","")} for c in r if "id" in c}
-        print(f"  Groq citations : {len(m)}"); return m
+JSON array de strings uniquement."""
+    r=pj(gcall([{"role":"user","content":prompt}]))
+    if r and isinstance(r,list): print(f"  Synthèse : {len(r)} pts"); return r
     return None
 
-def reformulate_mae_groq(mae_data):
+def citations_groq(articles_with_content):
+    """Extract REAL citations from full article content."""
     items=[]
-    for k,v in mae_data.items():
-        content=v.get('full_content',v.get('summary',''))[:400]
-        items.append(f"- country_key={k} | {v['label']}: niveau={v['level']}. Contenu: {content}")
-    prompt=f"""Expert tourisme. Pour chaque pays, rédige une fiche conseil de 2-3 phrases pour un agent de voyage.
-Chaque fiche : 1) destination vendable ou à suspendre 2) zones sûres/à éviter si applicable 3) conseil pratique
-IMPORTANT: utilise EXACTEMENT la valeur "country_key" comme clé "country" dans ta réponse.
+    for i,(a,content) in enumerate(articles_with_content):
+        items.append(f'{i}. Titre: "{a["title"]}"\nContenu: {content[:800]}')
+    prompt=f"""Pour chaque article ci-dessous, extrais la VRAIE citation d'un professionnel du tourisme interviewé dans l'article. Donne le VRAI nom et la VRAIE fonction de la personne citée. Si tu ne trouves pas de citation directe, reformule le propos principal en gardant le vrai nom.
+La citation doit être complète (2-3 phrases).
+
+Articles :
+{chr(10).join(items)}
+
+JSON uniquement : [{{"id":0,"citation":"La vraie citation...","nom":"Jean Dupont","fonction":"Directeur de l'agence XYZ, Lyon"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=2000))
+    if r and isinstance(r,list):
+        m={c["id"]:{"citation":c.get("citation",""),"nom":c.get("nom",""),"fonction":c.get("fonction","")} for c in r if "id" in c}
+        print(f"  Citations : {len(m)}"); return m
+    return None
+
+def timeline_groq(articles):
+    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}" for a in articles[:20]]
+    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique. Chaque événement : une date (YYYY-MM-DD) et un titre court (max 15 mots).
+
+Articles :
+{chr(10).join(items)}
+
+JSON uniquement : [{{"date":"2025-10-01","event":"Début des frappes iraniennes"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}]))
+    if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
+    return None
+
+def airlines_groq(articles):
+    aero=[a for a in articles if a.get("_cat")=="aerien"]
+    if not aero: return None
+    items=[f"- {a['title']}: {a.get('description','')[:120]}" for a in aero[:10]]
+    prompt=f"""À partir de ces articles sur le trafic aérien au Moyen-Orient, extrais le statut des compagnies aériennes mentionnées. Pour chaque compagnie : nom, statut (suspendu/perturbé/opérationnel), détail court.
+
+Articles :
+{chr(10).join(items)}
+
+JSON uniquement : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus vers le Liban et l'Iran"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}]))
+    if r and isinstance(r,list): print(f"  Airlines : {len(r)} compagnies"); return r
+    return None
+
+def mae_groq(mae_data):
+    items=[f"- country_key={k} | {v['label']}: niveau={v['level']}. Contenu: {v.get('full_content',v.get('summary',''))[:400]}" for k,v in mae_data.items()]
+    prompt=f"""Expert tourisme. Pour chaque pays, fiche conseil 2-3 phrases pour agent de voyage : vendable ou à suspendre, zones sûres/à éviter, conseil pratique.
+IMPORTANT: utilise EXACTEMENT la country_key comme "country".
 Pays :
 {chr(10).join(items)}
-Réponds UNIQUEMENT JSON : [{{"country":"liban","conseil_tourisme":"..."}}]"""
-    r=pjson(groq_call([{"role":"user","content":prompt}],max_tokens=3000))
+JSON : [{{"country":"liban","conseil_tourisme":"..."}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["country"]:c.get("conseil_tourisme","") for c in r if "country" in c}
-        print(f"  Groq MAE : {len(m)} pays, matched={len(set(m.keys())&set(mae_data.keys()))}"); return m
+        print(f"  MAE Groq : {len(m)} matched={len(set(m)&set(mae_data))}"); return m
     return None
 
 # ── Classification/détection ──
-def detect_countries(article,kw):
-    text=(article["title"]+" "+article.get("description","")).lower()
-    countries=[]
-    for ck,ckws in kw.get("countries_detect",{}).items():
-        if ck.startswith("_"): continue
-        if any(k.lower() in text for k in ckws): countries.append(ck)
-    return countries
-def classify_keywords(article,kw):
-    text=(article["title"]+" "+article.get("description","")).lower()
-    scores={}
-    for cat in [k for k in kw if k!="countries_detect"]:
-        s=sum(1 for k2 in kw[cat]["keywords"] if k2.lower() in text)
-        if s>0: scores[cat]=s
+def det_countries(a,kw):
+    text=(a["title"]+" "+a.get("description","")).lower()
+    return [ck for ck,ckws in kw.get("countries_detect",{}).items() if not ck.startswith("_") and any(k.lower() in text for k in ckws)]
+def classif_kw(a,kw):
+    text=(a["title"]+" "+a.get("description","")).lower()
+    scores={cat:sum(1 for k2 in kw[cat]["keywords"] if k2.lower() in text) for cat in kw if cat!="countries_detect"}
+    scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
 # ── Finance ──
-def fetch_finance():
-    results={}
+def fetch_fin():
+    res={}
     for key,cfg in FINANCE_SYMBOLS.items():
         try:
             h=yf.Ticker(cfg["symbol"]).history(start=CONFLICT_START_DATE)
             if h.empty: continue
-            cur,start=float(h["Close"].iloc[-1]),float(h["Close"].iloc[0])
-            chg=round(((cur-start)/start)*100,2)
-            hist=[{"date":d.strftime("%Y-%m-%d"),"close":round(float(r["Close"]),2)} for d,r in h.iterrows()]
-            fx=cfg["sector"]=="forex"
-            results[key]={"symbol":cfg["symbol"],"label":cfg["label"],"currency":cfg["currency"],"sector":cfg["sector"],"current_price":round(cur,4 if fx else 2),"start_price":round(start,4 if fx else 2),"change_pct":chg,"history":hist,"last_update":datetime.now(timezone.utc).isoformat()}
-            print(f"  Finance : {cfg['label']} = {cur:.2f} ({chg:+.2f}%)")
-        except Exception as e: print(f"  Finance ERREUR {cfg['symbol']} : {e}")
-    return results
+            cur,st2=float(h["Close"].iloc[-1]),float(h["Close"].iloc[0])
+            chg=round(((cur-st2)/st2)*100,2); fx=cfg["sector"]=="forex"
+            res[key]={"symbol":cfg["symbol"],"label":cfg["label"],"currency":cfg["currency"],"sector":cfg["sector"],"current_price":round(cur,4 if fx else 2),"start_price":round(st2,4 if fx else 2),"change_pct":chg,"history":[{"date":d.strftime("%Y-%m-%d"),"close":round(float(r["Close"]),2)} for d,r in h.iterrows()],"last_update":datetime.now(timezone.utc).isoformat()}
+            print(f"  Finance : {cfg['label']} ({chg:+.2f}%)")
+        except Exception as e: print(f"  Finance ERR {cfg['symbol']}: {e}")
+    return res
 
-# ── MAE — FIXED: partial zones show least severe as main ──
+# ── MAE ──
 def scrape_mae():
-    results={}
+    res={}
     for ck,slug in MAE_SLUGS.items():
         url=f"{MAE_BASE}{slug}/"
         try:
-            r=requests.get(url,timeout=15,headers=BROWSER_HEADERS)
-            if r.status_code!=200: results[ck]=_mae_fb(ck,url,f"HTTP {r.status_code}"); continue
+            r=requests.get(url,timeout=15,headers=HDR)
+            if r.status_code!=200: res[ck]=_mfb(ck,url,f"HTTP {r.status_code}"); continue
             soup=BeautifulSoup(r.content,"html.parser")
-            all_paras=[p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True))>=15]
-            relevant=[]
-            for t in all_paras:
-                tl=t.lower()
-                if any(k in tl for k in ["déconseillé","vigilance","quitter","se rendre","invités à","recommandé","risque","frappes","prudence","sécurité","visa","passeport","entrée","séjour","ambassade","consulat","zone","éviter","déplacement","transport","frontière","assurance","santé","aéroport"]):
-                    if not any(g in tl for g in MAE_GENERIC): relevant.append(t)
-            relevant_text=" ".join(relevant).lower()
-            found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in relevant_text]
-
+            ap=[p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True))>=15]
+            rel=[t for t in ap if any(k in t.lower() for k in ["déconseillé","vigilance","quitter","se rendre","invités à","recommandé","risque","frappes","prudence","sécurité","visa","passeport","entrée","séjour","ambassade","zone","éviter","déplacement","frontière","aéroport"]) and not any(g in t.lower() for g in MAE_GENERIC)]
+            rt=" ".join(rel).lower()
+            found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in rt]
             if found:
-                is_partial=len(found)>1
-                if is_partial:
-                    # LEAST severe = main level (applies to most of territory)
-                    # MOST severe = restricted zones
-                    least=found[-1]; worst=found[0]
-                    level_label=f"{least[0].capitalize()} (certaines zones : {worst[0]})"
-                    level_code,level_color=least[1],least[2]
-                else:
-                    main=found[0]; is_partial=False
-                    level_label,level_code,level_color=main[0].capitalize(),main[1],main[2]
-            else:
-                level_label,level_code,level_color,is_partial="Non déterminé","unknown","gray",False
-
-            full_content=" ".join(relevant)[:1500]
-            short_summary=" ".join(relevant[:3])[:500]
-            if not short_summary:
+                ip=len(found)>1
+                if ip: least,worst=found[-1],found[0]; ll=f"{least[0].capitalize()} (certaines zones : {worst[0]})"; lc,lcl=least[1],least[2]
+                else: ip=False; ll,lc,lcl=found[0][0].capitalize(),found[0][1],found[0][2]
+            else: ll,lc,lcl,ip="Non déterminé","unknown","gray",False
+            fc=" ".join(rel)[:1500]; ss=" ".join(rel[:3])[:500]
+            if not ss:
                 meta=soup.find("meta",attrs={"name":"description"})
                 if meta:
                     s=meta.get("content","").strip()
-                    if s and "ministère" not in s.lower(): short_summary=s[:500]
-            text_raw=soup.get_text()
-            upd=""
-            um=re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})',text_raw.replace('\n',' '))
+                    if s and "ministère" not in s.lower(): ss=s[:500]
+            upd=""; um=re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})',soup.get_text().replace('\n',' '))
             if um: upd=um.group(1).strip()
-            results[ck]={"country":ck,"label":MAE_LABELS.get(ck,ck),"level":level_label,"level_code":level_code,"color":level_color,"is_partial":is_partial,"summary":short_summary,"full_content":full_content,"url":url,"last_update_mae":upd,"conseil_tourisme":"","last_scraped":datetime.now(timezone.utc).isoformat()}
-            print(f"  MAE {ck} : {level_label}")
-        except Exception as e: print(f"  MAE ERREUR {ck} : {e}"); results[ck]=_mae_fb(ck,url,str(e)[:200])
-    return results
-def _mae_fb(ck,url,msg):
+            res[ck]={"country":ck,"label":MAE_LABELS.get(ck,ck),"level":ll,"level_code":lc,"color":lcl,"is_partial":ip,"summary":ss,"full_content":fc,"url":url,"last_update_mae":upd,"conseil_tourisme":"","last_scraped":datetime.now(timezone.utc).isoformat()}
+            print(f"  MAE {ck} : {ll}")
+        except Exception as e: print(f"  MAE ERR {ck}: {e}"); res[ck]=_mfb(ck,url,str(e)[:200])
+    return res
+def _mfb(ck,url,msg):
     return {"country":ck,"label":MAE_LABELS.get(ck,ck),"level":"Indisponible","level_code":"unknown","color":"gray","is_partial":False,"summary":msg,"full_content":"","url":url,"last_update_mae":"","conseil_tourisme":"","last_scraped":datetime.now(timezone.utc).isoformat()}
 
 # ── Firestore ──
-def gen_id(link): return hashlib.md5(link.encode("utf-8")).hexdigest()[:16]
-def sync_articles(db,articles,kw,groq_cats,cit_map):
+def gid(l): return hashlib.md5(l.encode()).hexdigest()[:16]
+def sync_arts(db,articles,kw,gc,cit):
     ref=db.collection("articles"); n=0
     for i,a in enumerate(articles):
         if not a["link"]: continue
-        did=gen_id(a["link"])
+        did=gid(a["link"])
         if ref.document(did).get().exists: continue
-        cat=groq_cats[i] if groq_cats and i in groq_cats else classify_keywords(a,kw)
-        countries=detect_countries(a,kw)
-        doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":countries,"created_at":firestore.SERVER_TIMESTAMP}
-        if cit_map and i in cit_map:
-            doc["citation"]=cit_map[i].get("citation","")
-            doc["citation_role"]=cit_map[i].get("auteur_role","")
-        ref.document(did).set(doc); n+=1
-        print(f"  + [{cat}] {a['title'][:60]}...")
+        cat=gc[i] if gc and i in gc else classif_kw(a,kw)
+        doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":det_countries(a,kw),"created_at":firestore.SERVER_TIMESTAMP}
+        if cit and i in cit:
+            doc["citation"]=cit[i].get("citation","")
+            doc["citation_nom"]=cit[i].get("nom","")
+            doc["citation_fonction"]=cit[i].get("fonction","")
+        ref.document(did).set(doc); n+=1; print(f"  + [{cat}] {a['title'][:60]}...")
     print(f"Articles : {n} nouveaux sur {len(articles)}"); return n
 
-def sync_finance(db,data):
-    for k,d in data.items(): db.collection("market_data").document(k).set(d)
-def sync_mae(db,data,existing_mae):
-    """Write MAE data, but PROTECT existing conseil_tourisme if new one is empty."""
-    for k,d in data.items():
-        if not d.get("conseil_tourisme") and existing_mae.get(k,{}).get("conseil_tourisme"):
-            d["conseil_tourisme"]=existing_mae[k]["conseil_tourisme"]
-            print(f"  MAE {k} : conseil_tourisme préservé (nouveau vide)")
-        db.collection("mae_alerts").document(k).set(d)
-def sync_synthesis(db,pts):
-    db.collection("config").document("synthesis").set({"points":pts,"generated_at":datetime.now(timezone.utc).isoformat()})
-def update_config(db,n):
-    db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
+def sync_fin(db,d):
+    for k,v in d.items(): db.collection("market_data").document(k).set(v)
+def sync_mae(db,d,ex):
+    for k,v in d.items():
+        if not v.get("conseil_tourisme") and ex.get(k,{}).get("conseil_tourisme"):
+            v["conseil_tourisme"]=ex[k]["conseil_tourisme"]
+        db.collection("mae_alerts").document(k).set(v)
+def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_airlines(db,a): db.collection("config").document("airlines").set({"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()})
+def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
 
 # ── Main ──
 def main():
-    print("="*50+f"\nRadar Crise v5.2 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
-    db=init_firebase(); kw=load_keywords()
+    print("="*50+f"\nRadar v6 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
+    db=init_fb(); kw=load_kw()
 
-    # Load existing MAE for conseil protection
-    print("\n--- Loading existing MAE ---")
-    existing_mae={}
+    # Existing MAE for protection
+    ex_mae={}
     try:
-        for doc in db.collection("mae_alerts").stream():
-            existing_mae[doc.id]=doc.to_dict()
-        print(f"  {len(existing_mae)} pays existants chargés")
+        for doc in db.collection("mae_alerts").stream(): ex_mae[doc.id]=doc.to_dict()
     except: pass
 
     print("\n--- RSS ---")
     articles=parse_rss()
-    groq_cats=None
+
+    # Classification
+    gc=None
     if articles and GROQ_API_KEY:
-        print("\n--- Classification Groq ---"); groq_cats=classify_articles_groq(articles)
-    cit_map=None
-    if articles and GROQ_API_KEY and groq_cats:
-        temo=[(i,a) for i,a in enumerate(articles) if groq_cats.get(i)=="temoignages"]
-        if temo:
+        print("\n--- Classification Groq ---"); gc=classify_groq(articles)
+
+    # Tag articles with category for airline extraction
+    for i,a in enumerate(articles):
+        a["_cat"]=gc[i] if gc and i in gc else classif_kw(a,kw)
+
+    # Citations: scrape full content of top 3 temoignages
+    cit=None
+    if articles and GROQ_API_KEY and gc:
+        temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
+        if temo_idx:
+            print("\n--- Scraping articles témoignages ---")
+            arts_with_content=[]
+            for i,a in temo_idx:
+                print(f"  Scraping {a['link'][:60]}...")
+                content=scrape_article_content(a["link"])
+                arts_with_content.append((a,content))
+                time.sleep(0.5)
             print("\n--- Citations Groq ---")
-            raw=extract_citations_groq([a for _,a in temo])
-            if raw:
-                cit_map={}
-                for li,gi in enumerate([i for i,_ in temo]):
-                    if li in raw: cit_map[gi]=raw[li]
+            raw_cit=citations_groq(arts_with_content)
+            if raw_cit:
+                cit={}
+                for li,gi in enumerate([i for i,_ in temo_idx]):
+                    if li in raw_cit: cit[gi]=raw_cit[li]
+
+    # Sync articles
     if articles:
-        print("\n--- Articles → Firestore ---"); n=sync_articles(db,articles,kw,groq_cats,cit_map)
+        print("\n--- Articles → Firestore ---"); n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
+
+    # Synthèse
     if articles and GROQ_API_KEY:
-        print("\n--- Synthèse Groq ---")
-        pts=generate_synthesis_groq(articles)
-        sync_synthesis(db,pts if pts else [a["title"] for a in articles[:5]])
+        print("\n--- Synthèse ---")
+        pts=synthesis_groq(articles)
+        sync_synth(db,pts if pts else [a["title"] for a in articles[:5]])
+
+    # Timeline
+    if articles and GROQ_API_KEY:
+        print("\n--- Timeline ---")
+        tl=timeline_groq(articles)
+        if tl: sync_timeline(db,tl)
+
+    # Airlines status
+    if articles and GROQ_API_KEY:
+        print("\n--- Airlines ---")
+        al=airlines_groq(articles)
+        if al: sync_airlines(db,al)
+
+    # Finance
     print("\n--- Finance ---")
-    fd=fetch_finance()
-    if fd: sync_finance(db,fd)
+    fd=fetch_fin()
+    if fd: sync_fin(db,fd)
+
+    # MAE
     print("\n--- France Diplomatie ---")
     mae=scrape_mae()
     if mae and GROQ_API_KEY:
-        print("\n--- Reformulation MAE Groq ---")
-        conseils=reformulate_mae_groq(mae)
+        print("\n--- MAE Groq ---")
+        conseils=mae_groq(mae)
         if conseils:
-            for ck,conseil in conseils.items():
-                if ck in mae and conseil:
-                    mae[ck]["conseil_tourisme"]=conseil
-                    print(f"  ✓ {ck} : {conseil[:60]}...")
-    if mae: sync_mae(db,mae,existing_mae)
-    update_config(db,n)
+            for ck,c in conseils.items():
+                if ck in mae and c: mae[ck]["conseil_tourisme"]=c
+    if mae: sync_mae(db,mae,ex_mae)
+
+    upd_cfg(db,n)
     print("\n"+"="*50+"\nSync terminée\n"+"="*50)
 
 if __name__=="__main__": main()
