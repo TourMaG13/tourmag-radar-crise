@@ -29,7 +29,7 @@
       "reprise des vols", "programme de vols",
       "surcharge carburant", "surcharge", "kérosène",
       "compagnies du golfe", "hubs du golfe",
-      "vol supplémentaire", "équipages", "répercussions"
+      "vol supplémentaire", "équipages", "répercussions pour les équipages"
     ]
   },
   "croisiere": {
@@ -111,25 +111,27 @@
     "label": "Édito",
     "keywords": [
       "édito", "éditorial", "billet", "chronique", "humeur",
-      "mon avis", "coup de gueule", "en mars les emm",
-      "ça repart", "point de vue de la rédaction"
+      "coup de gueule", "en mars les emm",
+      "ça repart", "point de vue", "mon avis",
+      "même pas peur", "inventaire", "craintes touristiques",
+      "peur", "galères", "mois des galères"
     ]
   },
   "countries_detect": {
-    "_comment": "Détection stricte par nom de pays/ville uniquement",
-    "israel": ["israël", "israel", "tel aviv", "jérusalem", "ben gourion", "haifa", "eilat"],
+    "_comment": "Détection par nom de pays/ville + termes contextuels",
+    "israel": ["israël", "israel", "tel aviv", "jérusalem", "ben gourion", "haifa", "eilat", "israélien"],
     "liban": ["liban", "libanais", "beyrouth"],
-    "iran": ["iran", "iranien", "téhéran"],
+    "iran": ["iran", "iranien", "téhéran", "conflit iran", "frappes en iran", "frappes sur l'iran"],
     "irak": ["irak", "irakien", "bagdad", "erbil"],
     "syrie": ["syrie", "syrien", "damas"],
     "jordanie": ["jordanie", "jordanien", "amman", "petra", "aqaba"],
     "egypte": ["égypte", "egypte", "égyptien", "le caire", "charm el-cheikh", "hurghada", "suez"],
-    "turquie": ["turquie", "turc", "istanbul", "antalya", "bodrum", "ankara", "cappadoce"],
-    "arabie_saoudite": ["arabie saoudite", "saoudien", "riyad", "djeddah"],
-    "emirats": ["émirats", "emirats", "dubai", "abu dhabi"],
-    "qatar": ["qatar", "qatari", "doha"],
+    "turquie": ["turquie", "turc", "istanbul", "antalya", "bodrum", "ankara", "cappadoce", "turkish airlines"],
+    "arabie_saoudite": ["arabie saoudite", "saoudien", "riyad", "djeddah", "saudia"],
+    "emirats": ["émirats", "emirats", "dubai", "abu dhabi", "abou dabi", "compagnies du golfe", "hubs du golfe"],
+    "qatar": ["qatar", "qatari", "doha", "qatar airways"],
     "oman": ["oman", "omanais", "mascate"],
-    "bahrein": ["bahreïn", "bahrein", "manama"],
+    "bahrein": ["bahreïn", "bahrein", "manama", "gulf air"],
     "koweit": ["koweït", "koweit"],
     "yemen": ["yémen", "yemen"],
     "chypre": ["chypre", "chypriote", "larnaca", "paphos", "limassol"],
