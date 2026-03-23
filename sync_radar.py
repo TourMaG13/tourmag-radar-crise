@@ -97,6 +97,48 @@ def parse_rss():
     except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
 
 # ── Scrape full article content ──
+def scrape_og_image(url):
+    """Récupère l'image og:image d'un article."""
+    try:
+        r=requests.get(url,timeout=10,headers=HDR)
+        if r.status_code!=200: return ""
+        soup=BeautifulSoup(r.content,"html.parser")
+        # og:image est le plus fiable
+        og=soup.find("meta",property="og:image")
+        if og and og.get("content"):
+            return vimg(og["content"])
+        # Fallback: twitter:image
+        tw=soup.find("meta",attrs={"name":"twitter:image"})
+        if tw and tw.get("content"):
+            return vimg(tw["content"])
+        # Fallback: première grande image dans le contenu
+        body=soup.find("div",class_="contenu") or soup.find("article") or soup
+        for img in body.find_all("img"):
+            src=img.get("src","")
+            w=img.get("width","")
+            if src and vimg(src) and (not w or int(w or 0)>100):
+                return vimg(src)
+        return ""
+    except Exception as e:
+        print(f"  og:image ERREUR {url[:40]}: {e}"); return ""
+
+def enrich_images(articles):
+    """Pour les articles sans image, tente de récupérer og:image."""
+    enriched=0
+    for a in articles:
+        if not a.get("image_url"):
+            print(f"  Enrichissement image : {a['title'][:50]}...")
+            img=scrape_og_image(a["link"])
+            if img:
+                a["image_url"]=img
+                enriched+=1
+                print(f"    → {img[:60]}")
+            else:
+                print(f"    → Aucune image trouvée")
+            time.sleep(0.3)
+    print(f"  Images enrichies : {enriched}/{len([a for a in articles if not a.get('image_url')])+enriched}")
+    return articles
+
 def scrape_article_content(url):
     try:
         r=requests.get(url,timeout=15,headers=HDR)
@@ -324,11 +366,19 @@ def _mfb(ck,url,msg):
 # ── Firestore ──
 def gid(l): return hashlib.md5(l.encode()).hexdigest()[:16]
 def sync_arts(db,articles,kw,gc,cit):
-    ref=db.collection("articles"); n=0
+    ref=db.collection("articles"); n=0; img_updated=0
     for i,a in enumerate(articles):
         if not a["link"]: continue
         did=gid(a["link"])
-        if ref.document(did).get().exists: continue
+        existing=ref.document(did).get()
+        if existing.exists:
+            # Mettre à jour l'image si elle manquait et qu'on en a une maintenant
+            ed=existing.to_dict()
+            if not ed.get("image_url") and a.get("image_url"):
+                ref.document(did).update({"image_url":a["image_url"]})
+                img_updated+=1
+                print(f"  ✎ image ajoutée : {a['title'][:50]}...")
+            continue
         cat=gc[i] if gc and i in gc else classif_kw(a,kw)
         doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":det_countries(a,kw),"created_at":firestore.SERVER_TIMESTAMP}
         if cit and i in cit:
@@ -336,7 +386,7 @@ def sync_arts(db,articles,kw,gc,cit):
             doc["citation_nom"]=cit[i].get("nom","")
             doc["citation_fonction"]=cit[i].get("fonction","")
         ref.document(did).set(doc); n+=1; print(f"  + [{cat}] {a['title'][:60]}...")
-    print(f"Articles : {n} nouveaux sur {len(articles)}"); return n
+    print(f"Articles : {n} nouveaux sur {len(articles)}, {img_updated} images mises à jour"); return n
 
 def sync_fin(db,d):
     for k,v in d.items(): db.collection("market_data").document(k).set(v)
@@ -363,6 +413,13 @@ def main():
 
     print("\n--- RSS ---")
     articles=parse_rss()
+
+    # Enrichir les images manquantes via og:image
+    if articles:
+        missing=[a for a in articles if not a.get("image_url")]
+        if missing:
+            print(f"\n--- Enrichissement images ({len(missing)} sans image) ---")
+            enrich_images(articles)
 
     # Classification
     gc=None
