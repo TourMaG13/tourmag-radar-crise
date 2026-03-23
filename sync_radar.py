@@ -47,7 +47,10 @@ def check_image_url(url):
         return False
 
 # ── RSS/HTML ──
-def parse_html_fb(hb):
+TAGS_PAGE_URL="https://www.tourmag.com/tags/crise+golfe/"
+
+def parse_html_page(hb):
+    """Parse une page HTML de résultats TourMaG et retourne les articles."""
     soup=BeautifulSoup(hb,"html.parser"); arts=[]
     for d in soup.find_all("div",class_="result"):
         h3=d.find("h3",class_="titre")
@@ -70,17 +73,93 @@ def parse_html_fb(hb):
         if td and td.find("a"): desc=td.find("a").get_text(strip=True)
         img=vimg(d.find("img").get("src","") if d.find("img") else "")
         arts.append({"title":t,"link":l,"description":desc,"pub_date":pd,"image_url":img,"author":au})
-    print(f"HTML fallback : {len(arts)} articles"); return arts
+    return arts
+
+def has_next_page(hb):
+    """Vérifie s'il y a une page suivante dans la pagination."""
+    soup=BeautifulSoup(hb,"html.parser")
+    # Cherche un lien "suivant" ou ">" ou "next" dans la pagination
+    for a in soup.find_all("a",href=True):
+        txt=a.get_text(strip=True).lower()
+        href=a["href"]
+        if txt in [">","suivant","suivante","next","»"] or "page=" in href:
+            if "page=" in href:
+                return href if href.startswith("http") else "https://www.tourmag.com"+href
+    # Cherche aussi les liens de pagination numérotés
+    pag=soup.find("div",class_="pagination") or soup.find("ul",class_="pagination") or soup.find("nav",class_="pagination")
+    if pag:
+        links=pag.find_all("a",href=True)
+        for a in links:
+            if "page=" in a["href"]:
+                href=a["href"]
+                return href if href.startswith("http") else "https://www.tourmag.com"+href
+    return None
+
+def scrape_all_pages():
+    """Scrape toutes les pages de résultats TourMaG pour récupérer tous les articles."""
+    all_arts=[]
+    page=1
+    url=TAGS_PAGE_URL
+    seen_links=set()
+    while url and page<=20:  # Sécurité : max 20 pages
+        try:
+            print(f"  Page {page} : {url[:60]}...")
+            r=requests.get(url,timeout=30,headers=HDR)
+            if r.status_code!=200:
+                print(f"  HTTP {r.status_code}, arrêt pagination")
+                break
+            arts=parse_html_page(r.content)
+            if not arts:
+                print(f"  Aucun article trouvé, arrêt pagination")
+                break
+            # Dédoublonner
+            new_arts=[]
+            for a in arts:
+                if a["link"] not in seen_links:
+                    seen_links.add(a["link"])
+                    new_arts.append(a)
+            all_arts.extend(new_arts)
+            print(f"  → {len(new_arts)} nouveaux articles (total: {len(all_arts)})")
+            if len(new_arts)==0:
+                break
+            # Chercher la page suivante
+            next_url=has_next_page(r.content)
+            if next_url and next_url!=url:
+                url=next_url
+                page+=1
+                time.sleep(0.5)
+            else:
+                # Essayer la pagination manuelle page=N
+                next_manual=f"{TAGS_PAGE_URL}?page={page+1}"
+                # Vérifier si on n'a pas déjà essayé
+                if page>=2 and len(new_arts)<5:
+                    break  # Probablement la dernière page
+                url=next_manual
+                page+=1
+                time.sleep(0.5)
+        except Exception as e:
+            print(f"  Erreur page {page}: {e}")
+            break
+    # Trier par date décroissante
+    all_arts.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    print(f"  TOTAL : {len(all_arts)} articles récupérés")
+    return all_arts
 
 def parse_rss():
+    """Essaie le RSS d'abord, puis scrape toutes les pages HTML."""
     try:
         r=requests.get(RSS_URL,timeout=30,headers=HDR); r.raise_for_status(); raw=r.content
-        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower(): return parse_html_fb(raw)
-        if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"): return []
+        # Si la réponse est du HTML (pas du RSS), on scrape toutes les pages
+        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower():
+            return scrape_all_pages()
+        if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"):
+            return scrape_all_pages()
         feed=feedparser.parse(raw)
         if not feed.entries and feed.bozo: feed=feedparser.parse(clean_xml(raw.decode("utf-8",errors="replace")))
-        if not feed.entries: return []
-        arts=[]
+        if not feed.entries:
+            return scrape_all_pages()
+        # RSS fonctionne mais ne donne qu'une partie — on complète avec le scraping HTML
+        arts_rss=[]
         for e in feed.entries:
             pd=None
             if hasattr(e,"published_parsed") and e.published_parsed: pd=datetime(*e.published_parsed[:6],tzinfo=timezone.utc)
@@ -92,9 +171,21 @@ def parse_rss():
                         u=it.get("href",it.get("url",""))
                         if u: img=vimg(u); break
                 if img: break
-            arts.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
-        return arts
-    except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
+            arts_rss.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
+        print(f"RSS : {len(arts_rss)} articles")
+        # Compléter avec le scraping de toutes les pages
+        print("  Complément par scraping HTML...")
+        arts_html=scrape_all_pages()
+        # Fusionner en gardant le RSS comme priorité (données plus propres)
+        seen={a["link"] for a in arts_rss}
+        for a in arts_html:
+            if a["link"] not in seen:
+                arts_rss.append(a)
+                seen.add(a["link"])
+        arts_rss.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        print(f"  TOTAL fusionné : {len(arts_rss)} articles")
+        return arts_rss
+    except Exception as ex: print(f"ERREUR RSS : {ex}"); return scrape_all_pages()
 
 # ── Scrape full article content ──
 def scrape_og_image(url):
