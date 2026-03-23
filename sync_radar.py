@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v6
-Adds: full article scraping for temoignages, timeline, airline status via Groq
+"""Radar Crise Moyen-Orient — v6.1
+Fix: pauses entre appels Groq pour éviter le rate limit 429
 """
 import json,hashlib,os,re,sys,time
 from datetime import datetime,timezone
@@ -22,6 +22,12 @@ MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants fr
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 
+# ── Pauses Groq (secondes) ──
+GROQ_PAUSE_BETWEEN_BLOCKS = 8      # Pause entre chaque gros bloc (classif → synth → timeline etc.)
+GROQ_PAUSE_BETWEEN_BATCHES = 5     # Pause entre batches de classification
+GROQ_PAUSE_RETRY = 10              # Pause avant retry après erreur 429
+GROQ_PAUSE_WITHIN_FUNC = 3         # Pause entre appels au sein d'une même fonction
+
 def init_fb():
     sa=os.getenv("FIREBASE_SERVICE_ACCOUNT")
     if not sa: sys.exit("ERREUR: FIREBASE_SERVICE_ACCOUNT")
@@ -36,7 +42,6 @@ def vimg(u):
     return ("https://www.tourmag.com"+u) if u.startswith("/") else u
 
 def check_image_url(url):
-    """Vérifie qu'une URL d'image est réellement accessible (HEAD request)."""
     if not url: return False
     try:
         r=requests.head(url,timeout=5,headers=HDR,allow_redirects=True)
@@ -50,7 +55,6 @@ def check_image_url(url):
 TAGS_PAGE_URL="https://www.tourmag.com/tags/crise+golfe/"
 
 def parse_html_page(hb):
-    """Parse une page HTML de résultats TourMaG et retourne les articles."""
     soup=BeautifulSoup(hb,"html.parser"); arts=[]
     for d in soup.find_all("div",class_="result"):
         h3=d.find("h3",class_="titre")
@@ -76,11 +80,8 @@ def parse_html_page(hb):
     return arts
 
 def scrape_all_pages():
-    """Scrape toutes les pages de résultats TourMaG pour récupérer tous les articles."""
     all_arts=[]
     seen_links=set()
-
-    # D'abord récupérer la page 1 et analyser la pagination
     print(f"  Page 1 : {TAGS_PAGE_URL}")
     try:
         r=requests.get(TAGS_PAGE_URL,timeout=30,headers=HDR)
@@ -96,24 +97,18 @@ def scrape_all_pages():
         print(f"  → {len(all_arts)} articles")
         if not arts:
             return all_arts
-
-        # Détecter le format de pagination en analysant le HTML
         soup=BeautifulSoup(html1,"html.parser")
         page_links=[]
         for a_tag in soup.find_all("a",href=True):
             href=a_tag["href"]
-            # Chercher tous les patterns de pagination possibles
             if any(p in href for p in ["debut_articles=","debut_tags=","start=","page=","crise+golfe/"]):
                 if "crise" in href or "golfe" in href:
                     full=href if href.startswith("http") else "https://www.tourmag.com"+href
                     if full!=TAGS_PAGE_URL and full not in page_links:
                         page_links.append(full)
-
         print(f"  Liens de pagination trouvés : {len(page_links)}")
         for pl in page_links[:3]:
             print(f"    {pl[:80]}")
-
-        # Si on a trouvé des liens de pagination, les suivre
         if page_links:
             for i,url in enumerate(page_links):
                 print(f"  Page {i+2} : {url[:70]}...")
@@ -133,11 +128,9 @@ def scrape_all_pages():
                 except Exception as e:
                     print(f"  Erreur : {e}")
         else:
-            # Aucun lien trouvé dans le HTML : essayer les formats SPIP courants
-            per_page=len(arts)  # Nombre d'articles par page (probablement 20)
+            per_page=len(arts)
             print(f"  Pas de liens de pagination détectés, essai formats SPIP ({per_page} articles/page)")
             for offset in range(per_page, per_page*15, per_page):
-                # Tester debut_articles=N (format SPIP le plus courant)
                 for param in [f"debut_articles={offset}", f"debut_tags={offset}", f"start={offset}"]:
                     url=f"{TAGS_PAGE_URL}?{param}"
                     try:
@@ -153,28 +146,23 @@ def scrape_all_pages():
                         if new>0:
                             print(f"  offset={offset} ({param}) → {new} nouveaux (total: {len(all_arts)})")
                             time.sleep(0.5)
-                            break  # Ce format marche, on continue avec celui-ci
+                            break
                         else:
-                            continue  # Essayer le format suivant
+                            continue
                     except:
                         continue
                 else:
-                    # Aucun format n'a donné de résultats à cet offset
                     print(f"  offset={offset} → aucun résultat, arrêt")
                     break
-
     except Exception as e:
         print(f"  Erreur page 1: {e}")
-
     all_arts.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     print(f"  TOTAL : {len(all_arts)} articles récupérés")
     return all_arts
 
 def parse_rss():
-    """Essaie le RSS d'abord, puis scrape toutes les pages HTML."""
     try:
         r=requests.get(RSS_URL,timeout=30,headers=HDR); r.raise_for_status(); raw=r.content
-        # Si la réponse est du HTML (pas du RSS), on scrape toutes les pages
         if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower():
             return scrape_all_pages()
         if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"):
@@ -183,7 +171,6 @@ def parse_rss():
         if not feed.entries and feed.bozo: feed=feedparser.parse(clean_xml(raw.decode("utf-8",errors="replace")))
         if not feed.entries:
             return scrape_all_pages()
-        # RSS fonctionne mais ne donne qu'une partie — on complète avec le scraping HTML
         arts_rss=[]
         for e in feed.entries:
             pd=None
@@ -198,10 +185,8 @@ def parse_rss():
                 if img: break
             arts_rss.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
         print(f"RSS : {len(arts_rss)} articles")
-        # Compléter avec le scraping de toutes les pages
         print("  Complément par scraping HTML...")
         arts_html=scrape_all_pages()
-        # Fusionner en gardant le RSS comme priorité (données plus propres)
         seen={a["link"] for a in arts_rss}
         for a in arts_html:
             if a["link"] not in seen:
@@ -214,20 +199,16 @@ def parse_rss():
 
 # ── Scrape full article content ──
 def scrape_og_image(url):
-    """Récupère l'image og:image d'un article."""
     try:
         r=requests.get(url,timeout=10,headers=HDR)
         if r.status_code!=200: return ""
         soup=BeautifulSoup(r.content,"html.parser")
-        # og:image est le plus fiable
         og=soup.find("meta",property="og:image")
         if og and og.get("content"):
             return vimg(og["content"])
-        # Fallback: twitter:image
         tw=soup.find("meta",attrs={"name":"twitter:image"})
         if tw and tw.get("content"):
             return vimg(tw["content"])
-        # Fallback: première grande image dans le contenu
         body=soup.find("div",class_="contenu") or soup.find("article") or soup
         for img in body.find_all("img"):
             src=img.get("src","")
@@ -239,7 +220,6 @@ def scrape_og_image(url):
         print(f"  og:image ERREUR {url[:40]}: {e}"); return ""
 
 def enrich_images(articles):
-    """Pour les articles sans image, tente de récupérer og:image."""
     enriched=0
     for a in articles:
         if not a.get("image_url"):
@@ -264,15 +244,12 @@ def scrape_article_content(url):
         if not body: body=soup
         paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>20]
         full_text=" ".join(paras)
-
         extras=""
-
-        # Pré-extraire les citations entre guillemets
-        citations_guillemets=re.findall(r'[«""\u201c](.{30,800}?)[»""\u201d]',full_text)
-        if citations_guillemets:
-            extras+="\n--- CITATIONS ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in citations_guillemets[:8])
-
-        # Pré-extraire les passages en italique (balises <em> et <i>) — souvent des citations sur TourMaG
+        citations_fancy=re.findall(r'[«\u201c](.{30,800}?)[»\u201d]',full_text)
+        citations_straight=re.findall(r'"([^"]{30,800}?)"',full_text)
+        all_citations=list(dict.fromkeys(citations_fancy+citations_straight))
+        if all_citations:
+            extras+="\n--- CITATIONS ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in all_citations[:10])
         italics=[]
         for tag in body.find_all(["em","i"]):
             txt=tag.get_text(strip=True)
@@ -280,27 +257,39 @@ def scrape_article_content(url):
                 italics.append(txt)
         if italics:
             extras+="\n--- PASSAGES EN ITALIQUE (souvent des citations) ---\n"+"\n".join(f'• {c}' for c in italics[:6])
-
-        # Chercher les noms/fonctions près des citations (pattern "Prénom Nom, fonction" ou "selon Prénom Nom")
         noms=re.findall(r'(?:selon|explique|confie|déclare|témoigne|affirme|raconte|précise|indique|souligne)\s+([A-ZÀ-Ü][a-zà-ü]+\s+[A-ZÀ-Ü][a-zà-ü]+(?:\s*,\s*[^.«»"]{5,60})?)',full_text)
         if noms:
             extras+="\n--- PERSONNES CITÉES ---\n"+"\n".join(f'• {n}' for n in noms[:6])
-
         return full_text[:4000]+extras
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
-# ── Groq ──
-def gcall(msgs,mt=2000,retries=2):
+# ── Groq avec gestion rate limit améliorée ──
+def gcall(msgs,mt=2000,retries=3):
     if not GROQ_API_KEY: return None
     for attempt in range(retries):
         try:
             r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
-            r.raise_for_status(); return r.json()["choices"][0]["message"]["content"]
+            if r.status_code==429:
+                wait=GROQ_PAUSE_RETRY*(attempt+1)
+                print(f"  Groq 429 rate limit — pause {wait}s (tentative {attempt+1}/{retries})")
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
+        except requests.exceptions.HTTPError as e:
+            if '429' in str(e):
+                wait=GROQ_PAUSE_RETRY*(attempt+1)
+                print(f"  Groq 429 rate limit — pause {wait}s (tentative {attempt+1}/{retries})")
+                time.sleep(wait)
+                continue
+            print(f"  Groq ERREUR (tentative {attempt+1}/{retries}) : {e}")
+            if attempt<retries-1: time.sleep(GROQ_PAUSE_RETRY)
         except Exception as e:
             print(f"  Groq ERREUR (tentative {attempt+1}/{retries}) : {e}")
-            if attempt<retries-1: time.sleep(3)
+            if attempt<retries-1: time.sleep(GROQ_PAUSE_RETRY)
     return None
+
 def pj(t):
     if not t: print("  pj: réponse Groq vide"); return None
     c=t.strip()
@@ -309,7 +298,6 @@ def pj(t):
     except Exception as e:
         print(f"  pj: JSON invalide — {e}")
         print(f"  pj: début réponse = {c[:200]}")
-        # Tenter d'extraire un array JSON même si entouré de texte
         m=re.search(r'\[.*\]',c,re.DOTALL)
         if m:
             try: return json.loads(m.group())
@@ -331,7 +319,6 @@ def classify_groq(articles):
 - general : si aucune
 RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito."""
 
-    # Classifier par lots de 20 pour éviter les prompts trop longs
     all_results={}
     batch_size=20
     for start in range(0,len(articles),batch_size):
@@ -350,7 +337,8 @@ JSON uniquement : [{{"id":{start},"cat":"aerien"}}]"""
         else:
             print(f"  Groq classif batch {start}-{start+len(batch)-1} : ÉCHEC")
         if start+batch_size<len(articles):
-            time.sleep(1)  # Pause entre les batches pour éviter le rate limit
+            print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BATCHES}s entre batches...")
+            time.sleep(GROQ_PAUSE_BETWEEN_BATCHES)
 
     print(f"  Groq classif total : {len(all_results)}/{len(articles)}")
     return all_results if all_results else None
@@ -381,28 +369,28 @@ Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
     return None
 
 def citations_groq(articles_with_content):
-    """Extract REAL verbatim citations from full article content."""
     items=[]
     for i,(a,content) in enumerate(articles_with_content):
         items.append(f'{i}. Titre: "{a["title"]}"\nAuteur article (JOURNALISTE — NE JAMAIS CITER): {a.get("author","")}\nContenu:\n{content[:2500]}')
     prompt=f"""Tu dois extraire des VRAIES CITATIONS VERBATIM (mot pour mot) depuis le contenu des articles ci-dessous.
 
-INDICES POUR TROUVER LES CITATIONS :
-- Les passages entre guillemets « » ou " " sont des citations directes
-- Les passages EN ITALIQUE (section "PASSAGES EN ITALIQUE") sont souvent des citations sur TourMaG
-- La section "PERSONNES CITÉES" te donne les noms des professionnels interviewés
-- Les verbes "explique", "confie", "déclare", "témoigne", "selon" introduisent des citations
+COMMENT TROUVER LES CITATIONS :
+1. PRIORITÉ 1 : Les passages listés dans "CITATIONS ENTRE GUILLEMETS" — ce sont des discours directs extraits de l'article
+2. PRIORITÉ 2 : Les passages listés dans "PASSAGES EN ITALIQUE" — sur TourMaG, les citations sont souvent en italique
+3. PRIORITÉ 3 : Les noms dans "PERSONNES CITÉES" te disent QUI parle
+4. Les guillemets peuvent être de type « », " " ou " " (guillemets droits)
+5. Les verbes introducteurs (explique, confie, déclare, témoigne, selon, raconte) indiquent une citation
 
 RÈGLES ABSOLUMENT NON NÉGOCIABLES :
-1. Recopie la citation INTÉGRALEMENT, mot pour mot, entre 2 et 5 phrases. Ne tronque RIEN.
-2. Le nom est celui de la PERSONNE QUI PARLE (un professionnel du tourisme), JAMAIS le journaliste/auteur
+1. Recopie la citation INTÉGRALEMENT, mot pour mot, entre 2 et 5 phrases. Ne tronque RIEN, ne coupe pas au milieu d'une phrase.
+2. Le nom est celui de la PERSONNE QUI PARLE (un professionnel du tourisme), JAMAIS le journaliste/auteur de l'article
 3. La fonction doit inclure le poste ET l'entreprise (ex: "Directeur, Voyages Leclerc Marseille")
 4. Si l'article ne contient AUCUNE citation d'un professionnel du tourisme → citation="" nom="" fonction=""
 
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot...","nom":"Prénom Nom","fonction":"Poste, Entreprise"}}]"""
+JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot sans troncature...","nom":"Prénom Nom","fonction":"Poste, Entreprise"}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["id"]:{"citation":c.get("citation",""),"nom":c.get("nom",""),"fonction":c.get("fonction","")} for c in r if "id" in c and c.get("citation","")}
@@ -523,7 +511,6 @@ def sync_arts(db,articles,kw,gc,cit):
         did=gid(a["link"])
         existing=ref.document(did).get()
         if existing.exists:
-            # Mettre à jour l'image si elle manquait et qu'on en a une maintenant
             ed=existing.to_dict()
             if not ed.get("image_url") and a.get("image_url"):
                 ref.document(did).update({"image_url":a["image_url"]})
@@ -549,37 +536,13 @@ def sync_mae(db,d,ex):
 def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_airlines(db,a): db.collection("config").document("airlines").set({"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()})
-def sync_intro(db,t): db.collection("config").document("intro").set({"text":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
-
-def intro_groq(articles):
-    items=[f"- {a['title']}" for a in articles[:15]]
-    prompt=f"""Tu es rédacteur en chef d'un média spécialisé tourisme. Rédige un paragraphe d'introduction (3-4 phrases, environ 60-80 mots) pour un dashboard de veille sur la crise au Moyen-Orient destiné aux agents de voyage français.
-
-Ce texte doit :
-- Contextualiser brièvement la crise (depuis quand, quels pays principalement touchés)
-- Mentionner l'impact concret sur le secteur du tourisme (vols, croisières, destinations)
-- Donner le ton : informatif, professionnel, rassurant mais réaliste
-- Être rédigé au présent
-
-Ce texte sera affiché en haut du dashboard comme introduction permanente.
-
-Articles récents pour contexte :
-{chr(10).join(items)}
-
-Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
-    r=gcall([{"role":"user","content":prompt}],mt=500)
-    if r:
-        t=r.strip().strip('"').strip("'")
-        print(f"  Intro : {len(t)} car."); return t
-    return None
 
 # ── Main ──
 def main():
-    print("="*50+f"\nRadar v6 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
+    print("="*50+f"\nRadar v6.1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
-    # Existing MAE for protection
     ex_mae={}
     try:
         for doc in db.collection("mae_alerts").stream(): ex_mae[doc.id]=doc.to_dict()
@@ -588,19 +551,21 @@ def main():
     print("\n--- RSS ---")
     articles=parse_rss()
 
-    # Enrichir les images manquantes via og:image
     if articles:
         missing=[a for a in articles if not a.get("image_url")]
         if missing:
             print(f"\n--- Enrichissement images ({len(missing)} sans image) ---")
             enrich_images(articles)
 
-    # Classification
+    # Classification Groq
     gc=None
     if articles and GROQ_API_KEY:
-        print("\n--- Classification Groq ---"); gc=classify_groq(articles)
+        print("\n--- Classification Groq ---")
+        gc=classify_groq(articles)
+        # ⏳ PAUSE après classification (le plus gros consommateur d'appels)
+        print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s avant prochain bloc Groq...")
+        time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Post-classification : forcer edito pour Josette Sicsic et articles avec "édito" dans titre/description
     if gc is None: gc={}
     for i,a in enumerate(articles):
         author=(a.get("author","") or "").lower().strip()
@@ -612,11 +577,10 @@ def main():
             gc[i]="edito"
             print(f"  Edito forcé (mot-clé) : {a['title'][:50]}")
 
-    # Tag articles with category for airline extraction
     for i,a in enumerate(articles):
         a["_cat"]=gc[i] if i in gc else classif_kw(a,kw)
 
-    # Citations: scrape full content of top 3 temoignages
+    # Citations Groq
     cit=None
     if articles and GROQ_API_KEY and gc:
         temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
@@ -634,13 +598,16 @@ def main():
                 cit={}
                 for li,gi in enumerate([i for i,_ in temo_idx]):
                     if li in raw_cit: cit[gi]=raw_cit[li]
+            # ⏳ PAUSE après citations
+            print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s avant prochain bloc Groq...")
+            time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
     # Sync articles
     if articles:
         print("\n--- Articles → Firestore ---"); n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    # Synthèse
+    # Synthèse Groq
     if articles and GROQ_API_KEY:
         print("\n--- Synthèse ---")
         pts=synthesis_groq(articles)
@@ -648,31 +615,34 @@ def main():
             sync_synth(db,pts)
         else:
             print("  Synthèse Groq indisponible, pas de mise à jour (on garde l'ancienne)")
+        # ⏳ PAUSE après synthèse
+        print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s avant prochain bloc Groq...")
+        time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Timeline
+    # Timeline Groq
     if articles and GROQ_API_KEY:
         print("\n--- Timeline ---")
         tl=timeline_groq(articles)
         if tl: sync_timeline(db,tl)
+        # ⏳ PAUSE après timeline
+        print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s avant prochain bloc Groq...")
+        time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Airlines status
+    # Airlines Groq
     if articles and GROQ_API_KEY:
         print("\n--- Airlines ---")
         al=airlines_groq(articles)
         if al: sync_airlines(db,al)
-
-    # Introduction
-    if articles and GROQ_API_KEY:
-        print("\n--- Introduction ---")
-        intro=intro_groq(articles)
-        if intro: sync_intro(db,intro)
+        # ⏳ PAUSE après airlines
+        print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s avant prochain bloc Groq...")
+        time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
     # Finance
     print("\n--- Finance ---")
     fd=fetch_fin()
     if fd: sync_fin(db,fd)
 
-    # Featured article (article à la une avec photo vérifiée)
+    # Featured article
     if articles:
         print("\n--- Article à la une ---")
         featured=None
