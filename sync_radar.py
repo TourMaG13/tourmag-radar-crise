@@ -148,12 +148,29 @@ def scrape_article_content(url):
         if not body: body=soup
         paras=[p.get_text(strip=True) for p in body.find_all("p") if len(p.get_text(strip=True))>20]
         full_text=" ".join(paras)
-        # Pré-extraire les citations entre guillemets pour aider Groq
-        citations=re.findall(r'[«""\u201c](.{30,500}?)[»""\u201d]',full_text)
-        if citations:
-            cit_block="\n--- CITATIONS TROUVÉES ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in citations[:8])
-            return full_text[:4000]+cit_block
-        return full_text[:5000]
+
+        extras=""
+
+        # Pré-extraire les citations entre guillemets
+        citations_guillemets=re.findall(r'[«""\u201c](.{30,800}?)[»""\u201d]',full_text)
+        if citations_guillemets:
+            extras+="\n--- CITATIONS ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in citations_guillemets[:8])
+
+        # Pré-extraire les passages en italique (balises <em> et <i>) — souvent des citations sur TourMaG
+        italics=[]
+        for tag in body.find_all(["em","i"]):
+            txt=tag.get_text(strip=True)
+            if len(txt)>40 and not txt.startswith("©") and not txt.startswith("Photo"):
+                italics.append(txt)
+        if italics:
+            extras+="\n--- PASSAGES EN ITALIQUE (souvent des citations) ---\n"+"\n".join(f'• {c}' for c in italics[:6])
+
+        # Chercher les noms/fonctions près des citations (pattern "Prénom Nom, fonction" ou "selon Prénom Nom")
+        noms=re.findall(r'(?:selon|explique|confie|déclare|témoigne|affirme|raconte|précise|indique|souligne)\s+([A-ZÀ-Ü][a-zà-ü]+\s+[A-ZÀ-Ü][a-zà-ü]+(?:\s*,\s*[^.«»"]{5,60})?)',full_text)
+        if noms:
+            extras+="\n--- PERSONNES CITÉES ---\n"+"\n".join(f'• {n}' for n in noms[:6])
+
+        return full_text[:4000]+extras
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
@@ -184,18 +201,21 @@ def pj(t):
         return None
 
 def classify_groq(articles):
-    cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, contexte, edito"
-    items=[f"{i}. {a['title']} — {a.get('description','')[:100]}" for i,a in enumerate(articles)]
+    cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, geopolitique, economie, destinations, edito"
+    items=[f"{i}. {a['title']} — {a.get('description','')[:120]} — auteur: {a.get('author','')}" for i,a in enumerate(articles)]
     prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
 - institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
 - aerien : compagnies, vols, suspensions, reprises, surcharges, aéroports, équipages
 - croisiere : paquebots, ports, mer Rouge, canal de Suez
 - juridique : droits clients, annulations, remboursements, assurance, force majeure
 - solutions : initiatives TO, reprogrammations, destinations alternatives, EDV/SETO
-- temoignages : récits agents de voyage, réceptifs, salons pros, vie quotidienne pros
-- contexte : analyses géopolitiques, données économiques, études, intentions voyage
-- edito : éditorial, billet d'humeur, chronique, opinion, inventaire peurs/craintes, "même pas peur"
+- temoignages : récits agents de voyage, réceptifs, salons pros, vie quotidienne pros, interviews de professionnels
+- geopolitique : analyses de la situation géopolitique, conflits, tensions, diplomatie internationale, frappes, cessez-le-feu
+- economie : données économiques, études, sondages, intentions voyage, devises, impact économique chiffré
+- destinations : impact sur des destinations spécifiques, pays qui restent accessibles, état du tourisme dans un pays
+- edito : éditorial, billet d'humeur, chronique, opinion, tribune, "même pas peur", inventaire peurs/craintes
 - general : si aucune
+RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito.
 Articles :
 {chr(10).join(items)}
 JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
@@ -233,20 +253,20 @@ def citations_groq(articles_with_content):
     """Extract REAL verbatim citations from full article content."""
     items=[]
     for i,(a,content) in enumerate(articles_with_content):
-        items.append(f'{i}. Titre: "{a["title"]}"\nAuteur article (JOURNALISTE — NE JAMAIS CITER): {a.get("author","")}\nContenu complet: {content[:2000]}')
+        items.append(f'{i}. Titre: "{a["title"]}"\nAuteur article (JOURNALISTE — NE JAMAIS CITER): {a.get("author","")}\nContenu:\n{content[:2500]}')
     prompt=f"""Tu dois extraire des VRAIES CITATIONS VERBATIM (mot pour mot) depuis le contenu des articles ci-dessous.
 
-RÈGLES ABSOLUMENT NON NÉGOCIABLES :
-1. Une citation est un DISCOURS DIRECT : des mots réellement prononcés par quelqu'un, généralement entre guillemets « » ou " " dans l'article
-2. Le nom est celui de la PERSONNE QUI PARLE dans la citation (un professionnel du tourisme : agent, directeur d'agence, responsable TO, réceptif, hôtelier...), JAMAIS celui du journaliste qui écrit l'article
-3. Recopie la citation INTÉGRALEMENT telle qu'elle apparaît dans le texte, entre 2 et 5 phrases. Ne tronque RIEN, ne résume RIEN.
-4. Si l'article ne contient AUCUNE citation entre guillemets d'un professionnel du tourisme, renvoie citation="" nom="" fonction=""
-5. NE REFORMULE PAS. NE RÉSUME PAS. Recopie mot pour mot.
+INDICES POUR TROUVER LES CITATIONS :
+- Les passages entre guillemets « » ou " " sont des citations directes
+- Les passages EN ITALIQUE (section "PASSAGES EN ITALIQUE") sont souvent des citations sur TourMaG
+- La section "PERSONNES CITÉES" te donne les noms des professionnels interviewés
+- Les verbes "explique", "confie", "déclare", "témoigne", "selon" introduisent des citations
 
-CRITÈRES DE REJET (renvoyer citation vide) :
-- L'article ne contient que des propos du journaliste → citation vide
-- Les seules citations sont celles d'un politique ou militaire → citation vide
-- Tu ne trouves pas de guillemets dans le texte → citation vide
+RÈGLES ABSOLUMENT NON NÉGOCIABLES :
+1. Recopie la citation INTÉGRALEMENT, mot pour mot, entre 2 et 5 phrases. Ne tronque RIEN.
+2. Le nom est celui de la PERSONNE QUI PARLE (un professionnel du tourisme), JAMAIS le journaliste/auteur
+3. La fonction doit inclure le poste ET l'entreprise (ex: "Directeur, Voyages Leclerc Marseille")
+4. Si l'article ne contient AUCUNE citation d'un professionnel du tourisme → citation="" nom="" fonction=""
 
 Articles :
 {chr(10).join(items)}
@@ -398,7 +418,30 @@ def sync_mae(db,d,ex):
 def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_airlines(db,a): db.collection("config").document("airlines").set({"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_intro(db,t): db.collection("config").document("intro").set({"text":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
+
+def intro_groq(articles):
+    items=[f"- {a['title']}" for a in articles[:15]]
+    prompt=f"""Tu es rédacteur en chef d'un média spécialisé tourisme. Rédige un paragraphe d'introduction (3-4 phrases, environ 60-80 mots) pour un dashboard de veille sur la crise au Moyen-Orient destiné aux agents de voyage français.
+
+Ce texte doit :
+- Contextualiser brièvement la crise (depuis quand, quels pays principalement touchés)
+- Mentionner l'impact concret sur le secteur du tourisme (vols, croisières, destinations)
+- Donner le ton : informatif, professionnel, rassurant mais réaliste
+- Être rédigé au présent
+
+Ce texte sera affiché en haut du dashboard comme introduction permanente.
+
+Articles récents pour contexte :
+{chr(10).join(items)}
+
+Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
+    r=gcall([{"role":"user","content":prompt}],mt=500)
+    if r:
+        t=r.strip().strip('"').strip("'")
+        print(f"  Intro : {len(t)} car."); return t
+    return None
 
 # ── Main ──
 def main():
@@ -426,9 +469,21 @@ def main():
     if articles and GROQ_API_KEY:
         print("\n--- Classification Groq ---"); gc=classify_groq(articles)
 
+    # Post-classification : forcer edito pour Josette Sicsic et articles avec "édito" dans titre/description
+    if gc is None: gc={}
+    for i,a in enumerate(articles):
+        author=(a.get("author","") or "").lower().strip()
+        title_desc=(a.get("title","")+" "+a.get("description","")).lower()
+        if "josette sicsic" in author:
+            gc[i]="edito"
+            print(f"  Edito forcé (Josette Sicsic) : {a['title'][:50]}")
+        elif any(kw in title_desc for kw in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur"]):
+            gc[i]="edito"
+            print(f"  Edito forcé (mot-clé) : {a['title'][:50]}")
+
     # Tag articles with category for airline extraction
     for i,a in enumerate(articles):
-        a["_cat"]=gc[i] if gc and i in gc else classif_kw(a,kw)
+        a["_cat"]=gc[i] if i in gc else classif_kw(a,kw)
 
     # Citations: scrape full content of top 3 temoignages
     cit=None
@@ -474,6 +529,12 @@ def main():
         print("\n--- Airlines ---")
         al=airlines_groq(articles)
         if al: sync_airlines(db,al)
+
+    # Introduction
+    if articles and GROQ_API_KEY:
+        print("\n--- Introduction ---")
+        intro=intro_groq(articles)
+        if intro: sync_intro(db,intro)
 
     # Finance
     print("\n--- Finance ---")
