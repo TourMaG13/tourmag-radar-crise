@@ -75,72 +75,97 @@ def parse_html_page(hb):
         arts.append({"title":t,"link":l,"description":desc,"pub_date":pd,"image_url":img,"author":au})
     return arts
 
-def has_next_page(hb):
-    """Vérifie s'il y a une page suivante dans la pagination."""
-    soup=BeautifulSoup(hb,"html.parser")
-    # Cherche un lien "suivant" ou ">" ou "next" dans la pagination
-    for a in soup.find_all("a",href=True):
-        txt=a.get_text(strip=True).lower()
-        href=a["href"]
-        if txt in [">","suivant","suivante","next","»"] or "page=" in href:
-            if "page=" in href:
-                return href if href.startswith("http") else "https://www.tourmag.com"+href
-    # Cherche aussi les liens de pagination numérotés
-    pag=soup.find("div",class_="pagination") or soup.find("ul",class_="pagination") or soup.find("nav",class_="pagination")
-    if pag:
-        links=pag.find_all("a",href=True)
-        for a in links:
-            if "page=" in a["href"]:
-                href=a["href"]
-                return href if href.startswith("http") else "https://www.tourmag.com"+href
-    return None
-
 def scrape_all_pages():
     """Scrape toutes les pages de résultats TourMaG pour récupérer tous les articles."""
     all_arts=[]
-    page=1
-    url=TAGS_PAGE_URL
     seen_links=set()
-    while url and page<=20:  # Sécurité : max 20 pages
-        try:
-            print(f"  Page {page} : {url[:60]}...")
-            r=requests.get(url,timeout=30,headers=HDR)
-            if r.status_code!=200:
-                print(f"  HTTP {r.status_code}, arrêt pagination")
-                break
-            arts=parse_html_page(r.content)
-            if not arts:
-                print(f"  Aucun article trouvé, arrêt pagination")
-                break
-            # Dédoublonner
-            new_arts=[]
-            for a in arts:
-                if a["link"] not in seen_links:
-                    seen_links.add(a["link"])
-                    new_arts.append(a)
-            all_arts.extend(new_arts)
-            print(f"  → {len(new_arts)} nouveaux articles (total: {len(all_arts)})")
-            if len(new_arts)==0:
-                break
-            # Chercher la page suivante
-            next_url=has_next_page(r.content)
-            if next_url and next_url!=url:
-                url=next_url
-                page+=1
-                time.sleep(0.5)
-            else:
-                # Essayer la pagination manuelle page=N
-                next_manual=f"{TAGS_PAGE_URL}?page={page+1}"
-                # Vérifier si on n'a pas déjà essayé
-                if page>=2 and len(new_arts)<5:
-                    break  # Probablement la dernière page
-                url=next_manual
-                page+=1
-                time.sleep(0.5)
-        except Exception as e:
-            print(f"  Erreur page {page}: {e}")
-            break
-    # Trier par date décroissante
+
+    # D'abord récupérer la page 1 et analyser la pagination
+    print(f"  Page 1 : {TAGS_PAGE_URL}")
+    try:
+        r=requests.get(TAGS_PAGE_URL,timeout=30,headers=HDR)
+        if r.status_code!=200:
+            print(f"  HTTP {r.status_code}")
+            return []
+        html1=r.content
+        arts=parse_html_page(html1)
+        for a in arts:
+            if a["link"] not in seen_links:
+                seen_links.add(a["link"])
+                all_arts.append(a)
+        print(f"  → {len(all_arts)} articles")
+        if not arts:
+            return all_arts
+
+        # Détecter le format de pagination en analysant le HTML
+        soup=BeautifulSoup(html1,"html.parser")
+        page_links=[]
+        for a_tag in soup.find_all("a",href=True):
+            href=a_tag["href"]
+            # Chercher tous les patterns de pagination possibles
+            if any(p in href for p in ["debut_articles=","debut_tags=","start=","page=","crise+golfe/"]):
+                if "crise" in href or "golfe" in href:
+                    full=href if href.startswith("http") else "https://www.tourmag.com"+href
+                    if full!=TAGS_PAGE_URL and full not in page_links:
+                        page_links.append(full)
+
+        print(f"  Liens de pagination trouvés : {len(page_links)}")
+        for pl in page_links[:3]:
+            print(f"    {pl[:80]}")
+
+        # Si on a trouvé des liens de pagination, les suivre
+        if page_links:
+            for i,url in enumerate(page_links):
+                print(f"  Page {i+2} : {url[:70]}...")
+                try:
+                    r2=requests.get(url,timeout=30,headers=HDR)
+                    if r2.status_code!=200: continue
+                    arts2=parse_html_page(r2.content)
+                    new=0
+                    for a in arts2:
+                        if a["link"] not in seen_links:
+                            seen_links.add(a["link"])
+                            all_arts.append(a)
+                            new+=1
+                    print(f"  → {new} nouveaux (total: {len(all_arts)})")
+                    if new==0: break
+                    time.sleep(0.5)
+                except Exception as e:
+                    print(f"  Erreur : {e}")
+        else:
+            # Aucun lien trouvé dans le HTML : essayer les formats SPIP courants
+            per_page=len(arts)  # Nombre d'articles par page (probablement 20)
+            print(f"  Pas de liens de pagination détectés, essai formats SPIP ({per_page} articles/page)")
+            for offset in range(per_page, per_page*15, per_page):
+                # Tester debut_articles=N (format SPIP le plus courant)
+                for param in [f"debut_articles={offset}", f"debut_tags={offset}", f"start={offset}"]:
+                    url=f"{TAGS_PAGE_URL}?{param}"
+                    try:
+                        r2=requests.get(url,timeout=30,headers=HDR)
+                        if r2.status_code!=200: continue
+                        arts2=parse_html_page(r2.content)
+                        new=0
+                        for a in arts2:
+                            if a["link"] not in seen_links:
+                                seen_links.add(a["link"])
+                                all_arts.append(a)
+                                new+=1
+                        if new>0:
+                            print(f"  offset={offset} ({param}) → {new} nouveaux (total: {len(all_arts)})")
+                            time.sleep(0.5)
+                            break  # Ce format marche, on continue avec celui-ci
+                        else:
+                            continue  # Essayer le format suivant
+                    except:
+                        continue
+                else:
+                    # Aucun format n'a donné de résultats à cet offset
+                    print(f"  offset={offset} → aucun résultat, arrêt")
+                    break
+
+    except Exception as e:
+        print(f"  Erreur page 1: {e}")
+
     all_arts.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     print(f"  TOTAL : {len(all_arts)} articles récupérés")
     return all_arts
@@ -293,9 +318,7 @@ def pj(t):
 
 def classify_groq(articles):
     cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, geopolitique, economie, destinations, edito"
-    items=[f"{i}. {a['title']} — {a.get('description','')[:120]} — auteur: {a.get('author','')}" for i,a in enumerate(articles)]
-    prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
-- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
+    cat_desc="""- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
 - aerien : compagnies, vols, suspensions, reprises, surcharges, aéroports, équipages
 - croisiere : paquebots, ports, mer Rouge, canal de Suez
 - juridique : droits clients, annulations, remboursements, assurance, force majeure
@@ -306,14 +329,31 @@ def classify_groq(articles):
 - destinations : impact sur des destinations spécifiques, pays qui restent accessibles, état du tourisme dans un pays
 - edito : éditorial, billet d'humeur, chronique, opinion, tribune, "même pas peur", inventaire peurs/craintes
 - general : si aucune
-RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito.
+RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito."""
+
+    # Classifier par lots de 20 pour éviter les prompts trop longs
+    all_results={}
+    batch_size=20
+    for start in range(0,len(articles),batch_size):
+        batch=articles[start:start+batch_size]
+        items=[f"{start+j}. {a['title']} — {a.get('description','')[:120]} — auteur: {a.get('author','')}" for j,a in enumerate(batch)]
+        prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
+{cat_desc}
 Articles :
 {chr(10).join(items)}
-JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
-    r=pj(gcall([{"role":"user","content":prompt}]))
-    if r and isinstance(r,list):
-        m={c["id"]:c["cat"] for c in r if "id" in c}; print(f"  Groq classif : {len(m)}"); return m
-    return None
+JSON uniquement : [{{"id":{start},"cat":"aerien"}}]"""
+        r=pj(gcall([{"role":"user","content":prompt}]))
+        if r and isinstance(r,list):
+            for c in r:
+                if "id" in c: all_results[c["id"]]=c["cat"]
+            print(f"  Groq classif batch {start}-{start+len(batch)-1} : {len([c for c in r if 'id' in c])} classés")
+        else:
+            print(f"  Groq classif batch {start}-{start+len(batch)-1} : ÉCHEC")
+        if start+batch_size<len(articles):
+            time.sleep(1)  # Pause entre les batches pour éviter le rate limit
+
+    print(f"  Groq classif total : {len(all_results)}/{len(articles)}")
+    return all_results if all_results else None
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
