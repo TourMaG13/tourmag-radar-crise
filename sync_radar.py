@@ -267,14 +267,10 @@ def scrape_article_content(url):
 
         extras=""
 
-        # Pré-extraire les citations entre tous types de guillemets (français « », typographiques " ", droits "")
-        # Guillemets français et typographiques
-        citations_fancy=re.findall(r'[«\u201c](.{30,800}?)[»\u201d]',full_text)
-        # Guillemets droits (très courant sur TourMaG)
-        citations_straight=re.findall(r'"([^"]{30,800}?)"',full_text)
-        all_citations=list(dict.fromkeys(citations_fancy+citations_straight))  # Dédoublonner en gardant l'ordre
-        if all_citations:
-            extras+="\n--- CITATIONS ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in all_citations[:10])
+        # Pré-extraire les citations entre guillemets
+        citations_guillemets=re.findall(r'[«""\u201c](.{30,800}?)[»""\u201d]',full_text)
+        if citations_guillemets:
+            extras+="\n--- CITATIONS ENTRE GUILLEMETS ---\n"+"\n".join(f'• «{c}»' for c in citations_guillemets[:8])
 
         # Pré-extraire les passages en italique (balises <em> et <i>) — souvent des citations sur TourMaG
         italics=[]
@@ -391,23 +387,22 @@ def citations_groq(articles_with_content):
         items.append(f'{i}. Titre: "{a["title"]}"\nAuteur article (JOURNALISTE — NE JAMAIS CITER): {a.get("author","")}\nContenu:\n{content[:2500]}')
     prompt=f"""Tu dois extraire des VRAIES CITATIONS VERBATIM (mot pour mot) depuis le contenu des articles ci-dessous.
 
-COMMENT TROUVER LES CITATIONS :
-1. PRIORITÉ 1 : Les passages listés dans "CITATIONS ENTRE GUILLEMETS" — ce sont des discours directs extraits de l'article
-2. PRIORITÉ 2 : Les passages listés dans "PASSAGES EN ITALIQUE" — sur TourMaG, les citations sont souvent en italique
-3. PRIORITÉ 3 : Les noms dans "PERSONNES CITÉES" te disent QUI parle
-4. Les guillemets peuvent être de type « », " " ou " " (guillemets droits)
-5. Les verbes introducteurs (explique, confie, déclare, témoigne, selon, raconte) indiquent une citation
+INDICES POUR TROUVER LES CITATIONS :
+- Les passages entre guillemets « » ou " " sont des citations directes
+- Les passages EN ITALIQUE (section "PASSAGES EN ITALIQUE") sont souvent des citations sur TourMaG
+- La section "PERSONNES CITÉES" te donne les noms des professionnels interviewés
+- Les verbes "explique", "confie", "déclare", "témoigne", "selon" introduisent des citations
 
 RÈGLES ABSOLUMENT NON NÉGOCIABLES :
-1. Recopie la citation INTÉGRALEMENT, mot pour mot, entre 2 et 5 phrases. Ne tronque RIEN, ne coupe pas au milieu d'une phrase.
-2. Le nom est celui de la PERSONNE QUI PARLE (un professionnel du tourisme), JAMAIS le journaliste/auteur de l'article
+1. Recopie la citation INTÉGRALEMENT, mot pour mot, entre 2 et 5 phrases. Ne tronque RIEN.
+2. Le nom est celui de la PERSONNE QUI PARLE (un professionnel du tourisme), JAMAIS le journaliste/auteur
 3. La fonction doit inclure le poste ET l'entreprise (ex: "Directeur, Voyages Leclerc Marseille")
 4. Si l'article ne contient AUCUNE citation d'un professionnel du tourisme → citation="" nom="" fonction=""
 
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot sans troncature...","nom":"Prénom Nom","fonction":"Poste, Entreprise"}}]"""
+JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot...","nom":"Prénom Nom","fonction":"Poste, Entreprise"}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["id"]:{"citation":c.get("citation",""),"nom":c.get("nom",""),"fonction":c.get("fonction","")} for c in r if "id" in c and c.get("citation","")}
@@ -554,7 +549,30 @@ def sync_mae(db,d,ex):
 def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_airlines(db,a): db.collection("config").document("airlines").set({"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_intro(db,t): db.collection("config").document("intro").set({"text":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
+
+def intro_groq(articles):
+    items=[f"- {a['title']}" for a in articles[:15]]
+    prompt=f"""Tu es rédacteur en chef d'un média spécialisé tourisme. Rédige un paragraphe d'introduction (3-4 phrases, environ 60-80 mots) pour un dashboard de veille sur la crise au Moyen-Orient destiné aux agents de voyage français.
+
+Ce texte doit :
+- Contextualiser brièvement la crise (depuis quand, quels pays principalement touchés)
+- Mentionner l'impact concret sur le secteur du tourisme (vols, croisières, destinations)
+- Donner le ton : informatif, professionnel, rassurant mais réaliste
+- Être rédigé au présent
+
+Ce texte sera affiché en haut du dashboard comme introduction permanente.
+
+Articles récents pour contexte :
+{chr(10).join(items)}
+
+Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
+    r=gcall([{"role":"user","content":prompt}],mt=500)
+    if r:
+        t=r.strip().strip('"').strip("'")
+        print(f"  Intro : {len(t)} car."); return t
+    return None
 
 # ── Main ──
 def main():
@@ -642,6 +660,12 @@ def main():
         print("\n--- Airlines ---")
         al=airlines_groq(articles)
         if al: sync_airlines(db,al)
+
+    # Introduction
+    if articles and GROQ_API_KEY:
+        print("\n--- Introduction ---")
+        intro=intro_groq(articles)
+        if intro: sync_intro(db,intro)
 
     # Finance
     print("\n--- Finance ---")
