@@ -47,10 +47,7 @@ def check_image_url(url):
         return False
 
 # ── RSS/HTML ──
-TAGS_PAGE_URL="https://www.tourmag.com/tags/crise+golfe/"
-
-def parse_html_page(hb):
-    """Parse une page HTML de résultats TourMaG et retourne les articles."""
+def parse_html_fb(hb):
     soup=BeautifulSoup(hb,"html.parser"); arts=[]
     for d in soup.find_all("div",class_="result"):
         h3=d.find("h3",class_="titre")
@@ -73,118 +70,17 @@ def parse_html_page(hb):
         if td and td.find("a"): desc=td.find("a").get_text(strip=True)
         img=vimg(d.find("img").get("src","") if d.find("img") else "")
         arts.append({"title":t,"link":l,"description":desc,"pub_date":pd,"image_url":img,"author":au})
-    return arts
-
-def scrape_all_pages():
-    """Scrape toutes les pages de résultats TourMaG pour récupérer tous les articles."""
-    all_arts=[]
-    seen_links=set()
-
-    # D'abord récupérer la page 1 et analyser la pagination
-    print(f"  Page 1 : {TAGS_PAGE_URL}")
-    try:
-        r=requests.get(TAGS_PAGE_URL,timeout=30,headers=HDR)
-        if r.status_code!=200:
-            print(f"  HTTP {r.status_code}")
-            return []
-        html1=r.content
-        arts=parse_html_page(html1)
-        for a in arts:
-            if a["link"] not in seen_links:
-                seen_links.add(a["link"])
-                all_arts.append(a)
-        print(f"  → {len(all_arts)} articles")
-        if not arts:
-            return all_arts
-
-        # Détecter le format de pagination en analysant le HTML
-        soup=BeautifulSoup(html1,"html.parser")
-        page_links=[]
-        for a_tag in soup.find_all("a",href=True):
-            href=a_tag["href"]
-            # Chercher tous les patterns de pagination possibles
-            if any(p in href for p in ["debut_articles=","debut_tags=","start=","page=","crise+golfe/"]):
-                if "crise" in href or "golfe" in href:
-                    full=href if href.startswith("http") else "https://www.tourmag.com"+href
-                    if full!=TAGS_PAGE_URL and full not in page_links:
-                        page_links.append(full)
-
-        print(f"  Liens de pagination trouvés : {len(page_links)}")
-        for pl in page_links[:3]:
-            print(f"    {pl[:80]}")
-
-        # Si on a trouvé des liens de pagination, les suivre
-        if page_links:
-            for i,url in enumerate(page_links):
-                print(f"  Page {i+2} : {url[:70]}...")
-                try:
-                    r2=requests.get(url,timeout=30,headers=HDR)
-                    if r2.status_code!=200: continue
-                    arts2=parse_html_page(r2.content)
-                    new=0
-                    for a in arts2:
-                        if a["link"] not in seen_links:
-                            seen_links.add(a["link"])
-                            all_arts.append(a)
-                            new+=1
-                    print(f"  → {new} nouveaux (total: {len(all_arts)})")
-                    if new==0: break
-                    time.sleep(0.5)
-                except Exception as e:
-                    print(f"  Erreur : {e}")
-        else:
-            # Aucun lien trouvé dans le HTML : essayer les formats SPIP courants
-            per_page=len(arts)  # Nombre d'articles par page (probablement 20)
-            print(f"  Pas de liens de pagination détectés, essai formats SPIP ({per_page} articles/page)")
-            for offset in range(per_page, per_page*15, per_page):
-                # Tester debut_articles=N (format SPIP le plus courant)
-                for param in [f"debut_articles={offset}", f"debut_tags={offset}", f"start={offset}"]:
-                    url=f"{TAGS_PAGE_URL}?{param}"
-                    try:
-                        r2=requests.get(url,timeout=30,headers=HDR)
-                        if r2.status_code!=200: continue
-                        arts2=parse_html_page(r2.content)
-                        new=0
-                        for a in arts2:
-                            if a["link"] not in seen_links:
-                                seen_links.add(a["link"])
-                                all_arts.append(a)
-                                new+=1
-                        if new>0:
-                            print(f"  offset={offset} ({param}) → {new} nouveaux (total: {len(all_arts)})")
-                            time.sleep(0.5)
-                            break  # Ce format marche, on continue avec celui-ci
-                        else:
-                            continue  # Essayer le format suivant
-                    except:
-                        continue
-                else:
-                    # Aucun format n'a donné de résultats à cet offset
-                    print(f"  offset={offset} → aucun résultat, arrêt")
-                    break
-
-    except Exception as e:
-        print(f"  Erreur page 1: {e}")
-
-    all_arts.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    print(f"  TOTAL : {len(all_arts)} articles récupérés")
-    return all_arts
+    print(f"HTML fallback : {len(arts)} articles"); return arts
 
 def parse_rss():
-    """Essaie le RSS d'abord, puis scrape toutes les pages HTML."""
     try:
         r=requests.get(RSS_URL,timeout=30,headers=HDR); r.raise_for_status(); raw=r.content
-        # Si la réponse est du HTML (pas du RSS), on scrape toutes les pages
-        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower():
-            return scrape_all_pages()
-        if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"):
-            return scrape_all_pages()
+        if b"<!DOCTYPE" in raw[:500] or b"<html" in raw[:500].lower(): return parse_html_fb(raw)
+        if not raw.lstrip()[:5] in (b"<?xml",b"<rss ",b"<feed"): return []
         feed=feedparser.parse(raw)
         if not feed.entries and feed.bozo: feed=feedparser.parse(clean_xml(raw.decode("utf-8",errors="replace")))
-        if not feed.entries:
-            return scrape_all_pages()
-        # RSS fonctionne mais ne donne qu'une partie — on complète avec le scraping HTML
-        arts_rss=[]
+        if not feed.entries: return []
+        arts=[]
         for e in feed.entries:
             pd=None
             if hasattr(e,"published_parsed") and e.published_parsed: pd=datetime(*e.published_parsed[:6],tzinfo=timezone.utc)
@@ -196,21 +92,9 @@ def parse_rss():
                         u=it.get("href",it.get("url",""))
                         if u: img=vimg(u); break
                 if img: break
-            arts_rss.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
-        print(f"RSS : {len(arts_rss)} articles")
-        # Compléter avec le scraping de toutes les pages
-        print("  Complément par scraping HTML...")
-        arts_html=scrape_all_pages()
-        # Fusionner en gardant le RSS comme priorité (données plus propres)
-        seen={a["link"] for a in arts_rss}
-        for a in arts_html:
-            if a["link"] not in seen:
-                arts_rss.append(a)
-                seen.add(a["link"])
-        arts_rss.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-        print(f"  TOTAL fusionné : {len(arts_rss)} articles")
-        return arts_rss
-    except Exception as ex: print(f"ERREUR RSS : {ex}"); return scrape_all_pages()
+            arts.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
+        return arts
+    except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
 
 # ── Scrape full article content ──
 def scrape_og_image(url):
@@ -318,7 +202,9 @@ def pj(t):
 
 def classify_groq(articles):
     cats="institutionnel, aerien, croisiere, juridique, solutions, temoignages, geopolitique, economie, destinations, edito"
-    cat_desc="""- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
+    items=[f"{i}. {a['title']} — {a.get('description','')[:120]} — auteur: {a.get('author','')}" for i,a in enumerate(articles)]
+    prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
+- institutionnel : MAE, diplomatie, rapatriements, conseils voyageurs
 - aerien : compagnies, vols, suspensions, reprises, surcharges, aéroports, équipages
 - croisiere : paquebots, ports, mer Rouge, canal de Suez
 - juridique : droits clients, annulations, remboursements, assurance, force majeure
@@ -329,31 +215,14 @@ def classify_groq(articles):
 - destinations : impact sur des destinations spécifiques, pays qui restent accessibles, état du tourisme dans un pays
 - edito : éditorial, billet d'humeur, chronique, opinion, tribune, "même pas peur", inventaire peurs/craintes
 - general : si aucune
-RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito."""
-
-    # Classifier par lots de 20 pour éviter les prompts trop longs
-    all_results={}
-    batch_size=20
-    for start in range(0,len(articles),batch_size):
-        batch=articles[start:start+batch_size]
-        items=[f"{start+j}. {a['title']} — {a.get('description','')[:120]} — auteur: {a.get('author','')}" for j,a in enumerate(batch)]
-        prompt=f"""Classifie chaque article dans UNE catégorie : {cats}, general.
-{cat_desc}
+RÈGLE SPÉCIALE EDITO : si l'auteur est "Josette Sicsic" ou si le titre/description contient le mot "édito" ou "éditorial" ou "billet", classifie en edito.
 Articles :
 {chr(10).join(items)}
-JSON uniquement : [{{"id":{start},"cat":"aerien"}}]"""
-        r=pj(gcall([{"role":"user","content":prompt}]))
-        if r and isinstance(r,list):
-            for c in r:
-                if "id" in c: all_results[c["id"]]=c["cat"]
-            print(f"  Groq classif batch {start}-{start+len(batch)-1} : {len([c for c in r if 'id' in c])} classés")
-        else:
-            print(f"  Groq classif batch {start}-{start+len(batch)-1} : ÉCHEC")
-        if start+batch_size<len(articles):
-            time.sleep(1)  # Pause entre les batches pour éviter le rate limit
-
-    print(f"  Groq classif total : {len(all_results)}/{len(articles)}")
-    return all_results if all_results else None
+JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}]))
+    if r and isinstance(r,list):
+        m={c["id"]:c["cat"] for c in r if "id" in c}; print(f"  Groq classif : {len(m)}"); return m
+    return None
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
