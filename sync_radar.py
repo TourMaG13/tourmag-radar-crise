@@ -289,12 +289,23 @@ RÈGLE SPÉCIALE : si l'auteur est "Josette Sicsic" ou si titre contient "édito
 def synthesis_groq(all_articles):
     """Synthèse basée sur TOUS les articles en base (les 15 plus récents)."""
     items=[f"- {a.get('title','')}: {a.get('description','')[:200]}" for a in all_articles[:15]]
-    prompt=f"""Tu es journaliste tourisme. Rédige EXACTEMENT 6 paragraphes de synthèse sur la crise Moyen-Orient pour agents de voyage français.
-Chaque paragraphe : 35-50 mots, VRAIE ANALYSE RÉDIGÉE, 6 angles différents (aérien, destinations, juridique, TO, géopolitique, conseil).
+    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
+
+RÈGLES IMPÉRATIVES :
+- Chaque paragraphe doit faire entre 40 et 60 mots (3 lignes minimum). C'est OBLIGATOIRE. Un paragraphe d'une seule phrase est REJETÉ.
+- Chaque paragraphe est une VRAIE ANALYSE avec des faits concrets, des noms propres (compagnies, pays, acteurs) et une conséquence pratique
+- 6 angles obligatoires : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
+
+EXEMPLE de longueur MINIMUM attendue pour UN paragraphe :
+"Les compagnies aériennes européennes comme Air France et Lufthansa maintiennent la suspension de leurs liaisons vers Beyrouth, Téhéran et certaines villes irakiennes. Emirates et Qatar Airways ont quant à elles réduit leurs fréquences sur plusieurs routes régionales, ce qui complique les options de correspondance pour les voyageurs à destination du Golfe."
+
+Un paragraphe comme "Aérien : les compagnies sont touchées par la crise." est TROP COURT et sera REJETÉ.
+
 Articles récents :
 {chr(10).join(items)}
-JSON array de 6 strings uniquement."""
-    r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
+
+Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list) and len(r)>=3:
         titles={a.get('title','').lower().strip() for a in all_articles}
         filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles and len(p)>30]
@@ -317,14 +328,28 @@ JSON : [{{"id":0,"citation":"...","nom":"Prénom Nom","fonction":"Poste, Entrepr
     return None
 
 def timeline_groq(all_articles):
-    items=[f"- [{a.get('pub_date','').isoformat()[:10] if hasattr(a.get('pub_date',''),'isoformat') else '?'}] {a.get('title','')}" for a in all_articles[:25]]
-    prompt=f"""8-10 événements clés chronologiques sur la crise Moyen-Orient.
-Chaque event = VRAIE PHRASE (sujet+verbe+complément), noms propres, 8-18 mots, vraies dates.
+    def safe_date(d):
+        if not d: return '?'
+        if hasattr(d,'isoformat'): return d.isoformat()[:10]
+        if hasattr(d,'toDate'): return d.toDate().isoformat()[:10]
+        try: return str(d)[:10]
+        except: return '?'
+    items=[f"- [{safe_date(a.get('pub_date',''))}] {a.get('title','')}" for a in all_articles[:25]]
+    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique.
+
+RÈGLES :
+- Chaque événement = VRAIE PHRASE complète (sujet + verbe + complément), commençant par une majuscule
+- Utilise des NOMS PROPRES (Air France, Emirates, Liban, Quai d'Orsay...)
+- 8-18 mots par événement
+- Utilise les vraies dates des articles
+
 Articles :
 {chr(10).join(items)}
-JSON : [{{"date":"2026-03-01","event":"Air France suspend ses vols vers Téhéran."}}]"""
+
+JSON uniquement : [{{"date":"2026-03-01","event":"Air France suspend tous ses vols vers Beyrouth et Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
-    if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
+    if r and isinstance(r,list) and len(r)>=3: print(f"  Timeline : {len(r)} events"); return r
+    print("  Timeline : ÉCHEC Groq")
     return None
 
 def airlines_groq(all_articles):
@@ -558,6 +583,7 @@ def main():
         print("\n--- Timeline ---")
         tl=timeline_groq(all_articles)
         if tl: sync_timeline(db,tl)
+        else: print("  Timeline Groq indisponible, on garde l'ancienne en base")
         time.sleep(GROQ_PAUSE)
 
         print("\n--- Airlines ---")
