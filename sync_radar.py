@@ -137,56 +137,34 @@ def scrape_all_pages():
     try:
         r=requests.get(TAGS_PAGE_URL,timeout=30,headers=HDR)
         if r.status_code!=200: print(f"  HTTP {r.status_code}"); return []
-        html1=r.content; arts=parse_html_page(html1)
+        arts=parse_html_page(r.content)
         for a in arts:
             if a["link"] not in seen: seen.add(a["link"]); all_arts.append(a)
+        per_page=len(arts)
         print(f"  Page 1 → {len(all_arts)} articles")
-        if not arts: return all_arts
-        # Détecter pagination dans le HTML
-        soup=BeautifulSoup(html1,"html.parser")
-        page_links=[]
-        for a_tag in soup.find_all("a",href=True):
-            href=a_tag["href"]
-            if any(p in href for p in ["debut_articles=","debut_tags=","start=","page="]):
-                if "crise" in href or "golfe" in href:
-                    full=href if href.startswith("http") else "https://www.tourmag.com"+href
-                    if full!=TAGS_PAGE_URL and full not in page_links: page_links.append(full)
-        if page_links:
-            print(f"  Liens pagination trouvés : {len(page_links)}")
-            for i,url in enumerate(page_links):
-                print(f"  Page {i+2} : {url[:70]}...")
-                try:
-                    r2=requests.get(url,timeout=30,headers=HDR)
-                    if r2.status_code!=200: continue
-                    arts2=parse_html_page(r2.content)
-                    new=sum(1 for a in arts2 if a["link"] not in seen)
-                    for a in arts2:
-                        if a["link"] not in seen: seen.add(a["link"]); all_arts.append(a)
-                    print(f"  → {new} nouveaux (total: {len(all_arts)})")
-                    if new==0: break
-                    time.sleep(0.5)
-                except Exception as e: print(f"  Erreur : {e}")
-        else:
-            # Essayer formats SPIP
-            per_page=len(arts)
-            print(f"  Pas de liens détectés, essai SPIP ({per_page} art/page)")
-            for offset in range(per_page,per_page*15,per_page):
-                found=False
-                for param in [f"debut_articles={offset}",f"debut_tags={offset}",f"start={offset}"]:
-                    url=f"{TAGS_PAGE_URL}?{param}"
-                    try:
-                        r2=requests.get(url,timeout=30,headers=HDR)
-                        if r2.status_code!=200: continue
-                        arts2=parse_html_page(r2.content)
-                        new=sum(1 for a in arts2 if a["link"] not in seen)
-                        for a in arts2:
-                            if a["link"] not in seen: seen.add(a["link"]); all_arts.append(a)
-                        if new>0:
-                            print(f"  offset={offset} ({param}) → {new} nouveaux (total: {len(all_arts)})")
-                            found=True; time.sleep(0.5); break
-                    except: continue
-                if not found:
-                    print(f"  offset={offset} → aucun résultat, arrêt"); break
+        if not arts or per_page==0: return all_arts
+
+        # Pagination TourMaG : ?debut_resultats=20&start_liste=20,40,60...
+        page=2
+        for offset in range(per_page, per_page*20, per_page):
+            url=f"{TAGS_PAGE_URL}?debut_resultats={per_page}&start_liste={offset}"
+            try:
+                r2=requests.get(url,timeout=30,headers=HDR)
+                if r2.status_code!=200:
+                    print(f"  Page {page} : HTTP {r2.status_code}, arrêt")
+                    break
+                arts2=parse_html_page(r2.content)
+                new=0
+                for a in arts2:
+                    if a["link"] not in seen: seen.add(a["link"]); all_arts.append(a); new+=1
+                print(f"  Page {page} → {new} nouveaux (total: {len(all_arts)})")
+                if new==0:
+                    print(f"  Plus de nouveaux articles, arrêt pagination")
+                    break
+                page+=1
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"  Erreur page {page}: {e}"); break
     except Exception as e: print(f"  Erreur page 1: {e}")
     all_arts.sort(key=lambda a: a.get("pub_date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     print(f"  TOTAL SCRAPING : {len(all_arts)} articles")
