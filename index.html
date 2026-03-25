@@ -9,7 +9,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root{--pri:#1B1B2F;--acc:#E8842C;--acc2:#D4731D;--blue:#0C6CA1;--green:#059669;--orange:#EA580C;--red:#DC2626;--amber:#D97706;--violet:#7C3AED;--cyan:#0891B2;--bg:#FFFFFF;--card:#FFF;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;--border:#E5E7EB;--rl:16px;--shadow:0 2px 12px rgba(0,0,0,.06)}
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+/* Force scroll on mobile */
+.leaflet-container{touch-action:pan-y!important}
+@media(max-width:768px){.leaflet-container{touch-action:pan-y!important;pointer-events:none}.map-touch-overlay{position:absolute;inset:0;z-index:500;background:transparent}}
 /* Header */
 .header{background:var(--pri);color:#fff;padding:0 28px;min-height:58px;display:flex;align-items:center;gap:16px;overflow:hidden}
 .header .logo{font-family:'Josefin Sans';font-size:16px;font-weight:700;letter-spacing:.5px;white-space:nowrap;display:flex;align-items:center;gap:10px;flex-shrink:0}
@@ -296,9 +299,13 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
 
 function initMap(mae){
   const isMobile=window.innerWidth<=768;
-  const map=L.map('map',{zoomControl:false,attributionControl:false,scrollWheelZoom:!isMobile,dragging:!isMobile,tap:!isMobile}).setView([29,44],4);
+  const mapOpts={zoomControl:false,attributionControl:false};
+  if(isMobile){mapOpts.dragging=false;mapOpts.tap=false;mapOpts.scrollWheelZoom=false;mapOpts.touchZoom=false;mapOpts.doubleClickZoom=false;mapOpts.boxZoom=false;mapOpts.keyboard=false}
+  const map=L.map('map',mapOpts).setView([29,44],4);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:8,attribution:''}).addTo(map);
-  L.control.zoom({position:'topright'}).addTo(map);
+  if(!isMobile) L.control.zoom({position:'topright'}).addTo(map);
+  // Sur mobile, ajouter un overlay transparent pour laisser passer le scroll
+  if(isMobile){const ov=document.createElement('div');ov.className='map-touch-overlay';document.querySelector('.map-full').appendChild(ov)}
   const cm={red:'#DC2626',orange:'#EA580C',yellow:'#D97706',green:'#059669',gray:'#9CA3AF'};
   Object.entries(CC).forEach(([co,cd])=>{
     const md=mae[co],color=md?cm[md.color]||cm.gray:cm.gray,arts=ABC[co]||[];
