@@ -141,7 +141,7 @@
 .ld{text-align:center;padding:100px}.ld .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px}@keyframes spin{to{transform:rotate(360deg)}}.ld .tx{font-size:14px;color:var(--text3)}
 @keyframes mpulse{0%{opacity:.5;transform:scale(1)}50%{opacity:0;transform:scale(2)}100%{opacity:0;transform:scale(2)}}
 /* Modal */
-.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}.mo.show{opacity:1;pointer-events:auto}
+.mo{position:absolute;left:0;width:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}.mo.show{opacity:1;pointer-events:auto}
 .mo-box{background:var(--card);border-radius:var(--rl);width:100%;max-width:600px;max-height:75vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
 @media(max-width:768px){.mo{padding:12px}.mo-box{max-height:85vh;max-width:100%;border-radius:12px}}
 .mo-hd{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -206,7 +206,12 @@ function openMo(cat,page){
     pag+=`<div class="mo-pag-btn ${moPage>=totalPages-1?'disabled':''}" onclick="${moPage<totalPages-1?`openMo('${cat}',${moPage+1})`:''}">›</div>`;
     pag+=`</div>`}
   document.getElementById('mo-bd').innerHTML+=pag;
-  document.getElementById('modal').classList.add('show');document.body.style.overflow='hidden';
+  document.getElementById('modal').classList.add('show');
+  // Positionner la modale sur la zone visible
+  const mo=document.getElementById('modal');
+  mo.style.top=window.scrollY+'px';
+  mo.style.height=window.innerHeight+'px';
+  document.body.style.overflow='hidden';
   document.getElementById('mo-bd').scrollTop=0}
 function closeMo(){document.getElementById('modal').classList.remove('show');document.body.style.overflow=''}
 
