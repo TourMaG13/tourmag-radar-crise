@@ -236,7 +236,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
 
   // 4. TIMELINE
   const tl=timeline&&timeline.events?timeline.events:null;
-  if(tl&&tl.length){h+=`<div class="sl fi">Chronologie des événements</div><div class="tl-wrap fi"><div class="tl-track">`;tl.slice(0,7).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';h+=`<div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><div class="tl-date">${d}</div><div class="tl-ev">${e.event||''}</div></div></div>`});h+=`</div></div>`}
+  if(tl&&tl.length){h+=`<div class="sl fi">Chronologie des événements</div><div class="tl-wrap fi"><div class="tl-track">`;tl.slice(-7).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';h+=`<div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><div class="tl-date">${d}</div><div class="tl-ev">${e.event||''}</div></div></div>`});h+=`</div></div>`}
 
   // 5. MAP + MAE (full width)
   h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-full fi"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
