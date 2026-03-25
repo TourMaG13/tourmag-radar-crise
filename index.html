@@ -48,7 +48,8 @@
 .flash{display:flex;align-items:center;gap:12px;padding:12px 20px;background:linear-gradient(90deg,#7F1D1D,#991B1B);border-radius:var(--rl);margin-bottom:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;overflow:hidden}.flash:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(220,38,38,.2)}
 .flash-badge{font-family:'Josefin Sans';font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--red);padding:4px 12px;border-radius:6px;flex-shrink:0;white-space:nowrap;animation:fpls 2s infinite}
 @keyframes fpls{0%,100%{opacity:1}50%{opacity:.6}}
-.flash-text{font-size:13px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flash-text{font-size:13px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4}
+@media(max-width:768px){.flash{flex-wrap:wrap;gap:8px}.flash-text{font-size:12px;order:3;flex-basis:100%}.flash-date{order:2}}
 .flash-date{font-family:'IBM Plex Mono';font-size:10px;color:rgba(255,255,255,.4);flex-shrink:0;white-space:nowrap}
 /* Une hero */
 .une-h{border-radius:var(--rl);overflow:hidden;position:relative;min-height:300px;cursor:pointer;margin-bottom:8px;transition:transform .25s,box-shadow .25s}.une-h:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.2)}
