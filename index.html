@@ -115,6 +115,7 @@
 @keyframes tfade{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 .temo-cit{font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:var(--text);line-height:1.7;padding-left:24px;border-left:3px solid var(--orange);margin-bottom:16px;max-width:800px}
 .temo-who{display:flex;align-items:center;gap:10px;padding-left:24px}.temo-av{width:36px;height:36px;border-radius:50%;background:#FFEDD5;display:flex;align-items:center;justify-content:center;font-size:16px}.temo-nm{font-size:12px;font-weight:600;color:var(--text)}.temo-fn{font-size:10px;color:var(--text3)}
+.temo-link{font-size:11px;font-weight:600;color:var(--acc2);padding-left:24px;margin-top:12px}
 .temo-nav{position:absolute;top:50%;right:24px;transform:translateY(-50%);display:flex;gap:8px}
 .temo-btn{width:36px;height:36px;border-radius:50%;border:1px solid #FED7AA;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#9A3412;transition:background .15s}.temo-btn:hover{background:#FFEDD5}
 .temo-dots{display:flex;gap:6px;justify-content:center;margin-top:16px}.temo-dot{width:8px;height:8px;border-radius:50%;background:#FED7AA;cursor:pointer;transition:background .2s}.temo-dot.active{background:var(--orange)}
@@ -272,10 +273,13 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 10. EXTRAITS CHOISIS (carrousel témoignages sans auteur/date)
   const temoA=byCat['temoignages']||[];
   if(temoA.length){h+=`<div class="sl fi">Paroles de pros</div><div class="temo-car fi"><div class="temo-car-hd"><div class="ci">💬</div><h3>Extraits choisis</h3></div>`;
-  temoA.slice(0,6).forEach((a,i)=>{const cit=a.citation||a.description||a.title;const nom=a.citation_nom||'';const fn=a.citation_fonction||'';
-  h+=`<div class="temo-slide${i===0?' active':''}"><div class="temo-cit">${cit}</div>${nom?`<div class="temo-who"><div class="temo-av">👤</div><div><div class="temo-nm">${nom}</div>${fn?`<div class="temo-fn">${fn}</div>`:''}</div></div>`:''}</div>`});
-  h+=`<div class="temo-nav"><div class="temo-btn" onclick="temoGo(temoIdx-1);temoAuto()">‹</div><div class="temo-btn" onclick="temoGo(temoIdx+1);temoAuto()">›</div></div>`;
-  h+=`<div class="temo-dots">`;temoA.slice(0,6).forEach((a,i)=>{h+=`<div class="temo-dot${i===0?' active':''}" onclick="temoGo(${i});temoAuto()"></div>`});h+=`</div></div>`}
+  temoA.slice(0,6).forEach((a,i)=>{let cit=a.citation||a.description||a.title;
+  // S'assurer que la citation se termine par un point
+  cit=cit.trim();if(cit&&!cit.match(/[.!?…]$/)){const lastDot=cit.lastIndexOf('.');if(lastDot>cit.length*0.5){cit=cit.substring(0,lastDot+1)}else{cit+='.'}}
+  const nom=a.citation_nom||'';const fn=a.citation_fonction||'';
+  h+=`<div class="temo-slide${i===0?' active':''}" onclick="window.open('${a.link}','_blank')" style="cursor:pointer"><div class="temo-cit">${cit}</div>${nom?`<div class="temo-who"><div class="temo-av">👤</div><div><div class="temo-nm">${nom}</div>${fn?`<div class="temo-fn">${fn}</div>`:''}</div></div>`:''}<div class="temo-link">Lire l'article →</div></div>`});
+  h+=`<div class="temo-nav"><div class="temo-btn" onclick="event.stopPropagation();temoGo(temoIdx-1);temoAuto()">‹</div><div class="temo-btn" onclick="event.stopPropagation();temoGo(temoIdx+1);temoAuto()">›</div></div>`;
+  h+=`<div class="temo-dots">`;temoA.slice(0,6).forEach((a,i)=>{h+=`<div class="temo-dot${i===0?' active':''}" onclick="event.stopPropagation();temoGo(${i});temoAuto()"></div>`});h+=`</div></div>`}
 
   // 11. FINANCE
   const br=market['brent'],eu=market['eurusd'];const aero=Object.entries(market).filter(([k,v])=>v.sector==='aerien').sort((a,b)=>a[1].change_pct-b[1].change_pct);
