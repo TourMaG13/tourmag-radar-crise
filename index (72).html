@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crise au Moyen-Orient | TourMaG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{--pri:#1B1B2F;--acc:#E8842C;--acc2:#D4731D;--blue:#0C6CA1;--green:#059669;--orange:#EA580C;--red:#DC2626;--amber:#D97706;--violet:#7C3AED;--cyan:#0891B2;--bg:#F5F6F8;--card:#FFF;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;--border:#E5E7EB;--rl:16px}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+/* Header */
+.header{background:var(--pri);color:#fff;padding:0 28px;height:58px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.header .logo{font-family:'Josefin Sans';font-size:16px;font-weight:700;letter-spacing:.5px;white-space:nowrap;display:flex;align-items:center;gap:10px}
+.header .logo .pd{width:10px;height:10px;border-radius:50%;background:var(--acc);animation:pls 1.8s infinite;box-shadow:0 0 10px rgba(232,132,44,.5)}
+@keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.header .sep{width:1px;height:28px;background:rgba(255,255,255,.12)}
+.clocks{display:flex;gap:8px}.clock{text-align:center;padding:4px 10px}.clock .city{font-size:8px;text-transform:uppercase;letter-spacing:1.5px;opacity:.4;display:block;margin-bottom:1px}.clock .time{font-family:'IBM Plex Mono';font-size:13px;font-weight:500}
+.clock-paris{background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.25);padding:6px 16px;border-radius:10px}.clock-paris .city{opacity:1;color:var(--acc);font-weight:600;font-size:9px}.clock-paris .time{font-size:17px;font-weight:600}
+.tm-btn{margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.3);padding:5px 14px;border-radius:8px;font-size:10px;font-weight:600;color:#FDBA74;letter-spacing:.3px;text-decoration:none;white-space:nowrap;transition:background .2s}.tm-btn:hover{background:rgba(232,132,44,.25)}
+.header .ab{display:flex;align-items:center;gap:6px;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.25);padding:5px 14px;border-radius:8px;margin-left:8px}.ab .d2{width:7px;height:7px;border-radius:50%;background:#EF4444;animation:pls 1.8s infinite}.ab .lb{font-size:10px;font-weight:600;color:#FCA5A5;letter-spacing:.5px}
+.header .upd{font-size:9px;opacity:.35;white-space:nowrap}
+/* Alert bar */
+.alert-bar{height:4px;background:linear-gradient(90deg,#059669 0%,#D97706 35%,#DC2626 70%,#7F1D1D 100%);position:relative}
+.alert-bar::after{content:'';position:absolute;right:22%;top:-1px;width:12px;height:6px;background:#DC2626;border-radius:0 0 4px 4px;animation:abp 2s infinite}@keyframes abp{0%,100%{opacity:1}50%{opacity:.3}}
+/* Layout */
+.dash{max-width:1200px;margin:0 auto;padding:24px 28px}
+.sl{font-family:'Josefin Sans';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--text3);margin:32px 0 14px;display:flex;align-items:center;gap:8px}.sl::after{content:'';flex:1;height:1px;background:var(--border)}
+/* Fade in */
+.fi{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}.fi.vis{opacity:1;transform:translateY(0)}
+/* Badge nouveau */
+.bdg-new{display:inline-block;font-size:8px;font-weight:700;color:#fff;background:var(--acc);padding:2px 8px;border-radius:4px;margin-left:6px;letter-spacing:.5px;vertical-align:middle}
+/* Hero intro */
+.hero{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border-radius:0 0 var(--rl) var(--rl);padding:44px 40px 38px;margin:-24px -28px 28px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:340px;height:340px;background:radial-gradient(circle,rgba(232,132,44,.12) 0%,transparent 70%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-30px;left:-30px;width:240px;height:240px;background:radial-gradient(circle,rgba(220,38,38,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-family:'Josefin Sans';font-size:28px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:16px;position:relative}
+.hero-text{font-size:14px;color:rgba(255,255,255,.68);line-height:1.75;max-width:900px;position:relative}
+.hero-day{display:flex;align-items:center;gap:10px;margin-top:20px;position:relative}.hd-num{font-family:'IBM Plex Mono';font-size:28px;font-weight:600;color:var(--acc)}.hd-lbl{font-size:12px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px}
+@media(max-width:768px){.hero{padding:28px 20px 24px;margin:-24px -28px 20px}.hero h1{font-size:22px}}
+/* Flash alert */
+.flash{display:flex;align-items:center;gap:12px;padding:12px 20px;background:linear-gradient(90deg,#7F1D1D,#991B1B);border-radius:var(--rl);margin-bottom:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;overflow:hidden}.flash:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(220,38,38,.2)}
+.flash-badge{font-family:'Josefin Sans';font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--red);padding:4px 12px;border-radius:6px;flex-shrink:0;white-space:nowrap;animation:fpls 2s infinite}
+@keyframes fpls{0%,100%{opacity:1}50%{opacity:.6}}
+.flash-text{font-size:13px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flash-date{font-family:'IBM Plex Mono';font-size:10px;color:rgba(255,255,255,.4);flex-shrink:0;white-space:nowrap}
+/* Une hero */
+.une-h{border-radius:var(--rl);overflow:hidden;position:relative;min-height:300px;cursor:pointer;margin-bottom:8px;transition:transform .25s,box-shadow .25s}.une-h:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.2)}
+.une-h-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--pri),#2D2D44)}.une-h-bg img{width:100%;height:100%;object-fit:cover;opacity:.55;transition:opacity .3s}.une-h:hover .une-h-bg img{opacity:.65}
+.une-h-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(27,27,47,.95) 0%,rgba(27,27,47,.5) 45%,rgba(27,27,47,.15) 100%)}
+.une-h-bd{position:relative;z-index:2;padding:36px 40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:300px}
+.une-h-bd .bdg{display:inline-block;font-family:'Josefin Sans';font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;background:var(--red);padding:5px 14px;border-radius:6px;margin-bottom:16px;width:fit-content}
+.une-h-bd h3{font-size:24px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:12px;max-width:750px}
+.une-h-bd .ch{font-size:13px;color:rgba(255,255,255,.7);line-height:1.65;max-width:650px}
+.une-h-bd .mt{font-size:11px;color:rgba(255,255,255,.4);margin-top:16px}.une-h-bd .mt a{color:var(--acc);text-decoration:none;font-weight:600}
+@media(max-width:768px){.une-h-bd{padding:24px 20px;min-height:240px}.une-h-bd h3{font-size:18px}}
+/* Essentiel */
+.ess{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--acc);border-radius:var(--rl);padding:22px 26px;margin-bottom:28px}
+.ess-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}.ess-head h2{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:var(--pri)}.ess-head .badge{font-size:9px;color:var(--text3);background:var(--bg);padding:4px 12px;border-radius:20px;margin-left:auto;border:1px solid var(--border)}
+.ess-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.ess-grid{grid-template-columns:1fr}}
+.ess-item{display:flex;gap:12px;padding:10px 14px;background:var(--bg);border-radius:12px;align-items:flex-start}.ess-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--card);border:1px solid var(--border)}.ess-text{font-size:12px;line-height:1.55;color:var(--text2)}
+/* Timeline */
+.tl-wrap{padding:8px 0 16px;margin-bottom:8px}
+.tl-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;position:relative}
+.tl-track::before{content:'';position:absolute;top:6px;left:0;right:0;height:2px;background:var(--border)}
+.tl-item{display:flex;flex-direction:column;align-items:center;position:relative;padding:0 8px 8px;cursor:default}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--acc);border:3px solid var(--card);box-shadow:0 0 0 2px var(--acc);z-index:1;margin-bottom:10px}
+.tl-content{display:flex;flex-direction:column;align-items:center}
+.tl-date{font-family:'IBM Plex Mono';font-size:9px;color:var(--acc2);font-weight:600;margin-bottom:4px}
+.tl-ev{font-size:11px;color:var(--text);text-align:center;line-height:1.4;font-weight:500}
+/* Map full width */
+.map-full{border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;height:480px;position:relative;margin-bottom:8px}
+#map{height:100%;width:100%}
+.mp{position:absolute;top:12px;right:12px;width:340px;max-height:450px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;z-index:800;overflow:hidden;display:none;box-shadow:0 8px 32px rgba(0,0,0,.18);transition:transform .2s}.mp.show{display:flex;flex-direction:column}
+.mp-h{padding:14px 16px;border-bottom:1px solid var(--border);position:relative}.mp-h h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:var(--pri)}.mp-h .pc{font-size:10px;color:var(--text3)}.mp-h .cls{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer}
+.mp-badge{display:inline-block;font-size:10px;font-weight:600;padding:4px 12px;border-radius:8px;margin:8px 16px}
+.mp-b{overflow-y:auto;max-height:340px}
+.pa{padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}.pa:hover{background:#F0F7FF}.pa:last-child{border-bottom:none}.pa .pt{font-size:12px;color:var(--text);line-height:1.4;font-weight:500}.pa .pm{font-size:10px;color:var(--text3);margin-top:2px}
+/* MAE legend under map */
+.mae-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:8px}
+.mae-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;transition:background .1s;white-space:nowrap}.mae-chip:hover{background:#FAFBFD}
+.mae-chip .md{width:8px;height:8px;border-radius:50%;flex-shrink:0}.mae-chip .md.red{background:var(--red)}.mae-chip .md.orange{background:var(--orange)}.mae-chip .md.yellow{background:var(--amber)}.mae-chip .md.green{background:var(--green)}.mae-chip .md.gray{background:#9CA3AF}
+/* Departure board airlines */
+.dep-board{background:var(--pri);border-radius:var(--rl);padding:20px 24px;margin-bottom:8px;overflow:hidden}
+.dep-board-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}.dep-board-hd h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}.dep-board-hd .icon{font-size:18px}
+.dep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.dep-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.06);transition:background .15s}.dep-row:hover{background:rgba(255,255,255,.07)}
+.dep-status{width:10px;height:10px;border-radius:50%;flex-shrink:0}.dep-status.suspendu{background:#EF4444;box-shadow:0 0 8px rgba(239,68,68,.5);animation:dpls 2s infinite}.dep-status.perturbe{background:var(--amber);box-shadow:0 0 6px rgba(217,119,6,.4)}.dep-status.operationnel{background:var(--green)}
+@keyframes dpls{0%,100%{opacity:1}50%{opacity:.4}}
+.dep-name{font-family:'IBM Plex Mono';font-size:12px;font-weight:500;color:rgba(255,255,255,.85)}.dep-det{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px}
+/* Themes grid */
+.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:8px}@media(max-width:900px){.tg{grid-template-columns:1fr 1fr}}@media(max-width:600px){.tg{grid-template-columns:1fr}}
+.cd{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;transition:transform .15s,box-shadow .15s}.cd:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.07)}
+.cd .hd{display:flex;align-items:center;gap:10px;padding:14px 16px}.cd .ci{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}.cd .ct{font-family:'Josefin Sans';font-size:15px;font-weight:700}.cd .cc{font-size:10px;font-weight:700;color:#fff;padding:3px 10px;border-radius:20px;margin-left:auto}
+.cd-aerien{border-top:3px solid #3B82F6}.cd-institutionnel{border-top:3px solid var(--violet)}.cd-croisiere{border-top:3px solid var(--cyan)}.cd-juridique{border-top:3px solid var(--amber)}.cd-solutions{border-top:3px solid var(--green)}.cd-geopolitique{border-top:3px solid #DC2626}.cd-economie{border-top:3px solid #64748B}.cd-destinations{border-top:3px solid #2563EB}
+.ni{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:12px;align-items:center}.ni:first-of-type{border-top:none}.ni:hover{background:#F8FAFC}.ni .nt{font-size:12px;font-weight:500;color:var(--text);line-height:1.4}.ni .nm{font-size:10px;color:var(--text3);margin-top:3px}.ni-body{flex:1;min-width:0}
+.ni-img{width:56px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0}
+.jur{display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:flex-start}.jur:first-of-type{border-top:none}.jur:hover{background:#FFFDF5}.jur-d{width:8px;height:8px;border-radius:50%;background:var(--amber);margin-top:4px;flex-shrink:0}.jur-t{font-size:12px;color:var(--text);line-height:1.4;font-weight:500}.jur-m{font-size:10px;color:var(--text3);margin-top:2px}
+.sol{padding:12px 16px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s}.sol:first-of-type{border-top:none}.sol:hover{background:#F0FDF8}.sol-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sol-badge{background:#DCFCE7;color:#166534;font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px}.sol-t{font-size:13px;font-weight:600}.sol-s{font-size:10px;color:var(--text3)}.sol-d{font-size:11px;color:var(--text2);line-height:1.45;margin-top:4px}
+.voir-plus{display:block;padding:10px 16px;font-size:11px;font-weight:600;color:var(--acc2);text-align:center;cursor:pointer;border-top:1px solid var(--border);transition:background .1s}.voir-plus:hover{background:#FFF7ED}
+/* Edito */
+.edito-sec{background:linear-gradient(135deg,#FDF2F8,#FCE7F3);border:1px solid #F9A8D4;border-radius:var(--rl);padding:24px;margin-bottom:8px}
+.edito-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}.edito-head .ci{width:40px;height:40px;border-radius:12px;background:#FBCFE8;display:flex;align-items:center;justify-content:center;font-size:18px}.edito-head h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#9D174D}.edito-head .cc{font-size:10px;font-weight:700;color:#fff;background:#EC4899;padding:3px 10px;border-radius:20px;margin-left:auto}
+.edito-card{background:var(--card);border:1px solid #F9A8D4;border-radius:14px;padding:18px 20px;cursor:pointer;transition:transform .15s}.edito-card:hover{transform:translateY(-2px)}
+.edito-inner{display:flex;gap:16px;align-items:flex-start}.edito-img{width:80px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0}.edito-body{flex:1;min-width:0}
+.edito-card .e-title{font-size:16px;font-weight:600;color:var(--text);font-style:italic;line-height:1.4;margin-bottom:8px}.edito-card .e-desc{font-size:12px;color:var(--text2);line-height:1.55}.edito-card .e-auth{font-size:10px;color:#9D174D;font-weight:600;margin-top:10px}
+/* Temoignages carrousel */
+.temo-car{background:linear-gradient(135deg,#FFF7ED,#FFFBF5);border:1px solid #FED7AA;border-radius:var(--rl);padding:32px 40px;margin-bottom:8px;position:relative;overflow:hidden;min-height:200px}
+.temo-car-hd{display:flex;align-items:center;gap:10px;margin-bottom:24px}.temo-car-hd .ci{width:40px;height:40px;border-radius:12px;background:#FFEDD5;display:flex;align-items:center;justify-content:center;font-size:18px}.temo-car-hd h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#9A3412}
+.temo-slide{display:none;animation:tfade .4s ease}.temo-slide.active{display:block}
+@keyframes tfade{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+.temo-cit{font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:var(--text);line-height:1.7;padding-left:24px;border-left:3px solid var(--orange);margin-bottom:16px;max-width:800px}
+.temo-who{display:flex;align-items:center;gap:10px;padding-left:24px}.temo-av{width:36px;height:36px;border-radius:50%;background:#FFEDD5;display:flex;align-items:center;justify-content:center;font-size:16px}.temo-nm{font-size:12px;font-weight:600;color:var(--text)}.temo-fn{font-size:10px;color:var(--text3)}
+.temo-nav{position:absolute;top:50%;right:24px;transform:translateY(-50%);display:flex;gap:8px}
+.temo-btn{width:36px;height:36px;border-radius:50%;border:1px solid #FED7AA;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#9A3412;transition:background .15s}.temo-btn:hover{background:#FFEDD5}
+.temo-dots{display:flex;gap:6px;justify-content:center;margin-top:16px}.temo-dot{width:8px;height:8px;border-radius:50%;background:#FED7AA;cursor:pointer;transition:background .2s}.temo-dot.active{background:var(--orange)}
+@media(max-width:768px){.temo-car{padding:24px 20px}.temo-cit{font-size:15px}.temo-nav{position:static;transform:none;justify-content:center;margin-top:16px}}
+/* Finance */
+.fgr{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}@media(max-width:768px){.fgr{grid-template-columns:1fr 1fr}}
+.fc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px}.fc .lb2{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:600}.fc .vl{font-family:'Josefin Sans';font-size:20px;font-weight:700;margin:4px 0}.fc .cg{font-size:11px;font-weight:600}.fc .sp{margin-top:8px}.cu{color:var(--red)}.cdn{color:var(--green)}
+.bc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}.bt{width:100%;border-collapse:collapse}.bt th{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px 10px;text-align:left;border-bottom:1px solid var(--border);background:#FAFBFD}.bt th:nth-child(2),.bt th:nth-child(3){text-align:right}.bt td{padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px}.bt tr:last-child td{border-bottom:none}.bt tr:hover{background:#FAFBFD}.tn{font-weight:600}.ts2{font-size:9px;color:var(--text3)}.tsc{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px}.sa{background:#DBEAFE;color:#1E40AF}.sh{background:#EDE9FE;color:#6B21A8}.scr{background:#D1FAE5;color:#065F46}.sto{background:#FEF3C7;color:#92400E}.ste,.sot{background:#F1F5F9;color:#475569}
+/* Action box */
+.act-box{background:linear-gradient(135deg,#FFF7ED,#FFFBEB);border:1px solid #FDE68A;border-radius:var(--rl);padding:28px 32px;margin-bottom:8px}
+.act-box h3{font-family:'Josefin Sans';font-size:16px;font-weight:700;color:#92400E;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.act-card{background:var(--card);border:1px solid #FDE68A;border-radius:12px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
+.act-icon{width:36px;height:36px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.act-card .act-t{font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px}.act-card .act-d{font-size:11px;color:var(--text2);line-height:1.5}
+/* Footer */
+.ft{font-size:10px;color:var(--text3);text-align:center;padding:24px 0;border-top:1px solid var(--border);margin-top:32px}.ft a{color:var(--acc2);text-decoration:none}
+/* Loader */
+.ld{text-align:center;padding:100px}.ld .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px}@keyframes spin{to{transform:rotate(360deg)}}.ld .tx{font-size:14px;color:var(--text3)}
+@keyframes mpulse{0%{opacity:.5;transform:scale(1)}50%{opacity:0;transform:scale(2)}100%{opacity:0;transform:scale(2)}}
+/* Modal */
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}.mo.show{opacity:1;pointer-events:auto}
+.mo-box{background:var(--card);border-radius:var(--rl);width:100%;max-width:640px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden}
+.mo-hd{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mo-hd .ci{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.mo-hd .mt{font-family:'Josefin Sans';font-size:15px;font-weight:700;flex:1}.mo-hd .mc{font-size:10px;font-weight:700;color:#fff;padding:3px 10px;border-radius:20px}
+.mo-hd .cls{background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:8px}.mo-hd .cls:hover{background:var(--bg)}
+.mo-bd{overflow-y:auto;flex:1}
+.mo-it{display:flex;gap:12px;align-items:center;padding:12px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}.mo-it:last-child{border-bottom:none}.mo-it:hover{background:#F8FAFC}
+.mo-it .mi-img{width:64px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.mo-it .mi-bd{flex:1;min-width:0}.mo-it .mi-t{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}.mo-it .mi-m{font-size:10px;color:var(--text3);margin-top:3px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="header" id="hdr"></div>
+<div class="alert-bar"></div>
+<div class="dash" id="app"><div class="ld"><div class="spinner"></div><div class="tx">Chargement du radar...</div></div></div>
+<div class="mo" id="modal" onclick="if(event.target===this)closeMo()"><div class="mo-box"><div class="mo-hd" id="mo-hd"></div><div class="mo-bd" id="mo-bd"></div></div></div>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyCfHDITaX1diIWMYixW7ABefgpiRmvPPu8",authDomain:"tourmag-radar-crise.firebaseapp.com",projectId:"tourmag-radar-crise",storageBucket:"tourmag-radar-crise.firebasestorage.app",messagingSenderId:"960868555494",appId:"1:960868555494:web:1e96c9ea31df6c9685b927"});
+const db=firebase.firestore();
+const fD=d=>{if(!d)return'';const t=d.toDate?d.toDate():new Date(d);return t.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})};
+const fS=d=>{if(!d)return'';const t=d.toDate?d.toDate():new Date(d);return t.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})};
+const fT=s=>{if(!s)return'';const d=new Date(s);return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
+function spk(h,c,w=130,ht=30){if(!h||h.length<2)return'';const cl=h.map(x=>x.close),mn=Math.min(...cl),mx=Math.max(...cl),r=mx-mn||1;return`<svg width="${w}" height="${ht}" viewBox="0 0 ${w} ${ht}"><polyline points="${cl.map((v,i)=>`${Math.round(i/(cl.length-1)*w)},${Math.round(ht-((v-mn)/r)*(ht-4)-2)}`).join(' ')}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+function vi(u){return u&&u.length>20&&!u.includes('1.gif')&&!u.includes('pixel')&&!u.includes('blank')&&!u.includes('spacer')}
+function isNew(d){if(!d)return false;const t=d.toDate?d.toDate():new Date(d);return(Date.now()-t.getTime())<48*3600000}
+function nb(d){return isNew(d)?'<span class="bdg-new">NOUVEAU</span>':''}
+const CN={israel:'Israël',liban:'Liban',iran:'Iran',irak:'Irak',syrie:'Syrie',jordanie:'Jordanie',egypte:'Égypte',turquie:'Turquie',arabie_saoudite:'Arabie Saoudite',emirats:'Émirats',qatar:'Qatar',oman:'Oman',bahrein:'Bahreïn',koweit:'Koweït',yemen:'Yémen',chypre:'Chypre',grece:'Grèce'};
+const CC={israel:[31.5,34.8],liban:[33.9,35.8],iran:[32.4,53.7],irak:[33.2,43.7],syrie:[35,38.5],jordanie:[31.2,36.5],egypte:[26.8,30.8],turquie:[39,35.2],arabie_saoudite:[23.9,45.1],emirats:[24.5,54.4],qatar:[25.3,51.2],oman:[21.5,56],bahrein:[26.1,50.5],koweit:[29.3,47.5],yemen:[15.5,48.5],chypre:[35.1,33.4],grece:[39,22]};
+const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'🏛',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'⚓',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'⚖️',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'💡',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'🌍',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'📊',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'🗺️',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres',i:'📰',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
+let ABC={},MAE={},BYCAT={};const EI=['🔴','✈️','🏛','⚖️','💡','📊','⚓','💬'];let pt=null,temoIdx=0,temoTimer=null;
+
+function uc(){const n=new Date();document.querySelectorAll('.ck').forEach(e=>e.textContent=n.toLocaleTimeString('fr-FR',{timeZone:e.dataset.tz,hour:'2-digit',minute:'2-digit',second:'2-digit'}))}
+function rH(cfg){document.getElementById('hdr').innerHTML=`<div class="logo"><span class="pd"></span>La Newsroom TourMaG</div><div class="sep"></div><div class="clocks"><div class="clock clock-paris"><span class="city">Paris</span><span class="time ck" data-tz="Europe/Paris">--:--</span></div><div class="clock"><span class="city">Téhéran</span><span class="time ck" data-tz="Asia/Tehran">--:--</span></div><div class="clock"><span class="city">Jérusalem</span><span class="time ck" data-tz="Asia/Jerusalem">--:--</span></div><div class="clock"><span class="city">Doha</span><span class="time ck" data-tz="Asia/Qatar">--:--</span></div></div><a class="tm-btn" href="https://www.tourmag.com/tags/crise+golfe/" target="_blank">📰 Tous les articles</a><div class="ab"><span class="d2"></span><span class="lb">CRISE EN COURS</span></div><div class="upd">MàJ ${cfg.last_sync?fT(cfg.last_sync):'—'}</div>`;uc();setInterval(uc,1000)}
+function showP(co,arts){if(pt){clearTimeout(pt);pt=null}const p=document.getElementById('mp');p.classList.add('show');const md=MAE[co];const cm2={red:'#DC2626',orange:'#EA580C',yellow:'#D97706',green:'#059669',gray:'#9CA3AF'};const bgm={red:'#FEF2F2',orange:'#FFF7ED',yellow:'#FFFBEB',green:'#F0FDF4',gray:'#F9FAFB'};const ac=md?cm2[md.color]||'#9CA3AF':'#9CA3AF';const abg=md?bgm[md.color]||'#F9FAFB':'#F9FAFB';const lvl=md?md.level:'';
+document.getElementById('mp-h').innerHTML=`<button class="cls" onclick="hideP(1)">&times;</button><h3>${CN[co]||co}</h3><span class="pc">${arts.length} article${arts.length>1?'s':''}</span>`;
+document.getElementById('mp-a').innerHTML=lvl?`<span class="mp-badge" style="background:${abg};color:${ac};border:1px solid ${ac}30">${lvl}</span>`:'';
+document.getElementById('mp-b').innerHTML=arts.slice(0,12).map(a=>`<div class="pa" onclick="window.open('${a.link}','_blank')"><div class="pt">${a.title}</div><div class="pm">${a.author||''} · ${fS(a.pub_date)}</div></div>`).join('')}
+function hideP(f){if(f){document.getElementById('mp').classList.remove('show');pt=null}else{pt=setTimeout(()=>{document.getElementById('mp').classList.remove('show')},300)}}
+function cancelH(){if(pt){clearTimeout(pt);pt=null}}
+
+function openMo(cat){const cf=CATS[cat]||CATS.general;const arts=BYCAT[cat]||[];if(!arts.length)return;
+document.getElementById('mo-hd').innerHTML=`<div class="ci" style="background:${cf.bg};color:${cf.c}">${cf.i}</div><span class="mt">${cf.l}</span><span class="mc" style="background:${cf.cc}">${arts.length}</span><button class="cls" onclick="closeMo()">&times;</button>`;
+document.getElementById('mo-bd').innerHTML=arts.map(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="mi-img" onerror="this.remove()">`:'';return`<div class="mo-it" onclick="window.open('${a.link}','_blank')">${img}<div class="mi-bd"><div class="mi-t">${a.title}${nb(a.pub_date)}</div><div class="mi-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`}).join('');
+document.getElementById('modal').classList.add('show');document.body.style.overflow='hidden'}
+function closeMo(){document.getElementById('modal').classList.remove('show');document.body.style.overflow=''}
+
+function temoGo(idx){const slides=document.querySelectorAll('.temo-slide');const dots=document.querySelectorAll('.temo-dot');if(!slides.length)return;temoIdx=((idx%slides.length)+slides.length)%slides.length;slides.forEach((s,i)=>{s.classList.toggle('active',i===temoIdx)});dots.forEach((d,i)=>{d.classList.toggle('active',i===temoIdx)})}
+function temoAuto(){if(temoTimer)clearInterval(temoTimer);temoTimer=setInterval(()=>temoGo(temoIdx+1),8000)}
+
+function render({articles,market,mae,config,synthesis,timeline,airlines}){
+  rH(config);MAE=mae;
+  const byCat={};articles.forEach(a=>{const c=a.category||'general';if(!byCat[c])byCat[c]=[];byCat[c].push(a)});BYCAT=byCat;
+  ABC={};articles.forEach(a=>(a.countries||[]).forEach(c=>{if(!ABC[c])ABC[c]=[];ABC[c].push(a)}));
+  let uneA=null;
+  if(config.featured_article){const fa=config.featured_article;uneA={title:fa.title,link:fa.link,description:fa.description,image_url:fa.image_url,author:fa.author,pub_date:fa.pub_date?new Date(fa.pub_date):null}}
+  if(!uneA){for(const a of articles.slice(0,15)){if(vi(a.image_url)){uneA=a;break}}}
+  if(!uneA&&articles.length)uneA=articles[0];
+  const nArts=articles.length;
+  const crisisStart=new Date('2026-02-28');const daysSince=Math.floor((Date.now()-crisisStart.getTime())/(86400000));
+  let h='';
+
+  // 1. HERO
+  h+=`<div class="hero fi"><h1>Crise au Moyen-Orient\u00a0: quelles répercussions pour le secteur du tourisme\u00a0?</h1><div class="hero-text">Depuis le 28 février 2026, une nouvelle phase de tensions au Moyen-Orient entre Israël et l'Iran vient raviver les incertitudes dans une région déjà marquée par une instabilité chronique. Les conséquences se font rapidement sentir sur l'industrie touristique mondiale\u00a0: perturbations du trafic aérien, reconfiguration des flux de voyageurs, ajustements des stratégies des tour-opérateurs et inquiétudes des destinations voisines. À travers cette série d'articles, TourMaG analyse les impacts concrets de cette crise sur le tourisme, ainsi que les réponses apportées par les acteurs du secteur face à un contexte en constante évolution.</div><div class="hero-day"><span class="hd-num">Jour ${daysSince}</span><span class="hd-lbl">de la crise</span></div></div>`;
+
+  // 1b. ALERTE FLASH (dernier article publié)
+  if(articles.length){const la=articles[0];h+=`<div class="flash fi" onclick="window.open('${la.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${la.title}</span><span class="flash-date">${fS(la.pub_date)}</span></div>`}
+
+  // 2. UNE
+  if(uneA){h+=`<div class="sl fi">À la une</div><div class="une-h fi" onclick="window.open('${uneA.link}','_blank')"><div class="une-h-bg">${vi(uneA.image_url)?`<img src="${uneA.image_url}" alt="">`:''}</div><div class="une-h-ov"></div><div class="une-h-bd"><span class="bdg">À la une</span><h3>${uneA.title}</h3><div class="ch">${uneA.description?uneA.description.substring(0,280)+'...':''}</div><div class="mt">${uneA.author||'TourMaG'} — ${fD(uneA.pub_date)} · <a href="${uneA.link}" target="_blank" onclick="event.stopPropagation()">Lire l'article →</a></div></div></div>`}
+
+  // 3. ESSENTIEL
+  const pts=synthesis&&synthesis.points?synthesis.points:null;
+  if(pts&&pts.length){h+=`<div class="ess fi"><div class="ess-head"><h2>⚡ L'essentiel de la crise au Moyen-Orient</h2><span class="badge">MàJ ${config.last_sync?fT(config.last_sync):''}</span></div><div class="ess-grid">`;pts.forEach((p,i)=>{h+=`<div class="ess-item"><div class="ess-icon">${EI[i%EI.length]}</div><div class="ess-text">${typeof p==='string'?p:p.title||''}</div></div>`});h+=`</div></div>`}
+
+  // 4. TIMELINE
+  const tl=timeline&&timeline.events?timeline.events:null;
+  if(tl&&tl.length){h+=`<div class="sl fi">Chronologie des événements</div><div class="tl-wrap fi"><div class="tl-track">`;tl.slice(0,8).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';h+=`<div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><div class="tl-date">${d}</div><div class="tl-ev">${e.event||''}</div></div></div>`});h+=`</div></div>`}
+
+  // 5. MAP + MAE (full width)
+  h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-full fi"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
+  const mE=Object.values(mae).sort((a,b)=>{const o={red:0,orange:1,yellow:2,green:3,gray:4};return(o[a.color]||4)-(o[b.color]||4)});
+  h+=`<div class="mae-bar fi">`;mE.forEach(m=>{h+=`<div class="mae-chip" onclick="window.open('${m.url}','_blank')"><span class="md ${m.color}"></span><span>${m.label}</span></div>`});h+=`</div>`;
+
+  // 6. AIRLINES (departure board)
+  const al=airlines&&airlines.airlines?airlines.airlines:null;
+  if(al&&al.length){h+=`<div class="sl fi">Statut des compagnies aériennes</div><div class="dep-board fi"><div class="dep-board-hd"><span class="icon">✈️</span><h3>Tableau des vols</h3></div><div class="dep-grid">`;al.forEach(a=>{const st=(a.statut||'').toLowerCase();const cls=st.includes('suspendu')?'suspendu':st.includes('perturb')?'perturbe':'operationnel';h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${a.compagnie||''}</div><div class="dep-det">${a.detail||a.statut||''}</div></div></div>`});h+=`</div></div>`}
+
+  // 7. THEMES
+  h+=`<div class="sl fi">Articles par thématique</div><div class="tg fi">`;
+  ['aerien','institutionnel','croisiere','juridique','solutions','geopolitique','economie','destinations','general'].forEach(cat=>{
+    const arts=byCat[cat]||[];if(!arts.length)return;const cf=CATS[cat]||CATS.general;
+    h+=`<div class="cd cd-${cat}"><div class="hd"><div class="ci" style="background:${cf.bg};color:${cf.c}">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc" style="background:${cf.cc}">${arts.length}</span></div>`;
+    if(cat==='juridique'){arts.slice(0,4).forEach(a=>{h+=`<div class="jur" onclick="window.open('${a.link}','_blank')"><span class="jur-d"></span><div><div class="jur-t">${a.title}${nb(a.pub_date)}</div><div class="jur-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
+    else if(cat==='solutions'){arts.slice(0,3).forEach(a=>{h+=`<div class="sol" onclick="window.open('${a.link}','_blank')"><div class="sol-top"><span class="sol-badge">SOLUTION</span><span class="sol-s">${a.author||''} · ${fS(a.pub_date)}</span></div><div class="sol-t">${a.title}${nb(a.pub_date)}</div>${a.description?`<div class="sol-d">${a.description.substring(0,110)}...</div>`:''}</div>`})}
+    else{arts.slice(0,4).forEach(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="ni-img" onerror="this.remove()">`:'';h+=`<div class="ni" onclick="window.open('${a.link}','_blank')">${img}<div class="ni-body"><div class="nt">${a.title}${nb(a.pub_date)}</div><div class="nm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
+    const mx=cat==='solutions'?3:4;if(arts.length>mx){h+=`<div class="voir-plus" onclick="openMo('${cat}')">Voir les ${arts.length-mx} autres articles ▾</div>`}
+    h+=`</div>`});
+  h+=`</div>`;
+
+  // 8. CONSEILS PRATIQUES (remonté avant édito)
+  h+=`<div class="sl fi">Que faire concrètement ?</div><div class="act-box fi"><h3>🎯 Conseils pratiques pour les agents de voyage</h3><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure et les modalités de report varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie (sous conditions), Oman : orientez vos clients vers des destinations accessibles dans la même zone.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez quotidiennement France Diplomatie. Les niveaux d'alerte évoluent rapidement et impactent directement vos ventes.</div></div></div><div class="act-card"><div class="act-icon">💬</div><div><div class="act-t">Communiquer avec vos clients</div><div class="act-d">Informez proactivement vos clients sur la situation. La transparence renforce la confiance et évite les annulations de panique.</div></div></div></div></div>`;
+
+  // 9. EDITO
+  const editoA=byCat['edito']||[];
+  if(editoA.length){h+=`<div class="sl fi">Édito / Billet d'humeur</div><div class="edito-sec fi"><div class="edito-head"><div class="ci">✍️</div><h3>L'avis de la rédaction</h3><span class="cc">${editoA.length}</span></div>`;
+  editoA.slice(0,3).forEach(a=>{const eImg=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="edito-img" onerror="this.remove()">`:'';h+=`<div class="edito-card" onclick="window.open('${a.link}','_blank')" style="margin-bottom:12px"><div class="edito-inner">${eImg}<div class="edito-body"><div class="e-title">${a.title}</div><div class="e-desc">${a.description?a.description.substring(0,200)+'...':''}</div><div class="e-auth">${a.author||'La rédaction'} · ${fS(a.pub_date)}</div></div></div></div>`});
+  h+=`</div>`}
+
+  // 10. EXTRAITS CHOISIS (carrousel témoignages sans auteur/date)
+  const temoA=byCat['temoignages']||[];
+  if(temoA.length){h+=`<div class="sl fi">Paroles de pros</div><div class="temo-car fi"><div class="temo-car-hd"><div class="ci">💬</div><h3>Extraits choisis</h3></div>`;
+  temoA.slice(0,6).forEach((a,i)=>{const cit=a.citation||a.description||a.title;const nom=a.citation_nom||'';const fn=a.citation_fonction||'';
+  h+=`<div class="temo-slide${i===0?' active':''}"><div class="temo-cit">${cit}</div>${nom?`<div class="temo-who"><div class="temo-av">👤</div><div><div class="temo-nm">${nom}</div>${fn?`<div class="temo-fn">${fn}</div>`:''}</div></div>`:''}</div>`});
+  h+=`<div class="temo-nav"><div class="temo-btn" onclick="temoGo(temoIdx-1);temoAuto()">‹</div><div class="temo-btn" onclick="temoGo(temoIdx+1);temoAuto()">›</div></div>`;
+  h+=`<div class="temo-dots">`;temoA.slice(0,6).forEach((a,i)=>{h+=`<div class="temo-dot${i===0?' active':''}" onclick="temoGo(${i});temoAuto()"></div>`});h+=`</div></div>`}
+
+  // 11. FINANCE
+  const br=market['brent'],eu=market['eurusd'];const aero=Object.entries(market).filter(([k,v])=>v.sector==='aerien').sort((a,b)=>a[1].change_pct-b[1].change_pct);
+  h+=`<div class="sl fi">Indicateurs économiques liés au tourisme</div><div class="fgr fi">`;
+  if(br){const c=br.change_pct>=0?'#DC2626':'#059669';h+=`<div class="fc"><div class="lb2">Brent (baril)</div><div class="vl">${br.currency}${br.current_price}</div><div class="cg ${br.change_pct>=0?'cu':'cdn'}">${br.change_pct>=0?'▲':'▼'} ${Math.abs(br.change_pct)}%</div><div class="sp">${spk(br.history,c)}</div></div>`}
+  if(eu){const c=eu.change_pct>=0?'#059669':'#DC2626';h+=`<div class="fc"><div class="lb2">EUR / USD</div><div class="vl">${eu.current_price}</div><div class="cg ${eu.change_pct<0?'cu':'cdn'}">${eu.change_pct>=0?'▲':'▼'} ${Math.abs(eu.change_pct)}%</div><div class="sp">${spk(eu.history,c)}</div></div>`}
+  aero.slice(0,2).forEach(([k,v])=>{const c=v.change_pct>=0?'#059669':'#DC2626';h+=`<div class="fc"><div class="lb2">${v.label}</div><div class="vl">${v.currency}${v.current_price}</div><div class="cg ${v.change_pct>=0?'cdn':'cu'}">${v.change_pct>=0?'▲':'▼'} ${Math.abs(v.change_pct)}%</div><div class="sp">${spk(v.history,c)}</div></div>`});
+  h+=`</div>`;
+  const st=Object.entries(market).filter(([k])=>!['brent','eurusd'].includes(k));
+  if(st.length){h+=`<div class="bc fi"><table class="bt"><thead><tr><th>Valeur</th><th style="text-align:right">Cours</th><th style="text-align:right">Variation</th></tr></thead><tbody>`;st.sort((a,b)=>a[1].change_pct-b[1].change_pct);st.forEach(([k,v])=>{const c=v.change_pct>=0?'#166534':'#991B1B';const sc=v.sector==='aerien'?'sa':v.sector==='hotellerie'?'sh':v.sector==='croisiere'?'scr':v.sector==='to'?'sto':v.sector==='ota'?'sot':'ste';h+=`<tr><td><span class="tn">${v.label}</span> <span class="ts2">${v.symbol}<span class="tsc ${sc}">${v.sector||''}</span></span></td><td style="text-align:right;font-weight:600;font-family:'IBM Plex Mono'">${v.currency}${v.current_price}</td><td style="text-align:right;font-weight:600;color:${c}">${v.change_pct>=0?'+':''}${v.change_pct}%</td></tr>`});h+=`</tbody></table></div>`}
+
+  h+=`<div class="ft">Données <a href="https://www.tourmag.com/tags/crise+golfe/" target="_blank">TourMaG</a> · <a href="https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/" target="_blank">France Diplomatie</a> · Yahoo Finance · IA Groq · MàJ auto 3h</div>`;
+  document.getElementById('app').innerHTML=h;initMap(mae);temoAuto()}
+
+function initMap(mae){
+  const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([29,44],4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:8,attribution:''}).addTo(map);
+  L.control.zoom({position:'topright'}).addTo(map);
+  const cm={red:'#DC2626',orange:'#EA580C',yellow:'#D97706',green:'#059669',gray:'#9CA3AF'};
+  Object.entries(CC).forEach(([co,cd])=>{
+    const md=mae[co],color=md?cm[md.color]||cm.gray:cm.gray,arts=ABC[co]||[];
+    L.circleMarker(cd,{radius:20,fillColor:color,color:color,weight:1.5,opacity:.3,fillOpacity:.1,interactive:false}).addTo(map);
+    if(arts.length>0){
+      const r2=Math.min(Math.max(arts.length*2,6),16);
+      const pi=L.divIcon({className:'',html:`<div style="width:${(r2+10)*2}px;height:${(r2+10)*2}px;border-radius:50%;background:${color};opacity:.3;animation:mpulse 2.5s ease-out infinite;position:relative;left:-${r2+10}px;top:-${r2+10}px"></div>`,iconSize:[0,0]});
+      L.marker(cd,{icon:pi,interactive:false}).addTo(map);
+      const mk=L.circleMarker(cd,{radius:r2,fillColor:color,color:'#fff',weight:2,opacity:1,fillOpacity:.75}).addTo(map);
+      mk.on('mouseover',function(){showP(co,arts)});mk.on('mouseout',function(){hideP()});mk.on('click',function(){showP(co,arts)})}})}
+
+async function init(){
+  const[aS,mS,maeS,cS,synS,tlS,alS]=await Promise.all([db.collection('articles').orderBy('pub_date','desc').get(),db.collection('market_data').get(),db.collection('mae_alerts').get(),db.collection('config').doc('radar').get(),db.collection('config').doc('synthesis').get(),db.collection('config').doc('timeline').get(),db.collection('config').doc('airlines').get()]);
+  const articles=[];aS.forEach(d=>articles.push({id:d.id,...d.data()}));
+  const market={};mS.forEach(d=>market[d.id]=d.data());
+  const mae={};maeS.forEach(d=>mae[d.id]=d.data());
+  render({articles,market,mae,config:cS.exists?cS.data():{},synthesis:synS.exists?synS.data():{},timeline:tlS.exists?tlS.data():{},airlines:alS.exists?alS.data():{}});
+  const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');obs.unobserve(e.target)}})},{threshold:.08});
+  document.querySelectorAll('.fi').forEach(el=>obs.observe(el))}
+init().catch(e=>{console.error(e);document.getElementById('app').innerHTML='<div class="ld" style="color:#DC2626">Erreur — voir console</div>'});
+// Iframe auto-resize : envoie la hauteur au parent
+function sendHeight(){const h=document.documentElement.scrollHeight;window.parent.postMessage({type:'radar-resize',height:h},'*')}
+window.addEventListener('load',()=>{sendHeight();new MutationObserver(sendHeight).observe(document.body,{childList:true,subtree:true});setInterval(sendHeight,2000)});
+</script>
+</body>
+</html>
