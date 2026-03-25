@@ -512,7 +512,21 @@ def main():
     if is_initial:
         scraped=scrape_all_pages()
     else:
+        # Mode incrémental : RSS + page 1 HTML pour ne rien rater
         scraped=parse_rss_page()
+        print("  Complément page HTML...")
+        try:
+            r=requests.get(TAGS_PAGE_URL,timeout=30,headers=HDR)
+            if r.status_code==200:
+                html_arts=parse_html_page(r.content)
+                seen={a["link"] for a in scraped if a.get("link")}
+                added=0
+                for a in html_arts:
+                    if a.get("link") and a["link"] not in seen:
+                        scraped.append(a); seen.add(a["link"]); added+=1
+                if added: print(f"  +{added} articles via HTML (total: {len(scraped)})")
+                else: print(f"  Aucun article supplémentaire via HTML")
+        except Exception as e: print(f"  HTML ERR: {e}")
 
     # Filtrer les articles déjà en base
     new_articles=[a for a in scraped if a.get("link") and a["link"] not in existing_links]
