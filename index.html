@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root{--pri:#1B1B2F;--acc:#E8842C;--acc2:#D4731D;--blue:#0C6CA1;--green:#059669;--orange:#EA580C;--red:#DC2626;--amber:#D97706;--violet:#7C3AED;--cyan:#0891B2;--bg:#F5F6F8;--card:#FFF;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;--border:#E5E7EB;--rl:16px}
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:transparent;color:var(--text);-webkit-font-smoothing:antialiased}
 /* Header */
 .header{background:var(--pri);color:#fff;padding:0 28px;height:58px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .header .logo{font-family:'Josefin Sans';font-size:16px;font-weight:700;letter-spacing:.5px;white-space:nowrap;display:flex;align-items:center;gap:10px}
@@ -214,7 +214,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
 
   // 4. TIMELINE
   const tl=timeline&&timeline.events?timeline.events:null;
-  if(tl&&tl.length){h+=`<div class="sl fi">Chronologie des événements</div><div class="tl-wrap fi"><div class="tl-track">`;tl.slice(0,8).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';h+=`<div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><div class="tl-date">${d}</div><div class="tl-ev">${e.event||''}</div></div></div>`});h+=`</div></div>`}
+  if(tl&&tl.length){h+=`<div class="sl fi">Chronologie des événements</div><div class="tl-wrap fi"><div class="tl-track">`;tl.slice(0,7).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';h+=`<div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><div class="tl-date">${d}</div><div class="tl-ev">${e.event||''}</div></div></div>`});h+=`</div></div>`}
 
   // 5. MAP + MAE (full width)
   h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-full fi"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
