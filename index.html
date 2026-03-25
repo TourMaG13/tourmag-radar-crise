@@ -228,9 +228,11 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   h+=`<div class="hero fi"><h1>Crise au Moyen-Orient\u00a0: quelles répercussions pour le secteur du tourisme\u00a0?</h1><div class="hero-text">Depuis le 28 février 2026, une nouvelle phase de tensions au Moyen-Orient entre Israël et l'Iran vient raviver les incertitudes dans une région déjà marquée par une instabilité chronique. Les conséquences se font rapidement sentir sur l'industrie touristique mondiale\u00a0: perturbations du trafic aérien, reconfiguration des flux de voyageurs, ajustements des stratégies des tour-opérateurs et inquiétudes des destinations voisines. À travers cette série d'articles, TourMaG analyse les impacts concrets de cette crise sur le tourisme, ainsi que les réponses apportées par les acteurs du secteur face à un contexte en constante évolution.</div><div class="hero-day"><span class="hd-num">Jour ${daysSince}</span><span class="hd-lbl">de la crise</span></div></div>`;
 
   // 1b. ALERTE FLASH (dernier article publié)
-  if(articles.length){const la=articles[0];h+=`<div class="flash fi" onclick="window.open('${la.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${la.title}</span><span class="flash-date">${fS(la.pub_date)}</span></div>`}
+  const flashA=articles.length?articles[0]:null;
+  if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
 
-  // 2. UNE
+  // 2. UNE (premier article avec photo DIFFÉRENT du flash)
+  if(!uneA||uneA.link===flashA?.link){uneA=null;for(const a of articles.slice(1,15)){if(vi(a.image_url)){uneA=a;break}}}
   if(uneA){h+=`<div class="sl fi">À la une</div><div class="une-h fi" onclick="window.open('${uneA.link}','_blank')"><div class="une-h-bg">${vi(uneA.image_url)?`<img src="${uneA.image_url}" alt="">`:''}</div><div class="une-h-ov"></div><div class="une-h-bd"><span class="bdg">À la une</span><h3>${uneA.title}</h3><div class="ch">${uneA.description?uneA.description.substring(0,280)+'...':''}</div><div class="mt">${uneA.author||'TourMaG'} — ${fD(uneA.pub_date)} · <a href="${uneA.link}" target="_blank" onclick="event.stopPropagation()">Lire l'article →</a></div></div></div>`}
 
   // 3. ESSENTIEL
