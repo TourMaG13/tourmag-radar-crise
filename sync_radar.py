@@ -296,10 +296,10 @@ RÈGLES IMPÉRATIVES :
 2. Les 6 tags OBLIGATOIRES dans cet ordre : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL
 3. Le texte fait entre 40 et 60 mots (3 lignes minimum). Un texte d'une seule phrase est REJETÉ.
 4. Le texte est une VRAIE ANALYSE avec des faits concrets, des noms propres
-5. IMPORTANT : mets les mots-clés et informations importantes entre balises <strong> pour les mettre en gras. Au moins 3-4 mots/expressions en gras par paragraphe.
+5. IMPORTANT : mets en gras UNIQUEMENT 1 à 2 éléments clés par paragraphe (un nom propre ET un fait/chiffre important). Pas plus. Utilise les balises <strong>. Trop de gras = REJETÉ.
 
 EXEMPLE de format attendu :
-{{"tag":"AÉRIEN","text":"Les compagnies européennes comme <strong>Air France</strong> et <strong>Lufthansa</strong> maintiennent la <strong>suspension de leurs liaisons</strong> vers Beyrouth, Téhéran et certaines villes irakiennes. <strong>Emirates</strong> et Qatar Airways ont réduit leurs fréquences sur plusieurs routes régionales, compliquant les correspondances vers le Golfe."}}
+{{"tag":"AÉRIEN","text":"Les compagnies européennes comme <strong>Air France</strong> et Lufthansa maintiennent la suspension de leurs liaisons vers Beyrouth, Téhéran et certaines villes irakiennes. Emirates et Qatar Airways ont réduit leurs fréquences sur plusieurs routes régionales, compliquant les <strong>correspondances vers le Golfe</strong>."}}
 
 Un texte comme "Les compagnies sont touchées par la crise." est TROP COURT et sera REJETÉ.
 
