@@ -289,28 +289,38 @@ RÈGLE SPÉCIALE : si l'auteur est "Josette Sicsic" ou si titre contient "édito
 def synthesis_groq(all_articles):
     """Synthèse basée sur TOUS les articles en base (les 15 plus récents)."""
     items=[f"- {a.get('title','')}: {a.get('description','')[:200]}" for a in all_articles[:15]]
-    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
+    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 points de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
 
 RÈGLES IMPÉRATIVES :
-- Chaque paragraphe doit faire entre 40 et 60 mots (3 lignes minimum). C'est OBLIGATOIRE. Un paragraphe d'une seule phrase est REJETÉ.
-- Chaque paragraphe est une VRAIE ANALYSE avec des faits concrets, des noms propres (compagnies, pays, acteurs) et une conséquence pratique
-- 6 angles obligatoires : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
+1. Chaque point est un objet JSON avec "tag" (catégorie) et "text" (le paragraphe)
+2. Les 6 tags OBLIGATOIRES dans cet ordre : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL
+3. Le texte fait entre 40 et 60 mots (3 lignes minimum). Un texte d'une seule phrase est REJETÉ.
+4. Le texte est une VRAIE ANALYSE avec des faits concrets, des noms propres
+5. IMPORTANT : mets les mots-clés et informations importantes entre balises <strong> pour les mettre en gras. Au moins 3-4 mots/expressions en gras par paragraphe.
 
-EXEMPLE de longueur MINIMUM attendue pour UN paragraphe :
-"Les compagnies aériennes européennes comme Air France et Lufthansa maintiennent la suspension de leurs liaisons vers Beyrouth, Téhéran et certaines villes irakiennes. Emirates et Qatar Airways ont quant à elles réduit leurs fréquences sur plusieurs routes régionales, ce qui complique les options de correspondance pour les voyageurs à destination du Golfe."
+EXEMPLE de format attendu :
+{{"tag":"AÉRIEN","text":"Les compagnies européennes comme <strong>Air France</strong> et <strong>Lufthansa</strong> maintiennent la <strong>suspension de leurs liaisons</strong> vers Beyrouth, Téhéran et certaines villes irakiennes. <strong>Emirates</strong> et Qatar Airways ont réduit leurs fréquences sur plusieurs routes régionales, compliquant les correspondances vers le Golfe."}}
 
-Un paragraphe comme "Aérien : les compagnies sont touchées par la crise." est TROP COURT et sera REJETÉ.
+Un texte comme "Les compagnies sont touchées par la crise." est TROP COURT et sera REJETÉ.
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
-    r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
+Réponds UNIQUEMENT avec un JSON array de 6 objets. Rien d'autre."""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=3500))
     if r and isinstance(r,list) and len(r)>=3:
+        # Accepter les deux formats : objets {tag,text} ou strings simples
+        result=[]
+        for p in r:
+            if isinstance(p,dict) and 'text' in p:
+                result.append(p)
+            elif isinstance(p,str) and len(p)>30:
+                result.append({"tag":"INFO","text":p})
+        if len(result)>=3: print(f"  Synthèse : {len(result)} pts"); return result[:6]
+        # Fallback strings
         titles={a.get('title','').lower().strip() for a in all_articles}
         filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles and len(p)>30]
-        if len(filtered)>=3: print(f"  Synthèse : {len(filtered)} pts"); return filtered[:6]
-        return r[:6]
+        if len(filtered)>=3: return [{"tag":"INFO","text":p} for p in filtered[:6]]
     return None
 
 def citations_groq(articles_with_content):
