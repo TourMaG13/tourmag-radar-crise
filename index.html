@@ -163,7 +163,7 @@
 .ld{text-align:center;padding:100px}.ld .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px}@keyframes spin{to{transform:rotate(360deg)}}.ld .tx{font-size:14px;color:var(--text3)}
 @keyframes mpulse{0%{opacity:.5;transform:scale(1)}50%{opacity:0;transform:scale(2)}100%{opacity:0;transform:scale(2)}}
 /* Modal */
-.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}.mo.show{opacity:1;pointer-events:auto}
+.mo{position:absolute;left:0;width:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}.mo.show{opacity:1;pointer-events:auto}
 .mo-box{background:var(--card);border-radius:var(--rl);width:100%;max-width:600px;max-height:75vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
 @media(max-width:768px){.mo{padding:12px}.mo-box{max-height:85vh;max-width:100%;border-radius:12px}}
 .mo-hd{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -218,18 +218,32 @@ function openMo(cat,page){
   let h=pa.map(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="mi-img" onerror="this.remove()">`:'';return`<div class="mo-it" onclick="window.open('${a.link}','_blank')">${img}<div class="mi-bd"><div class="mi-t">${a.title}${nb(a.pub_date)}</div><div class="mi-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`}).join('');
   if(tp>1){h+=`<div class="mo-pag"><div class="mo-pag-btn ${moPage===0?'disabled':''}" onclick="${moPage>0?`openMo('${cat}',${moPage-1})`:''}">‹</div>`;for(let p=0;p<tp;p++){h+=`<div class="mo-pag-btn ${p===moPage?'active':''}" onclick="openMo('${cat}',${p})">${p+1}</div>`}h+=`<div class="mo-pag-btn ${moPage>=tp-1?'disabled':''}" onclick="${moPage<tp-1?`openMo('${cat}',${moPage+1})`:''}">›</div></div>`}
   document.getElementById('mo-bd').innerHTML=h;
-  let savedScroll=0;
-  const mo=document.getElementById('modal');mo.classList.add('show');
-  savedScroll=window.scrollY;
-  window.scrollTo({top:0,behavior:'instant'});
-  window.parent.postMessage({type:'radar-modal-open'},'*');
-  document.body.style.overflow='hidden';document.getElementById('mo-bd').scrollTop=0;
-  window._savedScroll=savedScroll}
+  positionModal();
+  document.body.style.overflow='hidden';document.getElementById('mo-bd').scrollTop=0}
+
+function positionModal(){
+  const mo=document.getElementById('modal');
+  mo.classList.add('show');
+  // Demander au parent la position de l'iframe dans le viewport
+  window.parent.postMessage({type:'radar-get-position'},'*');
+  // En attendant la réponse du parent (ou en standalone), on utilise le scroll local
+  const scrollTop=window.scrollY||window.pageYOffset||0;
+  const viewH=window.innerHeight||document.documentElement.clientHeight;
+  mo.style.top=scrollTop+'px';
+  mo.style.height=viewH+'px'}
+
+// Recevoir la position depuis le parent
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='radar-position-response'){
+    const mo=document.getElementById('modal');
+    if(mo&&mo.classList.contains('show')){
+      // Le parent nous dit où est le haut visible de l'iframe dans l'iframe
+      mo.style.top=e.data.offsetTop+'px';
+      mo.style.height=e.data.viewportHeight+'px'}}});
+
 function closeMo(){
   document.getElementById('modal').classList.remove('show');
-  document.body.style.overflow='';
-  if(window._savedScroll){window.scrollTo({top:window._savedScroll,behavior:'instant'})}
-  window.parent.postMessage({type:'radar-modal-close'},'*')}
+  document.body.style.overflow=''}
 
 function temoGo(idx){const slides=document.querySelectorAll('.temo-slide');const dots=document.querySelectorAll('.temo-dot');if(!slides.length)return;temoIdx=((idx%slides.length)+slides.length)%slides.length;slides.forEach((s,i)=>{s.classList.toggle('active',i===temoIdx)});dots.forEach((d,i)=>{d.classList.toggle('active',i===temoIdx)})}
 function temoAuto(){if(temoTimer)clearInterval(temoTimer);temoTimer=setInterval(()=>temoGo(temoIdx+1),8000)}
