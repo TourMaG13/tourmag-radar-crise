@@ -25,6 +25,7 @@
 .alert-bar::after{content:'';position:absolute;right:22%;top:-1px;width:12px;height:6px;background:#DC2626;border-radius:0 0 4px 4px;animation:abp 2s infinite}@keyframes abp{0%,100%{opacity:1}50%{opacity:.3}}
 /* Layout */
 .dash{max-width:1200px;margin:0 auto;padding:24px 28px}
+@media(max-width:768px){.dash{padding:16px 14px}}
 .sl{font-family:'Josefin Sans';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--text3);margin:40px 0 14px;display:flex;align-items:center;gap:8px}.sl::after{content:'';flex:1;height:1px;background:var(--border)}
 .fi{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}.fi.vis{opacity:1;transform:translateY(0)}
 .bdg-new{display:inline-block;font-size:8px;font-weight:700;color:#fff;background:var(--acc);padding:2px 8px;border-radius:4px;margin-left:6px;letter-spacing:.5px;vertical-align:middle}
@@ -34,7 +35,7 @@
 @keyframes fpls{0%,100%{opacity:1}50%{opacity:.6}}
 .flash-text{font-size:13px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4}
 .flash-date{font-family:'IBM Plex Mono';font-size:10px;color:rgba(255,255,255,.4);flex-shrink:0;white-space:nowrap}
-@media(max-width:768px){.flash{flex-wrap:wrap;gap:8px;margin:0 -28px 0;padding:10px 16px}.flash-text{font-size:12px;order:3;flex-basis:100%}.flash-date{order:2}}
+@media(max-width:768px){.flash{flex-wrap:wrap;gap:8px;margin:0 -14px 0;padding:10px 14px}.flash-text{font-size:12px;order:3;flex-basis:100%}.flash-date{order:2}}
 /* Hero */
 .hero{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border-radius:0 0 var(--rl) var(--rl);padding:36px 40px 32px;margin:0 -28px 56px;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:-40px;right:-40px;width:340px;height:340px;background:radial-gradient(circle,rgba(232,132,44,.12) 0%,transparent 70%);pointer-events:none}
@@ -58,7 +59,7 @@
 .hero-ind .hi-chg{font-size:11px;font-weight:600}
 .hero-ind .hi-spk{margin-top:4px}
 .hero-day{margin-left:auto;display:flex;align-items:center;gap:10px}.hd-num{font-family:'IBM Plex Mono';font-size:26px;font-weight:600;color:var(--acc)}.hd-lbl{font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.5px}
-@media(max-width:768px){.hero{padding:24px 20px 20px;margin:0 -28px 32px}.hero h1{font-size:16px;white-space:normal}.hero-bottom{gap:12px}.hero-ind{padding:8px 12px}.hero-ind .hi-val{font-size:15px}.hero-day{margin-left:0;width:100%}.hd-num{font-size:22px}}
+@media(max-width:768px){.hero{padding:24px 14px 20px;margin:0 -14px 32px}.hero h1{font-size:16px;white-space:normal}.hero-bottom{gap:12px}.hero-ind{padding:8px 12px}.hero-ind .hi-val{font-size:15px}.hero-day{margin-left:0;width:100%}.hd-num{font-size:22px}}
 /* Une hero */
 .une-h{border-radius:var(--rl);overflow:hidden;position:relative;min-height:300px;cursor:pointer;margin-bottom:8px;transition:transform .25s,box-shadow .25s}.une-h:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.2)}
 .une-h-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--pri),#2D2D44)}.une-h-bg img{width:100%;height:100%;object-fit:cover;opacity:.55;transition:opacity .3s}.une-h:hover .une-h-bg img{opacity:.65}
@@ -88,6 +89,7 @@
 .ess2-sub{font-size:11px;color:#A16207;margin-bottom:22px;letter-spacing:.3px;position:relative}
 .ess2-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative}@media(max-width:700px){.ess2-grid{grid-template-columns:1fr}}
 .ess2-card{background:#fff;border-radius:12px;padding:18px 20px;display:flex;gap:18px;align-items:flex-start;transition:transform .15s,box-shadow .15s;border:none;border-left:4px solid transparent;box-shadow:0 2px 8px rgba(0,0,0,.06)}.ess2-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+@media(max-width:768px){.ess2{padding:20px 16px}.ess2-card{padding:14px 12px;gap:10px}.ess2-left{width:38px}.ess2-num{font-size:22px}}
 .ess2-card:nth-child(1){border-left-color:#3B82F6}
 .ess2-card:nth-child(2){border-left-color:#DC2626}
 .ess2-card:nth-child(3){border-left-color:#D97706}
