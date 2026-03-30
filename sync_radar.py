@@ -475,7 +475,7 @@ def main():
         if "josette sicsic" in author:
             gc[i]="edito"
             print(f"  Edito forcé (Josette Sicsic) : {a['title'][:50]}")
-        elif any(kw in title_desc for kw in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur"]):
+        elif any(kw in title_desc for kw in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
             gc[i]="edito"
             print(f"  Edito forcé (mot-clé) : {a['title'][:50]}")
 
