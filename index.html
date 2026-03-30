@@ -199,7 +199,7 @@ function isNew(d){if(!d)return false;const t=d.toDate?d.toDate():new Date(d);ret
 function nb(d){return isNew(d)?'<span class="bdg-new">NOUVEAU</span>':''}
 const CN={israel:'Israël',liban:'Liban',iran:'Iran',irak:'Irak',syrie:'Syrie',jordanie:'Jordanie',egypte:'Égypte',turquie:'Turquie',arabie_saoudite:'Arabie Saoudite',emirats:'Émirats',qatar:'Qatar',oman:'Oman',bahrein:'Bahreïn',koweit:'Koweït',yemen:'Yémen',chypre:'Chypre',grece:'Grèce'};
 const CC={israel:[31.5,34.8],liban:[33.9,35.8],iran:[32.4,53.7],irak:[33.2,43.7],syrie:[35,38.5],jordanie:[31.2,36.5],egypte:[26.8,30.8],turquie:[39,35.2],arabie_saoudite:[23.9,45.1],emirats:[24.5,54.4],qatar:[25.3,51.2],oman:[21.5,56],bahrein:[26.1,50.5],koweit:[29.3,47.5],yemen:[15.5,48.5],chypre:[35.1,33.4],grece:[39,22]};
-const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'🏛',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'⚓',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'⚖️',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'💡',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'🌍',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'📊',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'🗺️',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres',i:'📰',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
+const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'🏛',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'⚓',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'⚖️',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'💡',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'🌍',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'📊',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'🗺️',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres actualités',i:'📰',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
 let ABC={},MAE={},BYCAT={};const EI=['🔴','✈️','🏛','⚖️','💡','📊','⚓','💬'];let pt=null,temoIdx=0,temoTimer=null;
 
 function rH(cfg){document.getElementById('hdr').innerHTML=`<div class="logo"><span class="pd"></span>Crise au Moyen-Orient : la Newsroom de TourMaG</div><a class="tm-btn" href="#" onclick="event.preventDefault();document.getElementById('themes').scrollIntoView({behavior:'smooth'})">📰 Tous les articles</a><div class="upd">MàJ ${cfg.last_sync?fT(cfg.last_sync):'—'}</div>`}
@@ -295,7 +295,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 7. THEMES
   h+=`<div class="sl fi" id="themes">Articles par thématique</div><div class="tg fi">`;
   const themeCats=['aerien','institutionnel','croisiere','juridique','solutions','geopolitique','economie','destinations','general'];
-  themeCats.sort((a,b)=>(CATS[a]||CATS.general).l.localeCompare((CATS[b]||CATS.general).l,'fr'));
+  themeCats.sort((a,b)=>{if(a==='general')return 1;if(b==='general')return -1;return(CATS[a]||CATS.general).l.localeCompare((CATS[b]||CATS.general).l,'fr')});
   themeCats.forEach(cat=>{
     const arts=byCat[cat]||[];if(!arts.length)return;const cf=CATS[cat]||CATS.general;
     h+=`<div class="cd cd-${cat}"><div class="hd"><div class="ci" style="background:${cf.bg};color:${cf.c}">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc" style="background:${cf.cc}">${arts.length}</span></div>`;
