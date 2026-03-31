@@ -13,11 +13,14 @@
 .leaflet-container{touch-action:pan-y!important}
 @media(max-width:768px){.leaflet-container{pointer-events:none}.map-touch-overlay{position:absolute;inset:0;z-index:500;background:transparent}}
 .header{background:var(--pri);color:#fff;padding:14px 28px;border-radius:var(--rl);margin:12px 28px 0;display:flex;align-items:center;gap:16px;overflow:hidden}
-.header .logo{font-family:'Josefin Sans';font-size:15px;font-weight:700;letter-spacing:.4px;display:flex;align-items:center;gap:10px;flex-shrink:1;min-width:0}
+.header .logo{font-family:'Josefin Sans';font-weight:700;letter-spacing:.4px;display:flex;flex-direction:column;gap:2px;flex-shrink:1;min-width:0}
+.header .logo .logo-top{display:flex;align-items:center;gap:10px}
 .header .logo .pd{width:10px;height:10px;border-radius:50%;background:var(--acc);animation:pls 1.8s infinite;box-shadow:0 0 10px rgba(232,132,44,.5);flex-shrink:0}
+.header .logo .logo-title{font-size:26px;font-weight:700}
+.header .logo .logo-sub{font-size:14px;font-weight:400;color:rgba(255,255,255,.55);letter-spacing:.2px}
 @keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .tm-btn{margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.3);padding:5px 14px;border-radius:8px;font-size:10px;font-weight:600;color:#FDBA74;letter-spacing:.3px;text-decoration:none;white-space:nowrap;transition:background .2s;flex-shrink:0}.tm-btn:hover{background:rgba(232,132,44,.25)}
-@media(max-width:768px){.header{margin:8px 8px 0;padding:10px 14px;border-radius:12px;gap:8px}.header .logo{font-size:12px}.tm-btn{font-size:9px;padding:4px 10px}}
+@media(max-width:768px){.header{margin:8px 8px 0;padding:10px 14px;border-radius:12px;gap:8px}.header .logo .logo-title{font-size:18px}.header .logo .logo-sub{font-size:11px}.tm-btn{font-size:9px;padding:4px 10px}}
 .intro-p{font-size:13px;color:var(--text2);line-height:1.75;padding:16px 28px 0;text-align:justify}
 @media(max-width:768px){.intro-p{padding:12px 8px 0;font-size:12px}}
 .dash{max-width:1200px;margin:0 auto;padding:24px 28px}
@@ -70,9 +73,25 @@
 .vign-img{height:120px;overflow:hidden;background:#F1F5F9}.vign-img img{width:100%;height:100%;object-fit:cover}
 .vign-body{padding:12px 14px}.vign-body .vt{font-size:12px;font-weight:600;line-height:1.4;color:var(--text);margin-bottom:4px}.vign-body .vm{font-size:10px;color:var(--text3)}
 .vign-row{margin-bottom:32px}
-.map-full{border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;height:420px;position:relative;margin-bottom:8px;box-shadow:var(--shadow)}
+/* Map + MAE panel layout */
+.map-mae-row{display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:8px}
+@media(max-width:960px){.map-mae-row{grid-template-columns:1fr}}
+.map-full{border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;height:420px;position:relative;box-shadow:var(--shadow)}
 #map{height:100%;width:100%}
 @media(max-width:768px){.map-full{height:280px}}
+.mae-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;max-height:420px}
+.mae-panel-hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.mae-panel-hd h3{font-family:'Josefin Sans';font-size:12px;font-weight:700;color:var(--pri)}
+.mae-panel-hd .mae-count{font-size:9px;font-weight:700;color:#fff;background:var(--red);padding:2px 8px;border-radius:20px;margin-left:auto}
+.mae-panel-list{overflow-y:auto;flex:1}
+.mae-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}.mae-item:last-child{border-bottom:none}.mae-item:hover{background:#F8FAFC}
+.mae-item-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.mae-item-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mae-item-dot.red{background:var(--red)}.mae-item-dot.orange{background:var(--orange)}.mae-item-dot.yellow{background:var(--amber)}.mae-item-dot.green{background:var(--green)}.mae-item-dot.gray{background:#9CA3AF}
+.mae-item-name{font-size:11px;font-weight:600;color:var(--text)}
+.mae-item-level{font-size:9px;color:var(--text3);margin-bottom:4px;font-weight:500}
+.mae-item-conseil{font-size:10px;color:var(--text2);line-height:1.45;margin-top:2px;padding:0}
+@media(max-width:960px){.mae-panel{max-height:300px;margin-bottom:8px}}
 .mp{position:absolute;top:12px;right:12px;width:320px;max-height:400px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;z-index:800;overflow:hidden;display:none;box-shadow:0 8px 32px rgba(0,0,0,.18)}.mp.show{display:flex;flex-direction:column}
 .mp-h{padding:12px 14px;border-bottom:1px solid var(--border);position:relative}.mp-h h3{font-family:'Josefin Sans';font-size:13px;font-weight:700;color:var(--pri)}.mp-h .pc{font-size:10px;color:var(--text3)}.mp-h .cls{position:absolute;top:8px;right:10px;background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer}
 .mp-badge{display:inline-block;font-size:10px;font-weight:600;padding:4px 12px;border-radius:8px;margin:6px 14px}
@@ -81,13 +100,13 @@
 .mae-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:20px}
 .mae-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:9px;font-weight:500;cursor:pointer;transition:background .1s;white-space:nowrap}.mae-chip:hover{background:#FAFBFD}
 .mae-chip .md{width:7px;height:7px;border-radius:50%;flex-shrink:0}.mae-chip .md.red{background:var(--red)}.mae-chip .md.orange{background:var(--orange)}.mae-chip .md.yellow{background:var(--amber)}.mae-chip .md.green{background:var(--green)}.mae-chip .md.gray{background:#9CA3AF}
-/* Essentiel — bleu plus soutenu, léger */
-.ess2{background:linear-gradient(135deg,#C7D9F0,#B0CCE8);border:1px solid #5B9BD5;border-radius:var(--rl);padding:28px 32px;margin-bottom:20px;box-shadow:0 4px 20px rgba(59,130,246,.12);position:relative;overflow:hidden}
-.ess2::before{content:'';position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(59,130,246,.08) 0%,transparent 70%);pointer-events:none}
-.ess2-head{margin-bottom:6px;position:relative}.ess2-head h2{font-family:'Josefin Sans';font-size:18px;font-weight:700;color:#1E3A5F}
-.ess2-sub{font-size:11px;color:#2563EB;margin-bottom:18px;letter-spacing:.3px;position:relative}
+/* Essentiel — même fond que hero/timeline */
+.ess2{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border:none;border-radius:var(--rl);padding:28px 32px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.15);position:relative;overflow:hidden}
+.ess2::before{content:'';position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(232,132,44,.1) 0%,transparent 70%);pointer-events:none}
+.ess2-head{margin-bottom:6px;position:relative}.ess2-head h2{font-family:'Josefin Sans';font-size:18px;font-weight:700;color:#fff}
+.ess2-sub{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:18px;letter-spacing:.3px;position:relative}
 .ess2-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative}@media(max-width:700px){.ess2-grid{grid-template-columns:1fr}}
-.ess2-card{background:#fff;border:1px solid #93C5FD;border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start;transition:transform .15s,box-shadow .15s;border-left:4px solid transparent;box-shadow:0 2px 6px rgba(0,0,0,.04)}.ess2-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.ess2-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start;transition:transform .15s,box-shadow .15s;border-left:4px solid transparent;box-shadow:none}.ess2-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.2)}
 @media(max-width:768px){.ess2{padding:18px 14px}.ess2-card{padding:12px 10px;gap:10px}.ess2-left{width:36px}.ess2-num{font-size:20px}}
 .ess2-card:nth-child(1){border-left-color:#3B82F6}.ess2-card:nth-child(2){border-left-color:#DC2626}.ess2-card:nth-child(3){border-left-color:#D97706}.ess2-card:nth-child(4){border-left-color:#059669}.ess2-card:nth-child(5){border-left-color:#7C3AED}.ess2-card:nth-child(6){border-left-color:#0891B2}
 .ess2-left{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:48px}
@@ -95,13 +114,13 @@
 .ess2-card:nth-child(1) .ess2-num{color:#3B82F6}.ess2-card:nth-child(2) .ess2-num{color:#DC2626}.ess2-card:nth-child(3) .ess2-num{color:#D97706}.ess2-card:nth-child(4) .ess2-num{color:#059669}.ess2-card:nth-child(5) .ess2-num{color:#7C3AED}.ess2-card:nth-child(6) .ess2-num{color:#0891B2}
 .ess2-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap;text-align:center}
 .ess2-tag[data-t="AÉRIEN"]{background:#DBEAFE;color:#1E40AF}.ess2-tag[data-t="GÉOPOLITIQUE"]{background:#FEE2E2;color:#991B1B}.ess2-tag[data-t="DESTINATIONS"]{background:#DBEAFE;color:#1E3A5F}.ess2-tag[data-t="JURIDIQUE"]{background:#FEF3C7;color:#92400E}.ess2-tag[data-t="TOUR-OPÉRATEURS"]{background:#D1FAE5;color:#065F46}.ess2-tag[data-t="CONSEIL"]{background:#EDE9FE;color:#5B21B6}.ess2-tag[data-t="INFO"]{background:#F1F5F9;color:#475569}
-.ess2-txt{font-size:12px;line-height:1.6;color:#1C1917}.ess2-txt strong{font-weight:700;color:#1E3A5F}
-/* Conseils — bleu */
-.act-box{background:linear-gradient(135deg,#DBEAFE,#BFDBFE);border:1px solid #60A5FA;border-radius:var(--rl);padding:24px 28px;margin-bottom:20px}
-.act-box h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#1E3A5F;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.ess2-txt{font-size:12px;line-height:1.6;color:rgba(255,255,255,.85)}.ess2-txt strong{font-weight:700;color:#FDBA74}
+/* Conseils — jaune/ambre dégradé */
+.act-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:var(--rl);padding:24px 28px;margin-bottom:20px}
+.act-box h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#78350F;margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.act-card{background:#fff;border:1px solid #93C5FD;border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
-.act-icon{width:34px;height:34px;border-radius:10px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.act-card{background:#fff;border:1px solid #FBBF24;border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
+.act-icon{width:34px;height:34px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .act-card .act-t{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}.act-card .act-d{font-size:10px;color:var(--text2);line-height:1.5}
 .dep-board{background:var(--pri);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
 .dep-board-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}.dep-board-hd h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}.dep-board-hd .icon{font-size:18px}
@@ -179,7 +198,7 @@ const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'
 let ABC={},MAE={},BYCAT={};let pt=null;
 
 function rH(cfg){
-  document.getElementById('hdr').innerHTML=`<div class="logo"><span class="pd"></span>Crise au Moyen-Orient\u00a0: les répercussions pour le secteur du tourisme</div><a class="tm-btn" href="#" onclick="event.preventDefault();document.getElementById('themes').scrollIntoView({behavior:'smooth'})">📰 Tous les articles</a>`;
+  document.getElementById('hdr').innerHTML=`<div class="logo"><div class="logo-top"><span class="pd"></span><span class="logo-title">Crise au Moyen-Orient</span></div><span class="logo-sub">Quelles répercussions pour le secteur du tourisme\u00a0?</span></div><a class="tm-btn" href="#" onclick="event.preventDefault();document.getElementById('themes').scrollIntoView({behavior:'smooth'})">📰 Tous les articles</a>`;
   document.getElementById('intro-p').innerHTML=`Depuis le 28 février 2026, une nouvelle phase de tensions au Moyen-Orient entre Israël et l'Iran vient raviver les incertitudes dans une région déjà marquée par une instabilité chronique. Les conséquences se font rapidement sentir sur l'industrie touristique mondiale\u00a0: perturbations du trafic aérien, reconfiguration des flux de voyageurs, ajustements des stratégies des tour-opérateurs et inquiétudes des destinations voisines.`}
 function showP(co,arts){if(pt){clearTimeout(pt);pt=null}const p=document.getElementById('mp');p.classList.add('show');const md=MAE[co];const cm2={red:'#DC2626',orange:'#EA580C',yellow:'#D97706',green:'#059669',gray:'#9CA3AF'};const bgm={red:'#FEF2F2',orange:'#FFF7ED',yellow:'#FFFBEB',green:'#F0FDF4',gray:'#F9FAFB'};const ac=md?cm2[md.color]||'#9CA3AF':'#9CA3AF';const abg=md?bgm[md.color]||'#F9FAFB':'#F9FAFB';const lvl=md?md.level:'';
 document.getElementById('mp-h').innerHTML=`<button class="cls" onclick="hideP(1)">&times;</button><h3>${CN[co]||co}</h3><span class="pc">${arts.length} article${arts.length>1?'s':''}</span>`;
@@ -253,9 +272,33 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   const al=airlines&&airlines.airlines?airlines.airlines:null;
   if(al&&al.length){h+=`<div class="sl fi">Statut des compagnies aériennes</div><div class="dep-board fi"><div class="dep-grid">`;al.forEach(a=>{const st=(a.statut||'').toLowerCase();const cls=st.includes('suspendu')?'suspendu':st.includes('perturb')?'perturbe':'operationnel';h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${a.compagnie||''}</div><div class="dep-det">${a.detail||a.statut||''}</div></div></div>`});h+=`</div></div>`}
 
-  // 8. MAP + MAE
-  h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-full fi"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
+  // 8. MAP + MAE panel
+  h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-mae-row fi"><div class="map-full"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
   const mE=Object.values(mae).sort((a,b)=>{const o={red:0,orange:1,yellow:2,green:3,gray:4};return(o[a.color]||4)-(o[b.color]||4)});
+  h+=`<div class="mae-panel"><div class="mae-panel-hd"><span>🏛</span><h3>Conseils aux voyageurs</h3><span class="mae-count">${mE.length} pays</span></div><div class="mae-panel-list">`;
+  mE.forEach(m=>{
+    // Conseil tourisme Groq, nettoyé du level en doublon
+    let conseil='';
+    if(m.conseil_tourisme&&m.conseil_tourisme.length>10){
+      conseil=m.conseil_tourisme;
+      // Retirer le level en début de phrase s'il est dupliqué
+      if(m.level&&conseil.startsWith(m.level)){
+        conseil=conseil.substring(m.level.length).replace(/^[\s.,;:]+/,'');
+      }
+    }
+    if(!conseil||conseil.length<10){
+      // Fallback sur summary, tronqué proprement
+      if(m.summary&&m.summary.length>10){
+        conseil=m.summary.length>200?m.summary.substring(0,200).replace(/\s\S*$/,'')+'…':m.summary;
+      }else{
+        conseil='Consultez France Diplomatie pour les détails.';
+      }
+    }
+    // Première lettre en majuscule
+    if(conseil.length>0)conseil=conseil.charAt(0).toUpperCase()+conseil.slice(1);
+    h+=`<div class="mae-item" onclick="window.open('${m.url}','_blank')"><div class="mae-item-top"><span class="mae-item-dot ${m.color}"></span><span class="mae-item-name">${m.label}</span></div><div class="mae-item-level">${m.level||''}</div><div class="mae-item-conseil">${conseil}</div></div>`;
+  });
+  h+=`</div></div></div>`;
   h+=`<div class="mae-bar fi">`;mE.forEach(m=>{h+=`<div class="mae-chip" onclick="window.open('${m.url}','_blank')"><span class="md ${m.color}"></span><span>${m.label}</span></div>`});h+=`</div>`;
 
   // 9. EDITO — articles edito + détection par tags Firestore
