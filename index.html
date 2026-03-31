@@ -69,6 +69,7 @@
 .vign{border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:var(--shadow)}.vign:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
 .vign-img{height:120px;overflow:hidden;background:#F1F5F9}.vign-img img{width:100%;height:100%;object-fit:cover}
 .vign-body{padding:12px 14px}.vign-body .vt{font-size:12px;font-weight:600;line-height:1.4;color:var(--text);margin-bottom:4px}.vign-body .vm{font-size:10px;color:var(--text3)}
+.vign-row{margin-bottom:32px}
 .map-full{border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;height:420px;position:relative;margin-bottom:8px;box-shadow:var(--shadow)}
 #map{height:100%;width:100%}
 @media(max-width:768px){.map-full{height:280px}}
@@ -274,14 +275,21 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   h+=`<div class="edito-trib-card" onclick="window.open('${a.link}','_blank')"><div class="et-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.display='none'"></div><div class="et-content"><div class="et-title">${a.title}</div><div class="et-desc">${a.description?a.description.substring(0,150)+'...':''}</div><div><span class="et-author">${a.author||'La rédaction'}</span><span class="et-date"> · ${fS(a.pub_date)}</span></div></div></div>`});
   h+=`</div></div>`}
 
-  // 10. FINANCE
+  // 10. FINANCE — Brent, EUR/USD, Or en cartes fixes + Amadeus & Booking en liste
   const allFin=Object.entries(market);
   if(allFin.length){
-    const sorted=[...allFin].sort((a,b)=>Math.abs(b[1].change_pct)-Math.abs(a[1].change_pct));
-    const topKeys=new Set(sorted.slice(0,4).map(([k])=>k));
-    const top4=sorted.slice(0,4);const rest=allFin.filter(([k])=>!topKeys.has(k));
+    const cardKeys=['brent','eurusd','GC=F'];
+    const forceListKeys=['AMS.MC','BKNG'];
+    const topCards=cardKeys.map(k=>[k,market[k]]).filter(([k,v])=>v);
+    // Ajouter d'autres cartes si moins de 4, en excluant ceux forcés en liste
+    const cardKeySet=new Set(cardKeys);const forceListSet=new Set(forceListKeys);
+    const remaining=[...allFin].filter(([k])=>!cardKeySet.has(k)&&!forceListSet.has(k)).sort((a,b)=>Math.abs(b[1].change_pct)-Math.abs(a[1].change_pct));
+    while(topCards.length<4&&remaining.length){topCards.push(remaining.shift())}
+    const topKeysFinal=new Set(topCards.map(([k])=>k));
+    const rest=allFin.filter(([k])=>!topKeysFinal.has(k));
+    // S'assurer que Amadeus et Booking sont dans la liste
     h+=`<div class="sl fi" id="finance">Indicateurs économiques clés</div><div class="fgr fi">`;
-    top4.forEach(([k,v])=>{const c=v.change_pct>=0?'#059669':'#DC2626';h+=`<div class="fc"><div class="lb2">${v.label}</div><div class="vl">${v.currency}${v.current_price}</div><div class="cg ${v.change_pct>=0?'cdn':'cu'}">${v.change_pct>=0?'▲':'▼'} ${Math.abs(v.change_pct)}%</div><div class="sp">${spk(v.history,c)}</div></div>`});
+    topCards.forEach(([k,v])=>{const c=v.change_pct>=0?'#059669':'#DC2626';h+=`<div class="fc"><div class="lb2">${v.label}</div><div class="vl">${v.currency}${v.current_price}</div><div class="cg ${v.change_pct>=0?'cdn':'cu'}">${v.change_pct>=0?'▲':'▼'} ${Math.abs(v.change_pct)}%</div><div class="sp">${spk(v.history,c)}</div></div>`});
     h+=`</div>`;
     if(rest.length){h+=`<div class="bc fi"><table class="bt"><thead><tr><th>Valeur</th><th style="text-align:right">Cours</th><th style="text-align:right">Variation</th></tr></thead><tbody>`;
     rest.sort((a,b)=>a[1].change_pct-b[1].change_pct);rest.forEach(([k,v])=>{const c=v.change_pct>=0?'#166534':'#991B1B';const sc=v.sector==='aerien'?'sa':v.sector==='hotellerie'?'sh':v.sector==='croisiere'?'scr':v.sector==='to'?'sto':v.sector==='ota'?'sot':v.sector==='forex'?'ste':v.sector==='commodity'?'sto':'ste';h+=`<tr><td><span class="tn">${v.label}</span> <span class="ts2">${v.symbol}<span class="tsc ${sc}">${v.sector||''}</span></span></td><td style="text-align:right;font-weight:600;font-family:'IBM Plex Mono'">${v.currency}${v.current_price}</td><td style="text-align:right;font-weight:600;color:${c}">${v.change_pct>=0?'+':''}${v.change_pct}%</td></tr>`});
