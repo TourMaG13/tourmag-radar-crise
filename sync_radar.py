@@ -282,8 +282,9 @@ def synthesis_groq(articles):
     prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
 
 RÈGLES IMPÉRATIVES :
-- Chaque paragraphe fait entre 35 et 50 mots (environ 3 lignes), PAS un titre d'article recopié
-- Chaque paragraphe est une VRAIE ANALYSE RÉDIGÉE avec des faits concrets, des noms de compagnies/pays/acteurs, et une conséquence pratique pour l'agent de voyage
+- Chaque paragraphe fait entre 25 et 40 mots (2-3 lignes), PAS un titre d'article recopié
+- Chaque paragraphe est UNE OU DEUX PHRASES FLUIDES et naturelles, faciles à lire d'un coup d'œil
+- Utilise des faits concrets avec des noms de compagnies, pays, acteurs
 - Couvre exactement ces 6 angles dans cet ordre avec ces tags EXACTS :
   1. tag "AÉRIEN" : impact sur le trafic aérien
   2. tag "GÉOPOLITIQUE" : contexte géopolitique
@@ -292,7 +293,7 @@ RÈGLES IMPÉRATIVES :
   5. tag "TOUR-OPÉRATEURS" : initiatives des TO
   6. tag "CONSEIL" : conseil pratique pour agents
 - Utilise le présent de l'indicatif
-- Dans chaque paragraphe, mets en **gras** (avec des doubles astérisques) les 1 à 3 mots-clés ou noms propres les plus importants (compagnies, pays, chiffres clés)
+- Dans chaque paragraphe, mets en **gras** (avec des doubles astérisques) les 1 à 2 mots-clés les plus importants uniquement (un nom de compagnie, un pays, un chiffre)
 
 Articles récents :
 {chr(10).join(items)}
