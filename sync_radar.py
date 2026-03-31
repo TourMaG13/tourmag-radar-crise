@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v6.2
-Basé sur v6.1 + scraping tags TourMaG + reclassification edito
+"""Radar Crise Moyen-Orient — v6.3
+v6.2 + timeline récente + airlines récent + synthèse avec mots-clés en gras
 """
 import json,hashlib,os,re,sys,time
 from datetime import datetime,timezone
@@ -22,10 +22,8 @@ MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants fr
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 
-# ── Tags déclencheurs edito ──
 EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
 
-# ── Pauses Groq (secondes) ──
 GROQ_PAUSE_BETWEEN_BLOCKS = 30
 GROQ_PAUSE_RETRY = 45
 
@@ -54,13 +52,11 @@ def check_image_url(url):
 
 # ── Scraping tags TourMaG ──
 def scrape_tags(url):
-    """Scrape les tags en bas d'un article TourMaG."""
     try:
         r=requests.get(url,timeout=15,headers=HDR)
         if r.status_code!=200: return []
         soup=BeautifulSoup(r.content,"html.parser")
         tags=[]
-        # Méthode 1 : chercher le texte "Tags :" suivi des liens
         tags_section=None
         for el in soup.find_all(string=re.compile(r'Tags?\s*:', re.IGNORECASE)):
             parent=el.find_parent()
@@ -68,30 +64,25 @@ def scrape_tags(url):
                 tags_section=parent
                 break
         if tags_section:
-            # Les tags sont souvent des liens <a> après "Tags :"
             for a in tags_section.find_all("a"):
                 tag_text=a.get_text(strip=True).lower()
                 if tag_text and len(tag_text)>1:
                     tags.append(tag_text)
-            # Si pas de liens, parser le texte brut après "Tags :"
             if not tags:
                 raw=tags_section.get_text()
                 m=re.search(r'Tags?\s*:\s*(.+)',raw,re.IGNORECASE)
                 if m:
                     tags=[t.strip().lower() for t in m.group(1).split(",") if t.strip()]
-        # Méthode 2 : chercher les meta keywords
         if not tags:
             meta_kw=soup.find("meta",attrs={"name":"keywords"})
             if meta_kw and meta_kw.get("content"):
                 tags=[t.strip().lower() for t in meta_kw["content"].split(",") if t.strip()]
-        # Méthode 3 : chercher les éléments avec class contenant "tag"
         if not tags:
             for el in soup.find_all(class_=re.compile(r'tag',re.IGNORECASE)):
                 for a in el.find_all("a"):
                     tag_text=a.get_text(strip=True).lower()
                     if tag_text and len(tag_text)>1:
                         tags.append(tag_text)
-        # Nettoyer
         tags=[t for t in tags if len(t)>1 and len(t)<80]
         return tags
     except Exception as e:
@@ -99,7 +90,6 @@ def scrape_tags(url):
         return []
 
 def has_edito_tag(tags):
-    """Vérifie si la liste de tags contient un tag déclencheur edito."""
     if not tags: return False
     tags_lower=[t.lower().strip() for t in tags]
     for edito_tag in EDITO_TAGS:
@@ -158,7 +148,6 @@ def parse_rss():
         return arts
     except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
 
-# ── Scrape full article content ──
 def scrape_og_image(url):
     try:
         r=requests.get(url,timeout=10,headers=HDR)
@@ -223,7 +212,7 @@ def scrape_article_content(url):
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
-# ── Groq avec gestion rate limit ──
+# ── Groq ──
 def gcall(msgs,mt=2000,retries=3):
     if not GROQ_API_KEY: return None
     for attempt in range(retries):
@@ -297,18 +286,27 @@ RÈGLES IMPÉRATIVES :
 - Chaque paragraphe est une VRAIE ANALYSE RÉDIGÉE avec des faits concrets, des noms de compagnies/pays/acteurs, et une conséquence pratique pour l'agent de voyage
 - Couvre 6 angles différents : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
 - Utilise le présent de l'indicatif
+- Dans chaque paragraphe, mets en **gras** (avec des doubles astérisques) les 1 à 3 mots-clés ou noms propres les plus importants (compagnies, pays, chiffres clés)
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
+Réponds UNIQUEMENT avec un JSON array de 6 strings contenant du texte avec **mots en gras**. Rien d'autre."""
     r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
     if r and isinstance(r,list) and len(r)>=3:
         titles_lower={a['title'].lower().strip() for a in articles}
-        filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles_lower and len(p)>30]
-        if len(filtered)>=3:
-            print(f"  Synthèse : {len(filtered)} pts (filtrés)"); return filtered[:6]
-        print(f"  Synthèse : {len(r)} pts (non filtrés)"); return r[:6]
+        # Convertir **mot** en <strong>mot</strong>
+        processed=[]
+        for p in r:
+            if isinstance(p,str):
+                p2=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
+                if p2.lower().strip() not in titles_lower and len(p2)>30:
+                    processed.append(p2)
+        if len(processed)>=3:
+            print(f"  Synthèse : {len(processed)} pts (filtrés, avec bold)"); return processed[:6]
+        # Fallback sans filtre
+        processed2=[re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p) for p in r if isinstance(p,str)]
+        print(f"  Synthèse : {len(processed2)} pts (non filtrés, avec bold)"); return processed2[:6]
     return None
 
 def citations_groq(articles_with_content):
@@ -340,20 +338,22 @@ JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot...","nom
     return None
 
 def timeline_groq(articles):
-    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']} — {a.get('description','')[:120]}" for a in articles[:25]]
-    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique.
+    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']} — {a.get('description','')[:120]}" for a in articles[:30]]
+    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés les plus RÉCENTS dans l'ordre chronologique.
 
 RÈGLES IMPÉRATIVES :
+- PRIVILÉGIE LES ÉVÉNEMENTS LES PLUS RÉCENTS (derniers jours/semaines). Les événements anciens ne doivent apparaître que s'ils sont fondateurs.
+- Garde au maximum 2-3 événements anciens (début de crise) et 5-7 événements récents
 - Chaque événement doit être rédigé comme une VRAIE PHRASE avec sujet, verbe, complément
 - Utilise des NOMS PROPRES (compagnies aériennes, pays, organisations, personnes)
 - La phrase fait entre 8 et 18 mots
 - Utilise les vraies dates des articles, pas des dates inventées
 - Privilégie les événements qui impactent directement le tourisme français
 
-Articles :
+Articles (du plus récent au plus ancien) :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend tous ses vols vers Beyrouth et Téhéran."}}]"""
+JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspension de ses vols vers Téhéran jusqu'en mai."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
     return None
@@ -361,13 +361,19 @@ JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend tous ses vo
 def airlines_groq(articles):
     aero=[a for a in articles if a.get("_cat")=="aerien"]
     if not aero: return None
-    items=[f"- {a['title']}: {a.get('description','')[:120]}" for a in aero[:10]]
-    prompt=f"""À partir de ces articles sur le trafic aérien au Moyen-Orient, extrais le statut des compagnies aériennes mentionnées. Pour chaque compagnie : nom, statut (suspendu/perturbé/opérationnel), détail court.
+    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}: {a.get('description','')[:150]}" for a in aero[:15]]
+    prompt=f"""À partir de ces articles RÉCENTS sur le trafic aérien au Moyen-Orient, extrais le statut ACTUEL des compagnies aériennes mentionnées.
 
-Articles :
+RÈGLES IMPÉRATIVES :
+- Base-toi sur les articles LES PLUS RÉCENTS pour déterminer le statut actuel
+- Si un article récent dit qu'une compagnie a repris ses vols, le statut est "opérationnel" même si un article plus ancien disait "suspendu"
+- Pour chaque compagnie : nom, statut (suspendu/perturbé/opérationnel), détail court reflétant la DERNIÈRE information connue
+- Inclus toutes les compagnies mentionnées (françaises, européennes, moyen-orientales, etc.)
+
+Articles (du plus récent au plus ancien) :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus vers le Liban et l'Iran"}}]"""
+JSON uniquement : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus vers le Liban et l'Iran jusqu'en mai 2026"}}]"""
     r=pj(gcall([{"role":"user","content":prompt}]))
     if r and isinstance(r,list): print(f"  Airlines : {len(r)} compagnies"); return r
     return None
@@ -471,44 +477,30 @@ def sync_arts(db,articles,kw,gc,cit):
         if not a["link"]: continue
         did=gid(a["link"])
         existing=ref.document(did).get()
-
-        # Scraper les tags pour cet article
         tags=a.get("_tags",[])
-
         if existing.exists:
             ed=existing.to_dict()
             updates={}
-
-            # Mise à jour image si manquante
             if not ed.get("image_url") and a.get("image_url"):
                 updates["image_url"]=a["image_url"]
                 img_updated+=1
                 print(f"  ✎ image ajoutée : {a['title'][:50]}...")
-
-            # Mise à jour tags si pas encore stockés
             if not ed.get("tags") and tags:
                 updates["tags"]=tags
                 tags_updated+=1
                 print(f"  ✎ tags ajoutés : {a['title'][:50]}... → {tags}")
-
-            # Reclassification edito si tag déclencheur détecté
             if has_edito_tag(tags) and ed.get("category")!="edito":
                 updates["category"]="edito"
                 matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
                 print(f"  ✎ reclassé edito (tag: {matched}) : {a['title'][:50]}...")
-
             if updates:
                 ref.document(did).update(updates)
             continue
-
         cat=gc[i] if gc and i in gc else classif_kw(a,kw)
-
-        # Forcer edito si tag déclencheur
         if has_edito_tag(tags) and cat!="edito":
             matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
             print(f"  ⚑ edito forcé par tag ({matched}) : {a['title'][:50]}...")
             cat="edito"
-
         doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":det_countries(a,kw),"tags":tags,"created_at":firestore.SERVER_TIMESTAMP}
         if cit and i in cit:
             doc["citation"]=cit[i].get("citation","")
@@ -518,15 +510,12 @@ def sync_arts(db,articles,kw,gc,cit):
     print(f"Articles : {n} nouveaux sur {len(articles)}, {img_updated} images mises à jour, {tags_updated} tags ajoutés"); return n
 
 def enrich_tags_existing(db):
-    """Ré-enrichit les articles existants en base qui n'ont pas encore de tags."""
     ref=db.collection("articles")
-    docs=ref.where("tags","==",None).stream()
-    # Firestore ne supporte pas "field does not exist", donc on récupère tout
     all_docs=list(ref.stream())
     count=0; reclassed=0
     for doc in all_docs:
         d=doc.to_dict()
-        if d.get("tags"): continue  # déjà enrichi
+        if d.get("tags"): continue
         link=d.get("link","")
         if not link: continue
         print(f"  Enrichissement tags : {d.get('title','')[:50]}...")
@@ -543,7 +532,6 @@ def enrich_tags_existing(db):
             count+=1
             print(f"    → tags: {tags}")
         else:
-            # Marquer comme enrichi (liste vide) pour ne pas re-scraper
             ref.document(doc.id).update({"tags":[]})
             print(f"    → aucun tag trouvé")
     print(f"  Tags enrichis : {count} articles, {reclassed} reclassés edito")
@@ -563,7 +551,7 @@ def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":da
 
 # ── Main ──
 def main():
-    print("="*50+f"\nRadar v6.2 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
+    print("="*50+f"\nRadar v6.3 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
     ex_mae={}
@@ -580,7 +568,6 @@ def main():
             print(f"\n--- Enrichissement images ({len(missing)} sans image) ---")
             enrich_images(articles)
 
-    # Scraping tags pour les nouveaux articles
     if articles:
         print(f"\n--- Scraping tags ({len(articles)} articles) ---")
         for a in articles:
@@ -590,7 +577,6 @@ def main():
                 print(f"  Tags : {a['title'][:40]}... → {tags}")
             time.sleep(0.3)
 
-    # Classification Groq
     gc=None
     if articles and GROQ_API_KEY:
         print("\n--- Classification Groq ---")
@@ -602,16 +588,12 @@ def main():
     for i,a in enumerate(articles):
         author=(a.get("author","") or "").lower().strip()
         title_desc=(a.get("title","")+" "+a.get("description","")).lower()
-
-        # Forcer edito par auteur/mots-clés dans titre
         if "josette sicsic" in author:
             gc[i]="edito"
             print(f"  Edito forcé (Josette Sicsic) : {a['title'][:50]}")
         elif any(kw_e in title_desc for kw_e in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
             gc[i]="edito"
             print(f"  Edito forcé (mot-clé titre) : {a['title'][:50]}")
-
-        # Forcer edito par tags scrapés
         tags=a.get("_tags",[])
         if has_edito_tag(tags) and gc.get(i)!="edito":
             gc[i]="edito"
@@ -621,7 +603,6 @@ def main():
     for i,a in enumerate(articles):
         a["_cat"]=gc[i] if i in gc else classif_kw(a,kw)
 
-    # Citations Groq
     cit=None
     if articles and GROQ_API_KEY and gc:
         temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
@@ -642,16 +623,13 @@ def main():
             print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
             time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Sync articles (nouveaux + mise à jour tags/images existants)
     if articles:
         print("\n--- Articles → Firestore ---"); n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    # Ré-enrichissement tags articles existants en base
     print("\n--- Ré-enrichissement tags existants ---")
     enrich_tags_existing(db)
 
-    # Synthèse Groq
     if articles and GROQ_API_KEY:
         print("\n--- Synthèse ---")
         pts=synthesis_groq(articles)
@@ -662,7 +640,6 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Timeline Groq
     if articles and GROQ_API_KEY:
         print("\n--- Timeline ---")
         tl=timeline_groq(articles)
@@ -670,7 +647,6 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Airlines Groq
     if articles and GROQ_API_KEY:
         print("\n--- Airlines ---")
         al=airlines_groq(articles)
@@ -678,7 +654,6 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Introduction Groq
     if articles and GROQ_API_KEY:
         print("\n--- Introduction ---")
         intro=intro_groq(articles)
@@ -686,12 +661,10 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Finance
     print("\n--- Finance ---")
     fd=fetch_fin()
     if fd: sync_fin(db,fd)
 
-    # Featured article
     if articles:
         print("\n--- Article à la une ---")
         featured=None
@@ -708,7 +681,6 @@ def main():
         else:
             print("  Aucun article avec photo valide trouvé")
 
-    # MAE
     print("\n--- France Diplomatie ---")
     mae=scrape_mae()
     if mae and GROQ_API_KEY:
