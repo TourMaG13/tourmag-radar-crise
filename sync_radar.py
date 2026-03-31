@@ -279,6 +279,7 @@ JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
+    example_json = '[{"tag":"AÉRIEN","text":"**Air France** prolonge la suspension de ses vols vers Téhéran et Beyrouth jusqu\'à fin mai 2026."}]'
     prompt=f"""Tu es journaliste tourisme. Rédige 6 points de synthèse sur la crise au Moyen-Orient pour des agents de voyage français.
 
 RÈGLES :
@@ -291,7 +292,7 @@ RÈGLES :
 Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"tag":"AÉRIEN","text":"**Air France** prolonge la suspension de ses vols vers Téhéran et Beyrouth jusqu'à fin mai 2026."}}]"""
+JSON uniquement : {example_json}"""
 
 Articles récents :
 {chr(10).join(items)}
