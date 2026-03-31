@@ -282,19 +282,19 @@ def synthesis_groq(articles):
     prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
 
 RÈGLES IMPÉRATIVES :
-- Chaque paragraphe fait EXACTEMENT 3 PHRASES fluides et naturelles, soit environ 50 à 70 mots
-- Les phrases doivent s'enchaîner naturellement, comme un vrai paragraphe journalistique
-- Chaque paragraphe contient une INFORMATION CONCRÈTE et INTÉRESSANTE : un chiffre, un nom de compagnie, un pays, une décision, une conséquence pratique
-- NE TRONQUE PAS le texte, écris les 3 phrases complètes
+- Chaque paragraphe fait EXACTEMENT 2 PHRASES fluides, soit environ 35 à 50 mots
+- Les 2 phrases s'enchaînent naturellement
+- Chaque paragraphe contient une INFORMATION CONCRÈTE : un chiffre, un nom de compagnie, un pays, une décision
+- NE TRONQUE PAS le texte, écris les 2 phrases complètes
 - Couvre exactement ces 6 angles dans cet ordre avec ces tags EXACTS :
-  1. tag "AÉRIEN" : impact sur le trafic aérien (quelles compagnies, quelles routes, quelles suspensions ou reprises)
-  2. tag "GÉOPOLITIQUE" : contexte géopolitique (quels pays, quelles tensions, quelle évolution récente)
-  3. tag "DESTINATIONS" : destinations impactées (lesquelles sont touchées, lesquelles restent accessibles)
+  1. tag "AÉRIEN" : impact sur le trafic aérien (quelles compagnies, quelles routes)
+  2. tag "GÉOPOLITIQUE" : contexte géopolitique (quels pays, quelle évolution)
+  3. tag "DESTINATIONS" : destinations impactées ou accessibles
   4. tag "JURIDIQUE" : annulations, remboursements, droits des voyageurs
-  5. tag "TOUR-OPÉRATEURS" : initiatives des TO (reprogrammations, alternatives proposées)
-  6. tag "CONSEIL" : conseil pratique concret pour agents de voyage
+  5. tag "TOUR-OPÉRATEURS" : initiatives des TO
+  6. tag "CONSEIL" : conseil pratique concret pour agents
 - Utilise le présent de l'indicatif
-- Dans chaque paragraphe, mets en **gras** (doubles astérisques) les 1 à 2 mots-clés les plus importants (un nom propre, un chiffre clé)
+- Dans chaque paragraphe, mets en **gras** (doubles astérisques) 1 à 2 mots-clés (nom propre ou chiffre)
 
 Articles récents :
 {chr(10).join(items)}
@@ -418,24 +418,23 @@ Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
     return None
 
 def mae_groq(mae_data):
-    items=[f"- country_key={k} | {v['label']}: niveau={v['level']}. Contenu: {v.get('full_content',v.get('summary',''))[:400]}" for k,v in mae_data.items()]
-    prompt=f"""Expert tourisme et sécurité. Pour chaque pays ci-dessous, rédige un conseil pratique de 2-3 phrases destiné à un agent de voyage français.
+    items=[f"- country_key={k} | {v['label']}: niveau={v['level']}.\nContenu France Diplomatie: {v.get('full_content',v.get('summary',''))[:600]}" for k,v in mae_data.items()]
+    prompt=f"""Expert sécurité et tourisme. Pour chaque pays, rédige un conseil de 2-3 phrases pour un agent de voyage français.
 
-RÈGLES IMPÉRATIVES :
-- Chaque conseil doit être UNIQUE et SPÉCIFIQUE au pays concerné
-- EXPLIQUE POURQUOI la situation est dangereuse ou sûre : mentionne les risques concrets (tirs de roquettes, frappes aériennes, enlèvements, piraterie maritime, attentats, manifestations violentes, fermeture d'espace aérien, etc.)
-- Indique clairement si la destination est vendable ou à suspendre
-- Mentionne les zones spécifiques à éviter ou les zones qui restent sûres si applicable
-- Propose une alternative de destination quand c'est pertinent
-- Ne commence PAS par le niveau d'alerte MAE, va directement à l'information concrète
-- Chaque pays doit avoir un texte DIFFÉRENT des autres, pas de formulations génériques copiées-collées
+RÈGLES ABSOLUES :
+- Extrais du contenu France Diplomatie les RISQUES CONCRETS SPÉCIFIQUES à ce pays : frappes aériennes, tirs de roquettes, mines, enlèvements, piraterie, attentats, manifestations, fermeture d'espace aérien, couvre-feu, zones militaires, etc.
+- Chaque pays doit mentionner AU MOINS UN risque concret et spécifique tiré du texte France Diplomatie
+- Indique les zones géographiques précises à éviter si mentionnées (sud du pays, frontière nord, banlieue sud de Beyrouth, etc.)
+- Dis clairement si c'est vendable ou à suspendre
+- NE FAIS PAS de copier-coller entre pays : chaque texte doit être TOTALEMENT DIFFÉRENT
+- Ne commence pas par le niveau d'alerte
 
 IMPORTANT: utilise EXACTEMENT la country_key comme "country".
 
 Données par pays :
 {chr(10).join(items)}
 
-JSON : [{{"country":"liban","conseil_tourisme":"Les frappes israéliennes régulières sur le sud du pays et la banlieue de Beyrouth rendent toute vente impossible. L'aéroport de Beyrouth fonctionne par intermittence. Orientez vos clients vers Chypre ou la Jordanie comme alternatives."}}]"""
+JSON : [{{"country":"liban","conseil_tourisme":"Les frappes israéliennes récurrentes touchent le sud du pays et la banlieue sud de Beyrouth. L'aéroport fonctionne par intermittence avec des annulations fréquentes. Suspendez toutes les ventes et orientez vers Chypre."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["country"]:c.get("conseil_tourisme","") for c in r if "country" in c}
