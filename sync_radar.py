@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v6.1
-Basé sur sync_radar (24).py + fix rate limit Groq (pauses + retry 429)
+"""Radar Crise Moyen-Orient — v6.2
+Basé sur v6.1 + scraping tags TourMaG + reclassification edito
 """
 import json,hashlib,os,re,sys,time
 from datetime import datetime,timezone
@@ -22,9 +22,12 @@ MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants fr
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 
+# ── Tags déclencheurs edito ──
+EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
+
 # ── Pauses Groq (secondes) ──
-GROQ_PAUSE_BETWEEN_BLOCKS = 30     # Pause entre chaque gros bloc Groq
-GROQ_PAUSE_RETRY = 45              # Pause avant retry après erreur 429
+GROQ_PAUSE_BETWEEN_BLOCKS = 30
+GROQ_PAUSE_RETRY = 45
 
 def init_fb():
     sa=os.getenv("FIREBASE_SERVICE_ACCOUNT")
@@ -48,6 +51,62 @@ def check_image_url(url):
         return r.status_code==200 and "image" in ct and cl>2000
     except:
         return False
+
+# ── Scraping tags TourMaG ──
+def scrape_tags(url):
+    """Scrape les tags en bas d'un article TourMaG."""
+    try:
+        r=requests.get(url,timeout=15,headers=HDR)
+        if r.status_code!=200: return []
+        soup=BeautifulSoup(r.content,"html.parser")
+        tags=[]
+        # Méthode 1 : chercher le texte "Tags :" suivi des liens
+        tags_section=None
+        for el in soup.find_all(string=re.compile(r'Tags?\s*:', re.IGNORECASE)):
+            parent=el.find_parent()
+            if parent:
+                tags_section=parent
+                break
+        if tags_section:
+            # Les tags sont souvent des liens <a> après "Tags :"
+            for a in tags_section.find_all("a"):
+                tag_text=a.get_text(strip=True).lower()
+                if tag_text and len(tag_text)>1:
+                    tags.append(tag_text)
+            # Si pas de liens, parser le texte brut après "Tags :"
+            if not tags:
+                raw=tags_section.get_text()
+                m=re.search(r'Tags?\s*:\s*(.+)',raw,re.IGNORECASE)
+                if m:
+                    tags=[t.strip().lower() for t in m.group(1).split(",") if t.strip()]
+        # Méthode 2 : chercher les meta keywords
+        if not tags:
+            meta_kw=soup.find("meta",attrs={"name":"keywords"})
+            if meta_kw and meta_kw.get("content"):
+                tags=[t.strip().lower() for t in meta_kw["content"].split(",") if t.strip()]
+        # Méthode 3 : chercher les éléments avec class contenant "tag"
+        if not tags:
+            for el in soup.find_all(class_=re.compile(r'tag',re.IGNORECASE)):
+                for a in el.find_all("a"):
+                    tag_text=a.get_text(strip=True).lower()
+                    if tag_text and len(tag_text)>1:
+                        tags.append(tag_text)
+        # Nettoyer
+        tags=[t for t in tags if len(t)>1 and len(t)<80]
+        return tags
+    except Exception as e:
+        print(f"  Tags scrape ERREUR {url[:50]}: {e}")
+        return []
+
+def has_edito_tag(tags):
+    """Vérifie si la liste de tags contient un tag déclencheur edito."""
+    if not tags: return False
+    tags_lower=[t.lower().strip() for t in tags]
+    for edito_tag in EDITO_TAGS:
+        for t in tags_lower:
+            if edito_tag in t:
+                return True
+    return False
 
 # ── RSS/HTML ──
 def parse_html_fb(hb):
@@ -171,7 +230,6 @@ def gcall(msgs,mt=2000,retries=3):
         try:
             r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
             if r.status_code==429:
-                # Lire le header Retry-After si disponible
                 retry_after=int(r.headers.get("Retry-After",GROQ_PAUSE_RETRY))
                 wait=max(retry_after,GROQ_PAUSE_RETRY)
                 print(f"  Groq 429 — attente {wait}s (tentative {attempt+1}/{retries})")
@@ -406,27 +464,89 @@ def _mfb(ck,url,msg):
 
 # ── Firestore ──
 def gid(l): return hashlib.md5(l.encode()).hexdigest()[:16]
+
 def sync_arts(db,articles,kw,gc,cit):
-    ref=db.collection("articles"); n=0; img_updated=0
+    ref=db.collection("articles"); n=0; img_updated=0; tags_updated=0
     for i,a in enumerate(articles):
         if not a["link"]: continue
         did=gid(a["link"])
         existing=ref.document(did).get()
+
+        # Scraper les tags pour cet article
+        tags=a.get("_tags",[])
+
         if existing.exists:
             ed=existing.to_dict()
+            updates={}
+
+            # Mise à jour image si manquante
             if not ed.get("image_url") and a.get("image_url"):
-                ref.document(did).update({"image_url":a["image_url"]})
+                updates["image_url"]=a["image_url"]
                 img_updated+=1
                 print(f"  ✎ image ajoutée : {a['title'][:50]}...")
+
+            # Mise à jour tags si pas encore stockés
+            if not ed.get("tags") and tags:
+                updates["tags"]=tags
+                tags_updated+=1
+                print(f"  ✎ tags ajoutés : {a['title'][:50]}... → {tags}")
+
+            # Reclassification edito si tag déclencheur détecté
+            if has_edito_tag(tags) and ed.get("category")!="edito":
+                updates["category"]="edito"
+                matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
+                print(f"  ✎ reclassé edito (tag: {matched}) : {a['title'][:50]}...")
+
+            if updates:
+                ref.document(did).update(updates)
             continue
+
         cat=gc[i] if gc and i in gc else classif_kw(a,kw)
-        doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":det_countries(a,kw),"created_at":firestore.SERVER_TIMESTAMP}
+
+        # Forcer edito si tag déclencheur
+        if has_edito_tag(tags) and cat!="edito":
+            matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
+            print(f"  ⚑ edito forcé par tag ({matched}) : {a['title'][:50]}...")
+            cat="edito"
+
+        doc={"title":a["title"],"link":a["link"],"description":a.get("description",""),"image_url":a.get("image_url",""),"author":a.get("author",""),"pub_date":a["pub_date"],"category":cat,"countries":det_countries(a,kw),"tags":tags,"created_at":firestore.SERVER_TIMESTAMP}
         if cit and i in cit:
             doc["citation"]=cit[i].get("citation","")
             doc["citation_nom"]=cit[i].get("nom","")
             doc["citation_fonction"]=cit[i].get("fonction","")
         ref.document(did).set(doc); n+=1; print(f"  + [{cat}] {a['title'][:60]}...")
-    print(f"Articles : {n} nouveaux sur {len(articles)}, {img_updated} images mises à jour"); return n
+    print(f"Articles : {n} nouveaux sur {len(articles)}, {img_updated} images mises à jour, {tags_updated} tags ajoutés"); return n
+
+def enrich_tags_existing(db):
+    """Ré-enrichit les articles existants en base qui n'ont pas encore de tags."""
+    ref=db.collection("articles")
+    docs=ref.where("tags","==",None).stream()
+    # Firestore ne supporte pas "field does not exist", donc on récupère tout
+    all_docs=list(ref.stream())
+    count=0; reclassed=0
+    for doc in all_docs:
+        d=doc.to_dict()
+        if d.get("tags"): continue  # déjà enrichi
+        link=d.get("link","")
+        if not link: continue
+        print(f"  Enrichissement tags : {d.get('title','')[:50]}...")
+        tags=scrape_tags(link)
+        time.sleep(0.3)
+        if tags:
+            updates={"tags":tags}
+            if has_edito_tag(tags) and d.get("category")!="edito":
+                updates["category"]="edito"
+                matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
+                print(f"    → reclassé edito (tag: {matched})")
+                reclassed+=1
+            ref.document(doc.id).update(updates)
+            count+=1
+            print(f"    → tags: {tags}")
+        else:
+            # Marquer comme enrichi (liste vide) pour ne pas re-scraper
+            ref.document(doc.id).update({"tags":[]})
+            print(f"    → aucun tag trouvé")
+    print(f"  Tags enrichis : {count} articles, {reclassed} reclassés edito")
 
 def sync_fin(db,d):
     for k,v in d.items(): db.collection("market_data").document(k).set(v)
@@ -443,7 +563,7 @@ def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":da
 
 # ── Main ──
 def main():
-    print("="*50+f"\nRadar v6.1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
+    print("="*50+f"\nRadar v6.2 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
     ex_mae={}
@@ -460,6 +580,16 @@ def main():
             print(f"\n--- Enrichissement images ({len(missing)} sans image) ---")
             enrich_images(articles)
 
+    # Scraping tags pour les nouveaux articles
+    if articles:
+        print(f"\n--- Scraping tags ({len(articles)} articles) ---")
+        for a in articles:
+            tags=scrape_tags(a["link"])
+            a["_tags"]=tags
+            if tags:
+                print(f"  Tags : {a['title'][:40]}... → {tags}")
+            time.sleep(0.3)
+
     # Classification Groq
     gc=None
     if articles and GROQ_API_KEY:
@@ -472,12 +602,21 @@ def main():
     for i,a in enumerate(articles):
         author=(a.get("author","") or "").lower().strip()
         title_desc=(a.get("title","")+" "+a.get("description","")).lower()
+
+        # Forcer edito par auteur/mots-clés dans titre
         if "josette sicsic" in author:
             gc[i]="edito"
             print(f"  Edito forcé (Josette Sicsic) : {a['title'][:50]}")
-        elif any(kw in title_desc for kw in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
+        elif any(kw_e in title_desc for kw_e in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
             gc[i]="edito"
-            print(f"  Edito forcé (mot-clé) : {a['title'][:50]}")
+            print(f"  Edito forcé (mot-clé titre) : {a['title'][:50]}")
+
+        # Forcer edito par tags scrapés
+        tags=a.get("_tags",[])
+        if has_edito_tag(tags) and gc.get(i)!="edito":
+            gc[i]="edito"
+            matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
+            print(f"  Edito forcé (tag: {matched}) : {a['title'][:50]}")
 
     for i,a in enumerate(articles):
         a["_cat"]=gc[i] if i in gc else classif_kw(a,kw)
@@ -503,10 +642,14 @@ def main():
             print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
             time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Sync articles
+    # Sync articles (nouveaux + mise à jour tags/images existants)
     if articles:
         print("\n--- Articles → Firestore ---"); n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
+
+    # Ré-enrichissement tags articles existants en base
+    print("\n--- Ré-enrichissement tags existants ---")
+    enrich_tags_existing(db)
 
     # Synthèse Groq
     if articles and GROQ_API_KEY:
