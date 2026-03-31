@@ -279,22 +279,19 @@ JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
-    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
+    prompt=f"""Tu es journaliste tourisme. Rédige 6 points de synthèse sur la crise au Moyen-Orient pour des agents de voyage français.
 
-RÈGLES IMPÉRATIVES :
-- Chaque paragraphe fait EXACTEMENT 2 PHRASES fluides, soit environ 35 à 50 mots
-- Les 2 phrases s'enchaînent naturellement
-- Chaque paragraphe contient une INFORMATION CONCRÈTE : un chiffre, un nom de compagnie, un pays, une décision
-- NE TRONQUE PAS le texte, écris les 2 phrases complètes
-- Couvre exactement ces 6 angles dans cet ordre avec ces tags EXACTS :
-  1. tag "AÉRIEN" : impact sur le trafic aérien (quelles compagnies, quelles routes)
-  2. tag "GÉOPOLITIQUE" : contexte géopolitique (quels pays, quelle évolution)
-  3. tag "DESTINATIONS" : destinations impactées ou accessibles
-  4. tag "JURIDIQUE" : annulations, remboursements, droits des voyageurs
-  5. tag "TOUR-OPÉRATEURS" : initiatives des TO
-  6. tag "CONSEIL" : conseil pratique concret pour agents
-- Utilise le présent de l'indicatif
-- Dans chaque paragraphe, mets en **gras** (doubles astérisques) 1 à 2 mots-clés (nom propre ou chiffre)
+RÈGLES :
+- Chaque point = UNE SEULE PHRASE de 20 à 30 mots maximum
+- La phrase doit être percutante, concrète, avec un nom propre ou un chiffre
+- Mets en **gras** 1 à 2 mots-clés (nom de compagnie, pays, chiffre)
+- Tags dans cet ordre exact :
+  1. "AÉRIEN" 2. "GÉOPOLITIQUE" 3. "DESTINATIONS" 4. "JURIDIQUE" 5. "TOUR-OPÉRATEURS" 6. "CONSEIL"
+
+Articles :
+{chr(10).join(items)}
+
+JSON uniquement : [{{"tag":"AÉRIEN","text":"**Air France** prolonge la suspension de ses vols vers Téhéran et Beyrouth jusqu'à fin mai 2026."}}]"""
 
 Articles récents :
 {chr(10).join(items)}
