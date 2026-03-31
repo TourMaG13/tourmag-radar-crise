@@ -284,29 +284,46 @@ def synthesis_groq(articles):
 RÈGLES IMPÉRATIVES :
 - Chaque paragraphe fait entre 35 et 50 mots (environ 3 lignes), PAS un titre d'article recopié
 - Chaque paragraphe est une VRAIE ANALYSE RÉDIGÉE avec des faits concrets, des noms de compagnies/pays/acteurs, et une conséquence pratique pour l'agent de voyage
-- Couvre 6 angles différents : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
+- Couvre exactement ces 6 angles dans cet ordre avec ces tags EXACTS :
+  1. tag "AÉRIEN" : impact sur le trafic aérien
+  2. tag "GÉOPOLITIQUE" : contexte géopolitique
+  3. tag "DESTINATIONS" : destinations impactées
+  4. tag "JURIDIQUE" : annulations, remboursements, droits
+  5. tag "TOUR-OPÉRATEURS" : initiatives des TO
+  6. tag "CONSEIL" : conseil pratique pour agents
 - Utilise le présent de l'indicatif
 - Dans chaque paragraphe, mets en **gras** (avec des doubles astérisques) les 1 à 3 mots-clés ou noms propres les plus importants (compagnies, pays, chiffres clés)
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT avec un JSON array de 6 strings contenant du texte avec **mots en gras**. Rien d'autre."""
+Réponds UNIQUEMENT avec un JSON array de 6 objets : [{{"tag":"AÉRIEN","text":"Le texte avec **mots en gras**..."}}]. Rien d'autre."""
     r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
     if r and isinstance(r,list) and len(r)>=3:
         titles_lower={a['title'].lower().strip() for a in articles}
-        # Convertir **mot** en <strong>mot</strong>
         processed=[]
         for p in r:
-            if isinstance(p,str):
-                p2=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
-                if p2.lower().strip() not in titles_lower and len(p2)>30:
-                    processed.append(p2)
+            if isinstance(p,dict) and p.get("text"):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
+                tag=p.get("tag","INFO")
+                if txt.lower().strip() not in titles_lower and len(txt)>30:
+                    processed.append({"tag":tag,"text":txt})
+            elif isinstance(p,str) and len(p)>30:
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
+                if txt.lower().strip() not in titles_lower:
+                    processed.append({"tag":"INFO","text":txt})
         if len(processed)>=3:
-            print(f"  Synthèse : {len(processed)} pts (filtrés, avec bold)"); return processed[:6]
-        # Fallback sans filtre
-        processed2=[re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p) for p in r if isinstance(p,str)]
-        print(f"  Synthèse : {len(processed2)} pts (non filtrés, avec bold)"); return processed2[:6]
+            print(f"  Synthèse : {len(processed)} pts (avec tags et bold)"); return processed[:6]
+        # Fallback
+        fallback=[]
+        for p in r:
+            if isinstance(p,dict) and p.get("text"):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
+                fallback.append({"tag":p.get("tag","INFO"),"text":txt})
+            elif isinstance(p,str):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
+                fallback.append({"tag":"INFO","text":txt})
+        print(f"  Synthèse : {len(fallback)} pts (fallback)"); return fallback[:6]
     return None
 
 def citations_groq(articles_with_content):
