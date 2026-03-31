@@ -298,25 +298,47 @@ JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
-    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
+    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 points de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
 
 RÈGLES IMPÉRATIVES :
-- Chaque paragraphe fait entre 35 et 50 mots (environ 3 lignes), PAS un titre d'article recopié
-- Chaque paragraphe est une VRAIE ANALYSE RÉDIGÉE avec des faits concrets, des noms de compagnies/pays/acteurs, et une conséquence pratique pour l'agent de voyage
-- Couvre 6 angles différents : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
-- Utilise le présent de l'indicatif
+1. Chaque point est un objet JSON avec "tag" et "text"
+2. Les 6 tags dans cet ordre : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL
+3. Le texte fait entre 35 et 50 mots, c'est une VRAIE ANALYSE avec des faits concrets et des noms propres
+4. Mets en **gras** UNIQUEMENT 1 à 2 mots-clés par point (un nom propre ET un fait important). Pas plus. Trop de gras = REJETÉ.
+
+EXEMPLE :
+{{"tag":"AÉRIEN","text":"**Air France** maintient la suspension de ses liaisons vers Beyrouth et Téhéran au moins jusqu'à fin mai. Emirates et Qatar Airways réduisent leurs fréquences sur les routes régionales, compliquant les **correspondances vers le Golfe** pour les voyageurs français."}}
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
+Réponds UNIQUEMENT avec un JSON array de 6 objets. Rien d'autre."""
     r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
     if r and isinstance(r,list) and len(r)>=3:
         titles_lower={a['title'].lower().strip() for a in articles}
-        filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles_lower and len(p)>30]
-        if len(filtered)>=3:
-            print(f"  Synthèse : {len(filtered)} pts (filtrés)"); return filtered[:6]
-        print(f"  Synthèse : {len(r)} pts (non filtrés)"); return r[:6]
+        processed=[]
+        for p in r:
+            if isinstance(p,dict) and p.get("text"):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
+                tag=p.get("tag","INFO")
+                if txt.lower().strip() not in titles_lower and len(txt)>20:
+                    processed.append({"tag":tag,"text":txt})
+            elif isinstance(p,str) and len(p)>30:
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
+                if txt.lower().strip() not in titles_lower:
+                    processed.append({"tag":"INFO","text":txt})
+        if len(processed)>=3:
+            print(f"  Synthèse : {len(processed)} pts"); return processed[:6]
+        # Fallback
+        fallback=[]
+        for p in r:
+            if isinstance(p,dict) and p.get("text"):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
+                fallback.append({"tag":p.get("tag","INFO"),"text":txt})
+            elif isinstance(p,str):
+                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
+                fallback.append({"tag":"INFO","text":txt})
+        if fallback: print(f"  Synthèse : {len(fallback)} pts (fallback)"); return fallback[:6]
     return None
 
 def citations_groq(articles_with_content):
