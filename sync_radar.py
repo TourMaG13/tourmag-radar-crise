@@ -418,11 +418,14 @@ Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
 
 def mae_groq(mae_data):
     items=[f"- country_key={k} | {v['label']}: niveau={v['level']}. Contenu: {v.get('full_content',v.get('summary',''))[:400]}" for k,v in mae_data.items()]
-    prompt=f"""Expert tourisme. Pour chaque pays, fiche conseil 2-3 phrases pour agent de voyage : vendable ou à suspendre, zones sûres/à éviter, conseil pratique.
-IMPORTANT: utilise EXACTEMENT la country_key comme "country".
+    prompt=f"""Expert tourisme. Pour chaque pays, rédige un conseil pratique de 2-3 phrases destiné à un agent de voyage français.
+Le conseil doit indiquer clairement : est-ce que la destination est vendable ou à suspendre ? Quelles zones sont sûres ou à éviter ? Quel conseil concret donner au client ?
+IMPORTANT: 
+- Utilise EXACTEMENT la country_key comme "country"
+- Ne commence PAS la phrase par le niveau d'alerte (ex: ne pas commencer par "Formellement déconseillé" ou "Vigilance renforcée"), va directement au conseil pratique
 Pays :
 {chr(10).join(items)}
-JSON : [{{"country":"liban","conseil_tourisme":"..."}}]"""
+JSON : [{{"country":"liban","conseil_tourisme":"Les ventes vers le Liban doivent être suspendues. La situation sécuritaire reste très instable dans tout le pays. Proposez la Jordanie ou Chypre comme alternatives."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["country"]:c.get("conseil_tourisme","") for c in r if "country" in c}
