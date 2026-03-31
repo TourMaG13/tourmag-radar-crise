@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v6.3
-v6.2 + timeline récente + airlines récent + synthèse avec mots-clés en gras
+"""Radar Crise Moyen-Orient — v6.1
+Basé sur sync_radar (24).py + fix rate limit Groq (pauses + retry 429)
 """
 import json,hashlib,os,re,sys,time
 from datetime import datetime,timezone
@@ -22,10 +22,11 @@ MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants fr
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 
-EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
+# ── Pauses Groq (secondes) ──
+GROQ_PAUSE_BETWEEN_BLOCKS = 30     # Pause entre chaque gros bloc Groq
+GROQ_PAUSE_RETRY = 45              # Pause avant retry après erreur 429
 
-GROQ_PAUSE_BETWEEN_BLOCKS = 30
-GROQ_PAUSE_RETRY = 45
+EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
 
 def init_fb():
     sa=os.getenv("FIREBASE_SERVICE_ACCOUNT")
@@ -33,6 +34,70 @@ def init_fb():
     firebase_admin.initialize_app(credentials.Certificate(json.loads(sa))); return firestore.client()
 def load_kw():
     with open(KEYWORDS_PATH,"r",encoding="utf-8") as f: return json.load(f)
+
+# ── Scraping tags TourMaG ──
+def scrape_tags(url):
+    try:
+        r=requests.get(url,timeout=15,headers=HDR)
+        if r.status_code!=200: return []
+        soup=BeautifulSoup(r.content,"html.parser")
+        tags=[]
+        tags_section=None
+        for el in soup.find_all(string=re.compile(r'Tags?\s*:', re.IGNORECASE)):
+            parent=el.find_parent()
+            if parent: tags_section=parent; break
+        if tags_section:
+            for a in tags_section.find_all("a"):
+                tag_text=a.get_text(strip=True).lower()
+                if tag_text and len(tag_text)>1: tags.append(tag_text)
+            if not tags:
+                raw=tags_section.get_text()
+                m=re.search(r'Tags?\s*:\s*(.+)',raw,re.IGNORECASE)
+                if m: tags=[t.strip().lower() for t in m.group(1).split(",") if t.strip()]
+        if not tags:
+            meta_kw=soup.find("meta",attrs={"name":"keywords"})
+            if meta_kw and meta_kw.get("content"):
+                tags=[t.strip().lower() for t in meta_kw["content"].split(",") if t.strip()]
+        if not tags:
+            for el in soup.find_all(class_=re.compile(r'tag',re.IGNORECASE)):
+                for a in el.find_all("a"):
+                    tag_text=a.get_text(strip=True).lower()
+                    if tag_text and len(tag_text)>1: tags.append(tag_text)
+        return [t for t in tags if len(t)>1 and len(t)<80]
+    except Exception as e: print(f"  Tags scrape ERR {url[:50]}: {e}"); return []
+
+def has_edito_tag(tags):
+    if not tags: return False
+    tags_lower=[t.lower().strip() for t in tags]
+    for edito_tag in EDITO_TAGS:
+        for t in tags_lower:
+            if edito_tag in t: return True
+    return False
+
+def enrich_tags_existing(db):
+    """Scrape les tags des articles existants qui n'en ont pas, et reclasse en edito si nécessaire."""
+    ref=db.collection("articles")
+    all_docs=list(ref.stream())
+    count=0; reclassed=0
+    for doc in all_docs:
+        d=doc.to_dict()
+        if d.get("tags"): continue
+        link=d.get("link","")
+        if not link: continue
+        tags=scrape_tags(link)
+        time.sleep(0.3)
+        if tags:
+            updates={"tags":tags}
+            if has_edito_tag(tags) and d.get("category")!="edito":
+                updates["category"]="edito"
+                matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
+                print(f"  ✎ reclassé edito (tag: {matched}) : {d.get('title','')[:50]}...")
+                reclassed+=1
+            ref.document(doc.id).update(updates)
+            count+=1
+        else:
+            ref.document(doc.id).update({"tags":[]})
+    print(f"  Tags enrichis : {count} articles, {reclassed} reclassés edito")
 def clean_xml(t):
     return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t))
 def vimg(u):
@@ -49,54 +114,6 @@ def check_image_url(url):
         return r.status_code==200 and "image" in ct and cl>2000
     except:
         return False
-
-# ── Scraping tags TourMaG ──
-def scrape_tags(url):
-    try:
-        r=requests.get(url,timeout=15,headers=HDR)
-        if r.status_code!=200: return []
-        soup=BeautifulSoup(r.content,"html.parser")
-        tags=[]
-        tags_section=None
-        for el in soup.find_all(string=re.compile(r'Tags?\s*:', re.IGNORECASE)):
-            parent=el.find_parent()
-            if parent:
-                tags_section=parent
-                break
-        if tags_section:
-            for a in tags_section.find_all("a"):
-                tag_text=a.get_text(strip=True).lower()
-                if tag_text and len(tag_text)>1:
-                    tags.append(tag_text)
-            if not tags:
-                raw=tags_section.get_text()
-                m=re.search(r'Tags?\s*:\s*(.+)',raw,re.IGNORECASE)
-                if m:
-                    tags=[t.strip().lower() for t in m.group(1).split(",") if t.strip()]
-        if not tags:
-            meta_kw=soup.find("meta",attrs={"name":"keywords"})
-            if meta_kw and meta_kw.get("content"):
-                tags=[t.strip().lower() for t in meta_kw["content"].split(",") if t.strip()]
-        if not tags:
-            for el in soup.find_all(class_=re.compile(r'tag',re.IGNORECASE)):
-                for a in el.find_all("a"):
-                    tag_text=a.get_text(strip=True).lower()
-                    if tag_text and len(tag_text)>1:
-                        tags.append(tag_text)
-        tags=[t for t in tags if len(t)>1 and len(t)<80]
-        return tags
-    except Exception as e:
-        print(f"  Tags scrape ERREUR {url[:50]}: {e}")
-        return []
-
-def has_edito_tag(tags):
-    if not tags: return False
-    tags_lower=[t.lower().strip() for t in tags]
-    for edito_tag in EDITO_TAGS:
-        for t in tags_lower:
-            if edito_tag in t:
-                return True
-    return False
 
 # ── RSS/HTML ──
 def parse_html_fb(hb):
@@ -148,6 +165,7 @@ def parse_rss():
         return arts
     except Exception as ex: print(f"ERREUR RSS : {ex}"); return []
 
+# ── Scrape full article content ──
 def scrape_og_image(url):
     try:
         r=requests.get(url,timeout=10,headers=HDR)
@@ -212,13 +230,14 @@ def scrape_article_content(url):
     except Exception as e:
         print(f"  Scrape article ERREUR : {e}"); return ""
 
-# ── Groq ──
+# ── Groq avec gestion rate limit ──
 def gcall(msgs,mt=2000,retries=3):
     if not GROQ_API_KEY: return None
     for attempt in range(retries):
         try:
             r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
             if r.status_code==429:
+                # Lire le header Retry-After si disponible
                 retry_after=int(r.headers.get("Retry-After",GROQ_PAUSE_RETRY))
                 wait=max(retry_after,GROQ_PAUSE_RETRY)
                 print(f"  Groq 429 — attente {wait}s (tentative {attempt+1}/{retries})")
@@ -279,51 +298,25 @@ JSON uniquement : [{{"id":0,"cat":"aerien"}}]"""
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
-    example_json = '[{"tag":"AÉRIEN","text":"**Air France** prolonge la suspension de ses vols vers Téhéran et Beyrouth jusqu\'à fin mai 2026."}]'
-    prompt=f"""Tu es journaliste tourisme. Rédige 6 points de synthèse sur la crise au Moyen-Orient pour des agents de voyage français.
+    prompt=f"""Tu es journaliste spécialisé tourisme. À partir des articles ci-dessous, rédige EXACTEMENT 6 paragraphes de synthèse sur la crise au Moyen-Orient destinés aux agents de voyage français.
 
-RÈGLES :
-- Chaque point = UNE SEULE PHRASE de 20 à 30 mots maximum
-- La phrase doit être percutante, concrète, avec un nom propre ou un chiffre
-- Mets en **gras** 1 à 2 mots-clés (nom de compagnie, pays, chiffre)
-- Tags dans cet ordre exact :
-  1. "AÉRIEN" 2. "GÉOPOLITIQUE" 3. "DESTINATIONS" 4. "JURIDIQUE" 5. "TOUR-OPÉRATEURS" 6. "CONSEIL"
-
-Articles :
-{chr(10).join(items)}
-
-JSON uniquement : {example_json}"""
+RÈGLES IMPÉRATIVES :
+- Chaque paragraphe fait entre 35 et 50 mots (environ 3 lignes), PAS un titre d'article recopié
+- Chaque paragraphe est une VRAIE ANALYSE RÉDIGÉE avec des faits concrets, des noms de compagnies/pays/acteurs, et une conséquence pratique pour l'agent de voyage
+- Couvre 6 angles différents : aérien, destinations impactées, juridique/annulations, initiatives TO, contexte géopolitique, conseil pratique
+- Utilise le présent de l'indicatif
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT avec un JSON array de 6 objets : [{{"tag":"AÉRIEN","text":"Le texte avec **mots en gras**..."}}]. Rien d'autre."""
+Réponds UNIQUEMENT avec un JSON array de 6 strings. Rien d'autre."""
     r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
     if r and isinstance(r,list) and len(r)>=3:
         titles_lower={a['title'].lower().strip() for a in articles}
-        processed=[]
-        for p in r:
-            if isinstance(p,dict) and p.get("text"):
-                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
-                tag=p.get("tag","INFO")
-                if txt.lower().strip() not in titles_lower and len(txt)>30:
-                    processed.append({"tag":tag,"text":txt})
-            elif isinstance(p,str) and len(p)>30:
-                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
-                if txt.lower().strip() not in titles_lower:
-                    processed.append({"tag":"INFO","text":txt})
-        if len(processed)>=3:
-            print(f"  Synthèse : {len(processed)} pts (avec tags et bold)"); return processed[:6]
-        # Fallback
-        fallback=[]
-        for p in r:
-            if isinstance(p,dict) and p.get("text"):
-                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p["text"])
-                fallback.append({"tag":p.get("tag","INFO"),"text":txt})
-            elif isinstance(p,str):
-                txt=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',p)
-                fallback.append({"tag":"INFO","text":txt})
-        print(f"  Synthèse : {len(fallback)} pts (fallback)"); return fallback[:6]
+        filtered=[p for p in r if isinstance(p,str) and p.lower().strip() not in titles_lower and len(p)>30]
+        if len(filtered)>=3:
+            print(f"  Synthèse : {len(filtered)} pts (filtrés)"); return filtered[:6]
+        print(f"  Synthèse : {len(r)} pts (non filtrés)"); return r[:6]
     return None
 
 def citations_groq(articles_with_content):
@@ -355,22 +348,20 @@ JSON uniquement : [{{"id":0,"citation":"La citation exacte mot pour mot...","nom
     return None
 
 def timeline_groq(articles):
-    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']} — {a.get('description','')[:120]}" for a in articles[:30]]
-    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés les plus RÉCENTS dans l'ordre chronologique.
+    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']} — {a.get('description','')[:120]}" for a in articles[:25]]
+    prompt=f"""À partir de ces articles sur la crise au Moyen-Orient, extrais les 8-10 événements clés dans l'ordre chronologique.
 
 RÈGLES IMPÉRATIVES :
-- PRIVILÉGIE LES ÉVÉNEMENTS LES PLUS RÉCENTS (derniers jours/semaines). Les événements anciens ne doivent apparaître que s'ils sont fondateurs.
-- Garde au maximum 2-3 événements anciens (début de crise) et 5-7 événements récents
 - Chaque événement doit être rédigé comme une VRAIE PHRASE avec sujet, verbe, complément
 - Utilise des NOMS PROPRES (compagnies aériennes, pays, organisations, personnes)
 - La phrase fait entre 8 et 18 mots
 - Utilise les vraies dates des articles, pas des dates inventées
 - Privilégie les événements qui impactent directement le tourisme français
 
-Articles (du plus récent au plus ancien) :
+Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspension de ses vols vers Téhéran jusqu'en mai."}}]"""
+JSON uniquement : [{{"date":"2025-10-01","event":"Air France suspend tous ses vols vers Beyrouth et Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)} events"); return r
     return None
@@ -378,19 +369,13 @@ JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspens
 def airlines_groq(articles):
     aero=[a for a in articles if a.get("_cat")=="aerien"]
     if not aero: return None
-    items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}: {a.get('description','')[:150]}" for a in aero[:15]]
-    prompt=f"""À partir de ces articles RÉCENTS sur le trafic aérien au Moyen-Orient, extrais le statut ACTUEL des compagnies aériennes mentionnées.
+    items=[f"- {a['title']}: {a.get('description','')[:120]}" for a in aero[:10]]
+    prompt=f"""À partir de ces articles sur le trafic aérien au Moyen-Orient, extrais le statut des compagnies aériennes mentionnées. Pour chaque compagnie : nom, statut (suspendu/perturbé/opérationnel), détail court.
 
-RÈGLES IMPÉRATIVES :
-- Base-toi sur les articles LES PLUS RÉCENTS pour déterminer le statut actuel
-- Si un article récent dit qu'une compagnie a repris ses vols, le statut est "opérationnel" même si un article plus ancien disait "suspendu"
-- Pour chaque compagnie : nom, statut (suspendu/perturbé/opérationnel), détail court reflétant la DERNIÈRE information connue
-- Inclus toutes les compagnies mentionnées (françaises, européennes, moyen-orientales, etc.)
-
-Articles (du plus récent au plus ancien) :
+Articles :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus vers le Liban et l'Iran jusqu'en mai 2026"}}]"""
+JSON uniquement : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus vers le Liban et l'Iran"}}]"""
     r=pj(gcall([{"role":"user","content":prompt}]))
     if r and isinstance(r,list): print(f"  Airlines : {len(r)} compagnies"); return r
     return None
@@ -416,23 +401,12 @@ Réponds UNIQUEMENT avec le texte du paragraphe, sans guillemets, sans JSON."""
     return None
 
 def mae_groq(mae_data):
-    items=[f"- country_key={k} | {v['label']}: niveau={v['level']}.\nContenu France Diplomatie: {v.get('full_content',v.get('summary',''))[:600]}" for k,v in mae_data.items()]
-    prompt=f"""Expert sécurité et tourisme. Pour chaque pays, rédige un conseil de 2-3 phrases pour un agent de voyage français.
-
-RÈGLES ABSOLUES :
-- Extrais du contenu France Diplomatie les RISQUES CONCRETS SPÉCIFIQUES à ce pays : frappes aériennes, tirs de roquettes, mines, enlèvements, piraterie, attentats, manifestations, fermeture d'espace aérien, couvre-feu, zones militaires, etc.
-- Chaque pays doit mentionner AU MOINS UN risque concret et spécifique tiré du texte France Diplomatie
-- Indique les zones géographiques précises à éviter si mentionnées (sud du pays, frontière nord, banlieue sud de Beyrouth, etc.)
-- Dis clairement si c'est vendable ou à suspendre
-- NE FAIS PAS de copier-coller entre pays : chaque texte doit être TOTALEMENT DIFFÉRENT
-- Ne commence pas par le niveau d'alerte
-
+    items=[f"- country_key={k} | {v['label']}: niveau={v['level']}. Contenu: {v.get('full_content',v.get('summary',''))[:400]}" for k,v in mae_data.items()]
+    prompt=f"""Expert tourisme. Pour chaque pays, fiche conseil 2-3 phrases pour agent de voyage : vendable ou à suspendre, zones sûres/à éviter, conseil pratique.
 IMPORTANT: utilise EXACTEMENT la country_key comme "country".
-
-Données par pays :
+Pays :
 {chr(10).join(items)}
-
-JSON : [{{"country":"liban","conseil_tourisme":"Les frappes israéliennes récurrentes touchent le sud du pays et la banlieue sud de Beyrouth. L'aéroport fonctionne par intermittence avec des annulations fréquentes. Suspendez toutes les ventes et orientez vers Chypre."}}]"""
+JSON : [{{"country":"liban","conseil_tourisme":"..."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         m={c["country"]:c.get("conseil_tourisme","") for c in r if "country" in c}
@@ -498,31 +472,25 @@ def _mfb(ck,url,msg):
 
 # ── Firestore ──
 def gid(l): return hashlib.md5(l.encode()).hexdigest()[:16]
-
 def sync_arts(db,articles,kw,gc,cit):
     ref=db.collection("articles"); n=0; img_updated=0; tags_updated=0
     for i,a in enumerate(articles):
         if not a["link"]: continue
         did=gid(a["link"])
-        existing=ref.document(did).get()
         tags=a.get("_tags",[])
+        existing=ref.document(did).get()
         if existing.exists:
             ed=existing.to_dict()
             updates={}
             if not ed.get("image_url") and a.get("image_url"):
-                updates["image_url"]=a["image_url"]
-                img_updated+=1
-                print(f"  ✎ image ajoutée : {a['title'][:50]}...")
+                updates["image_url"]=a["image_url"]; img_updated+=1
             if not ed.get("tags") and tags:
-                updates["tags"]=tags
-                tags_updated+=1
-                print(f"  ✎ tags ajoutés : {a['title'][:50]}... → {tags}")
+                updates["tags"]=tags; tags_updated+=1
             if has_edito_tag(tags) and ed.get("category")!="edito":
                 updates["category"]="edito"
                 matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
                 print(f"  ✎ reclassé edito (tag: {matched}) : {a['title'][:50]}...")
-            if updates:
-                ref.document(did).update(updates)
+            if updates: ref.document(did).update(updates)
             continue
         cat=gc[i] if gc and i in gc else classif_kw(a,kw)
         if has_edito_tag(tags) and cat!="edito":
@@ -535,34 +503,7 @@ def sync_arts(db,articles,kw,gc,cit):
             doc["citation_nom"]=cit[i].get("nom","")
             doc["citation_fonction"]=cit[i].get("fonction","")
         ref.document(did).set(doc); n+=1; print(f"  + [{cat}] {a['title'][:60]}...")
-    print(f"Articles : {n} nouveaux sur {len(articles)}, {img_updated} images mises à jour, {tags_updated} tags ajoutés"); return n
-
-def enrich_tags_existing(db):
-    ref=db.collection("articles")
-    all_docs=list(ref.stream())
-    count=0; reclassed=0
-    for doc in all_docs:
-        d=doc.to_dict()
-        if d.get("tags"): continue
-        link=d.get("link","")
-        if not link: continue
-        print(f"  Enrichissement tags : {d.get('title','')[:50]}...")
-        tags=scrape_tags(link)
-        time.sleep(0.3)
-        if tags:
-            updates={"tags":tags}
-            if has_edito_tag(tags) and d.get("category")!="edito":
-                updates["category"]="edito"
-                matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
-                print(f"    → reclassé edito (tag: {matched})")
-                reclassed+=1
-            ref.document(doc.id).update(updates)
-            count+=1
-            print(f"    → tags: {tags}")
-        else:
-            ref.document(doc.id).update({"tags":[]})
-            print(f"    → aucun tag trouvé")
-    print(f"  Tags enrichis : {count} articles, {reclassed} reclassés edito")
+    print(f"Articles : {n} nouveaux, {img_updated} images, {tags_updated} tags mis à jour"); return n
 
 def sync_fin(db,d):
     for k,v in d.items(): db.collection("market_data").document(k).set(v)
@@ -579,7 +520,7 @@ def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":da
 
 # ── Main ──
 def main():
-    print("="*50+f"\nRadar v6.3 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
+    print("="*50+f"\nRadar v6.1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
     ex_mae={}
@@ -596,15 +537,7 @@ def main():
             print(f"\n--- Enrichissement images ({len(missing)} sans image) ---")
             enrich_images(articles)
 
-    if articles:
-        print(f"\n--- Scraping tags ({len(articles)} articles) ---")
-        for a in articles:
-            tags=scrape_tags(a["link"])
-            a["_tags"]=tags
-            if tags:
-                print(f"  Tags : {a['title'][:40]}... → {tags}")
-            time.sleep(0.3)
-
+    # Classification Groq
     gc=None
     if articles and GROQ_API_KEY:
         print("\n--- Classification Groq ---")
@@ -613,27 +546,39 @@ def main():
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
     if gc is None: gc={}
-    for i,a in enumerate(articles):
+
+    # Scraping tags pour les nouveaux articles
+    if new_articles:
+        print(f"\n--- Scraping tags ({len(new_articles)} articles) ---")
+        for a in new_articles:
+            tags=scrape_tags(a["link"])
+            a["_tags"]=tags
+            if tags: print(f"  Tags : {a['title'][:40]}... → {tags}")
+            time.sleep(0.3)
+
+    for i,a in enumerate(new_articles):
         author=(a.get("author","") or "").lower().strip()
         title_desc=(a.get("title","")+" "+a.get("description","")).lower()
         if "josette sicsic" in author:
             gc[i]="edito"
             print(f"  Edito forcé (Josette Sicsic) : {a['title'][:50]}")
-        elif any(kw_e in title_desc for kw_e in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
+        elif any(kw in title_desc for kw in ["édito","editorial","éditorial","billet d'humeur","billet d'humeur","futuroscopie","expert"]):
             gc[i]="edito"
-            print(f"  Edito forcé (mot-clé titre) : {a['title'][:50]}")
+            print(f"  Edito forcé (mot-clé) : {a['title'][:50]}")
+        # Détection edito par tags TourMaG
         tags=a.get("_tags",[])
         if has_edito_tag(tags) and gc.get(i)!="edito":
             gc[i]="edito"
             matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
             print(f"  Edito forcé (tag: {matched}) : {a['title'][:50]}")
 
-    for i,a in enumerate(articles):
+    for i,a in enumerate(new_articles):
         a["_cat"]=gc[i] if i in gc else classif_kw(a,kw)
 
+    # Citations Groq
     cit=None
     if articles and GROQ_API_KEY and gc:
-        temo_idx=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
+        temo_idx=[(i,a) for i,a in enumerate(new_articles) if gc.get(i)=="temoignages"][:3]
         if temo_idx:
             print("\n--- Scraping articles témoignages ---")
             arts_with_content=[]
@@ -651,13 +596,16 @@ def main():
             print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
             time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
+    # Sync articles
     if articles:
         print("\n--- Articles → Firestore ---"); n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    print("\n--- Ré-enrichissement tags existants ---")
+    # Enrichir les tags des articles existants sans tags
+    print("\n--- Enrichissement tags existants ---")
     enrich_tags_existing(db)
 
+    # Synthèse Groq
     if articles and GROQ_API_KEY:
         print("\n--- Synthèse ---")
         pts=synthesis_groq(articles)
@@ -668,6 +616,7 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
+    # Timeline Groq
     if articles and GROQ_API_KEY:
         print("\n--- Timeline ---")
         tl=timeline_groq(articles)
@@ -675,6 +624,7 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
+    # Airlines Groq
     if articles and GROQ_API_KEY:
         print("\n--- Airlines ---")
         al=airlines_groq(articles)
@@ -682,6 +632,7 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
+    # Introduction Groq
     if articles and GROQ_API_KEY:
         print("\n--- Introduction ---")
         intro=intro_groq(articles)
@@ -689,10 +640,12 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
+    # Finance
     print("\n--- Finance ---")
     fd=fetch_fin()
     if fd: sync_fin(db,fd)
 
+    # Featured article
     if articles:
         print("\n--- Article à la une ---")
         featured=None
@@ -709,6 +662,7 @@ def main():
         else:
             print("  Aucun article avec photo valide trouvé")
 
+    # MAE
     print("\n--- France Diplomatie ---")
     mae=scrape_mae()
     if mae and GROQ_API_KEY:
