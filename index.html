@@ -131,6 +131,21 @@
 .dep-rt-dest{margin-bottom:12px}
 .dep-rt-dest-name{font-family:'Josefin Sans';font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
 .dep-rt-flights{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
+/* Accordéon destinations */
+.dep-acc{border-bottom:1px solid rgba(255,255,255,.06)}.dep-acc:last-child{border-bottom:none}
+.dep-acc-hd{display:flex;align-items:center;gap:12px;padding:14px 0;cursor:pointer;transition:opacity .15s}.dep-acc-hd:hover{opacity:.8}
+.dep-acc-left{display:flex;align-items:center;gap:10px}
+.dep-acc-city{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#fff}
+.dep-acc-iata{font-family:'IBM Plex Mono';font-size:10px;color:rgba(255,255,255,.3);background:rgba(255,255,255,.06);padding:2px 8px;border-radius:4px}
+.dep-acc-stats{display:flex;gap:8px;margin-left:auto}
+.dep-acc-stat{font-size:10px;font-weight:600;padding:3px 10px;border-radius:6px}
+.dep-acc-stat.green{background:rgba(5,150,105,.15);color:#34D399}
+.dep-acc-stat.red{background:rgba(220,38,38,.15);color:#F87171}
+.dep-acc-stat.gray{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
+.dep-acc-arrow{font-size:14px;color:rgba(255,255,255,.3);transition:transform .2s;margin-left:8px}
+.dep-acc.open .dep-acc-arrow{transform:rotate(180deg)}
+.dep-acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.dep-acc.open .dep-acc-body{max-height:2000px}
 .dep-sep{height:1px;background:rgba(255,255,255,.08);margin:16px 0}
 .dep-groq-hd{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);margin-bottom:10px}
 .dep-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.06);transition:background .15s}.dep-row:hover{background:rgba(255,255,255,.07)}
@@ -276,14 +291,23 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
 
-  // 7. AIRLINES — temps réel AviationStack uniquement
+  // 7. AIRLINES — temps réel AviationStack en accordéon
   const realtime=airlines&&airlines.realtime?airlines.realtime:null;
   if(realtime&&realtime.destinations&&realtime.destinations.length){
     h+=`<div class="sl fi">Statut des vols vers le Moyen-Orient</div><div class="dep-board fi">`;
     h+=`<div class="dep-rt-hd"><span class="dep-rt-badge">✈️ Vols au départ de Paris CDG</span><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
-    realtime.destinations.forEach(dest=>{
-      h+=`<div class="dep-rt-dest"><div class="dep-rt-dest-name">${dest.city} (${dest.iata})</div>`;
-      if(dest.flights&&dest.flights.length){
+    realtime.destinations.forEach((dest,di)=>{
+      const nf=dest.flights?dest.flights.length:0;
+      const scheduled=dest.flights?dest.flights.filter(f=>f.status==='scheduled'||f.status==='active').length:0;
+      const cancelled=dest.flights?dest.flights.filter(f=>f.status==='cancelled').length:0;
+      h+=`<div class="dep-acc">`;
+      h+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open')"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
+      if(scheduled) h+=`<span class="dep-acc-stat green">${scheduled} programmé${scheduled>1?'s':''}</span>`;
+      if(cancelled) h+=`<span class="dep-acc-stat red">${cancelled} annulé${cancelled>1?'s':''}</span>`;
+      if(!nf) h+=`<span class="dep-acc-stat gray">Aucun vol</span>`;
+      h+=`</div><div class="dep-acc-arrow">▾</div></div>`;
+      h+=`<div class="dep-acc-body">`;
+      if(nf){
         h+=`<div class="dep-rt-flights">`;
         dest.flights.forEach(f=>{
           const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';
@@ -293,7 +317,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
       } else {
         h+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté vers ${dest.city}</div></div></div>`;
       }
-      h+=`</div>`;
+      h+=`</div></div>`;
     });
     h+=`</div>`;
   }
