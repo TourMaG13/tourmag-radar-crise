@@ -12,7 +12,7 @@ from firebase_admin import credentials,firestore
 
 RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
-GROQ_API_KEY=os.getenv("GROQ_API_KEY","")
+ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY","")
 AVIATIONSTACK_API_KEY=os.getenv("AVIATIONSTACK_API_KEY","")
 ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
@@ -24,8 +24,7 @@ MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants fr
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
 EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
-GROQ_PAUSE=15
-GROQ_RETRY=45
+AI_PAUSE=5
 
 def init_fb():
     sa=os.getenv("FIREBASE_SERVICE_ACCOUNT")
@@ -165,17 +164,27 @@ def scrape_article_content(url):
     except: return ""
 
 def gcall(msgs,mt=2000,retries=3):
-    if not GROQ_API_KEY: return None
+    if not ANTHROPIC_API_KEY: return None
+    # Convertir le format messages OpenAI → Anthropic
+    user_content=""
+    for m in msgs:
+        if m["role"]=="user": user_content+=m["content"]+"\n"
     for attempt in range(retries):
         try:
-            r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},json={"model":"llama-3.3-70b-versatile","messages":msgs,"max_tokens":mt,"temperature":0.3},timeout=60)
+            r=requests.post("https://api.anthropic.com/v1/messages",headers={"x-api-key":ANTHROPIC_API_KEY,"content-type":"application/json","anthropic-version":"2023-06-01"},json={"model":"claude-haiku-4-5-20251001","max_tokens":mt,"messages":[{"role":"user","content":user_content}]},timeout=90)
             if r.status_code==429:
-                w=max(int(r.headers.get("Retry-After",GROQ_RETRY)),GROQ_RETRY)
-                print(f"  Groq 429 — {w}s",flush=True); time.sleep(w); continue
+                w=int(r.headers.get("retry-after","30"))
+                print(f"  Claude 429 — {w}s",flush=True); time.sleep(w); continue
+            if r.status_code==529:
+                print(f"  Claude 529 (overloaded) — 30s",flush=True); time.sleep(30); continue
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+            data=r.json()
+            text=""
+            for block in data.get("content",[]):
+                if block.get("type")=="text": text+=block.get("text","")
+            return text
         except Exception as e:
-            print(f"  Groq ERR ({attempt+1}): {e}",flush=True)
+            print(f"  Claude ERR ({attempt+1}): {e}",flush=True)
             if attempt<retries-1: time.sleep(10)
     return None
 
@@ -414,10 +423,10 @@ def main():
             print("\n--- Tags : 0 nouveaux ---",flush=True)
 
     gc=None
-    if articles and GROQ_API_KEY:
+    if articles and ANTHROPIC_API_KEY:
         print("\n--- Classification ---",flush=True)
         gc=classify_groq(articles)
-        time.sleep(GROQ_PAUSE)
+        time.sleep(AI_PAUSE)
     if gc is None: gc={}
 
     for i,a in enumerate(articles):
@@ -430,7 +439,7 @@ def main():
     for i,a in enumerate(articles): a["_cat"]=gc.get(i,classif_kw(a,kw))
 
     cit=None
-    if articles and GROQ_API_KEY:
+    if articles and ANTHROPIC_API_KEY:
         temo=[(i,a) for i,a in enumerate(articles) if gc.get(i)=="temoignages"][:3]
         if temo:
             print(f"\n--- Citations ({len(temo)}) ---",flush=True)
@@ -440,35 +449,35 @@ def main():
                 cit={}
                 for li,gi in enumerate([i for i,_ in temo]):
                     if li in cit_raw: cit[gi]=cit_raw[li]
-            time.sleep(GROQ_PAUSE)
+            time.sleep(AI_PAUSE)
 
     if articles:
         print("\n--- Firestore ---",flush=True)
         n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    if articles and GROQ_API_KEY:
+    if articles and ANTHROPIC_API_KEY:
         print("\n--- Synthèse ---",flush=True)
         pts=synthesis_groq(articles)
         if pts: sync_synth(db,pts)
-        time.sleep(GROQ_PAUSE)
+        time.sleep(AI_PAUSE)
 
-    if articles and GROQ_API_KEY:
+    if articles and ANTHROPIC_API_KEY:
         print("\n--- Timeline ---",flush=True)
         tl=timeline_groq(articles)
         if tl: sync_timeline(db,tl)
-        time.sleep(GROQ_PAUSE)
+        time.sleep(AI_PAUSE)
 
     rt=None
     if AVIATIONSTACK_API_KEY:
         print("\n--- AviationStack ---",flush=True)
         rt=fetch_aviationstack()
-    if articles and GROQ_API_KEY:
+    if articles and ANTHROPIC_API_KEY:
         print("\n--- Airlines ---",flush=True)
         al=airlines_groq(articles)
         if al: sync_airlines(db,al,rt)
         elif rt: sync_airlines(db,[],rt)
-        time.sleep(GROQ_PAUSE)
+        time.sleep(AI_PAUSE)
     elif rt:
         sync_airlines(db,[],rt)
 
@@ -487,7 +496,7 @@ def main():
 
     print("\n--- MAE ---",flush=True)
     mae=scrape_mae()
-    if mae and GROQ_API_KEY:
+    if mae and ANTHROPIC_API_KEY:
         print("\n--- MAE Groq ---",flush=True)
         conseils=mae_groq(mae)
         if conseils:
