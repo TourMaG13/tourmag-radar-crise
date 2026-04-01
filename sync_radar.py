@@ -519,19 +519,28 @@ def main():
         n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    if articles and ANTHROPIC_API_KEY:
+    # Charger TOUS les articles en base pour synthèse et timeline
+    all_articles=[]
+    try:
+        for doc in db.collection("articles").order_by("pub_date",direction=firestore.Query.DESCENDING).limit(30).stream():
+            all_articles.append(doc.to_dict())
+        print(f"\n--- {len(all_articles)} articles en base pour IA ---",flush=True)
+    except Exception as e:
+        print(f"  Erreur chargement articles: {e}",flush=True)
+        all_articles=articles
+
+    if all_articles and ANTHROPIC_API_KEY:
         print("\n--- Synthèse ---",flush=True)
-        pts=synthesis_groq(articles)
+        pts=synthesis_groq(all_articles)
         if pts: sync_synth(db,pts)
         time.sleep(AI_PAUSE)
 
-    if articles and ANTHROPIC_API_KEY:
+    if all_articles and ANTHROPIC_API_KEY:
         print("\n--- Timeline ---",flush=True)
-        tl=timeline_groq(articles)
+        tl=timeline_groq(all_articles)
         if tl: sync_timeline(db,tl)
         time.sleep(AI_PAUSE)
 
-    rt=None
     rt=None
     if AVIATIONSTACK_API_KEY:
         print("\n--- AviationStack ---",flush=True)
