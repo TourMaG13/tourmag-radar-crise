@@ -270,7 +270,12 @@ Articles (du plus récent au plus ancien) :
 
 JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspension de ses vols vers Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
-    if r and isinstance(r,list): print(f"  Timeline : {len(r)}",flush=True); return r
+    if r and isinstance(r,list):
+        # Trier par date chronologique
+        for ev in r:
+            if not ev.get("date"): ev["date"]="9999-99-99"
+        r.sort(key=lambda e:e.get("date","9999"))
+        print(f"  Timeline : {len(r)}",flush=True); return r
     return None
 
 def airlines_groq(articles):
