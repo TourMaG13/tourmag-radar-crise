@@ -687,8 +687,8 @@ def main():
     else: n=0
 
     # Enrichir les tags des articles existants sans tags
-    print("\n--- Enrichissement tags existants ---")
-    enrich_tags_existing(db)
+    # print("\n--- Enrichissement tags existants ---")
+    # enrich_tags_existing(db)
 
     # Synthèse Groq
     if articles and GROQ_API_KEY:
