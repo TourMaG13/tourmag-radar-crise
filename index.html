@@ -106,10 +106,10 @@
 .ess2-head{margin-bottom:6px;position:relative}.ess2-head h2{font-family:'Josefin Sans';font-size:18px;font-weight:700;color:#fff}
 .ess2-sub{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:18px;letter-spacing:.3px;position:relative}
 .ess2-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative}@media(max-width:700px){.ess2-grid{grid-template-columns:1fr}}
-.ess2-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start;transition:transform .15s,box-shadow .15s;border-left:4px solid transparent;box-shadow:none}.ess2-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.2)}
-@media(max-width:768px){.ess2{padding:18px 14px}.ess2-card{padding:12px 10px;gap:10px}.ess2-left{width:36px}.ess2-num{font-size:20px}}
+.ess2-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;transition:transform .15s,box-shadow .15s;border-left:4px solid transparent;box-shadow:none}.ess2-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.2)}
+@media(max-width:768px){.ess2{padding:18px 14px}.ess2-card{padding:12px 10px}.ess2-num{font-size:20px}}
 .ess2-card:nth-child(1){border-left-color:#3B82F6}.ess2-card:nth-child(2){border-left-color:#DC2626}.ess2-card:nth-child(3){border-left-color:#D97706}.ess2-card:nth-child(4){border-left-color:#059669}.ess2-card:nth-child(5){border-left-color:#7C3AED}.ess2-card:nth-child(6){border-left-color:#0891B2}
-.ess2-left{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:48px}
+.ess2-top{display:flex;align-items:center;gap:10px}
 .ess2-num{font-family:'Josefin Sans';font-size:26px;font-weight:700;line-height:1}
 .ess2-card:nth-child(1) .ess2-num{color:#3B82F6}.ess2-card:nth-child(2) .ess2-num{color:#DC2626}.ess2-card:nth-child(3) .ess2-num{color:#D97706}.ess2-card:nth-child(4) .ess2-num{color:#059669}.ess2-card:nth-child(5) .ess2-num{color:#7C3AED}.ess2-card:nth-child(6) .ess2-num{color:#0891B2}
 .ess2-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap;text-align:center}
@@ -271,7 +271,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
 
   // 5. ESSENTIEL
   const pts=synthesis&&synthesis.points?synthesis.points:null;
-  if(pts&&pts.length){h+=`<div class="ess2 fi"><div class="ess2-head"><h2>⚡ L'essentiel de la crise</h2></div><div class="ess2-sub">Les ${pts.length} points clés à retenir</div><div class="ess2-grid">`;pts.forEach((p,i)=>{const tag=typeof p==='object'&&p.tag?p.tag:'INFO';const txt=typeof p==='object'&&p.text?p.text:(typeof p==='string'?p:'');h+=`<div class="ess2-card"><div class="ess2-left"><div class="ess2-num">${String(i+1).padStart(2,'0')}</div><span class="ess2-tag" data-t="${tag}">${tag}</span></div><div class="ess2-txt">${txt}</div></div>`});h+=`</div></div>`}
+  if(pts&&pts.length){h+=`<div class="ess2 fi"><div class="ess2-head"><h2>⚡ L'essentiel de la crise</h2></div><div class="ess2-sub">Les ${pts.length} points clés à retenir</div><div class="ess2-grid">`;pts.forEach((p,i)=>{const tag=typeof p==='object'&&p.tag?p.tag:'INFO';const txt=typeof p==='object'&&p.text?p.text:(typeof p==='string'?p:'');h+=`<div class="ess2-card"><div class="ess2-top"><div class="ess2-num">${String(i+1).padStart(2,'0')}</div><span class="ess2-tag" data-t="${tag}">${tag}</span></div><div class="ess2-txt">${txt}</div></div>`});h+=`</div></div>`}
 
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
@@ -342,11 +342,11 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // + tag "léa" SEULEMENT si accompagné de "crise golfe"
   const expertArts=articles.filter(a=>{
     if(a.category==='edito')return false;
-    const t=((a.title||'')+' '+(a.description||'')+' '+(a.author||'')).toLowerCase();
-    const byText=t.includes('futuroscopie')||t.includes('expert communication')||t.includes('josette sicsic');
+    const txt=((a.title||'')+' '+(a.description||'')+' '+(a.author||'')).toLowerCase();
+    const byText=txt.includes('futuroscopie')||txt.includes('expert communication')||txt.includes('josette sicsic');
     const byTags=hasEditoTag(a.tags||[]);
-    const tags=(a.tags||[]).map(t=>t.toLowerCase());
-    const byLea=tags.some(t=>t.includes('léa')||t.includes('lea'))&&tags.some(t=>t.includes('crise golfe')||t.includes('crise+golfe'));
+    const atags=(a.tags||[]).map(x=>x.toLowerCase());
+    const byLea=atags.some(x=>x.includes('léa')||x.includes('lea'))&&atags.some(x=>x.includes('crise golfe')||x.includes('crise+golfe'));
     return byText||byTags||byLea;
   });
   const allExperts=[...editoAll,...expertArts];
