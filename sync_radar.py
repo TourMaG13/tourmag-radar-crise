@@ -444,6 +444,20 @@ def main():
     articles=parse_rss()
     if not articles: print("  Aucun article",flush=True)
 
+    # Complément page HTML (le RSS peut avoir du retard)
+    print("  Complément HTML...",flush=True)
+    try:
+        r=requests.get("https://www.tourmag.com/tags/crise+golfe/",timeout=30,headers=HDR)
+        if r.status_code==200:
+            html_arts=parse_html_fb(r.content)
+            seen={a["link"] for a in articles if a.get("link")}
+            added=0
+            for a in html_arts:
+                if a.get("link") and a["link"] not in seen:
+                    articles.append(a); seen.add(a["link"]); added+=1
+            if added: print(f"  +{added} via HTML (total: {len(articles)})",flush=True)
+    except Exception as e: print(f"  HTML ERR: {e}",flush=True)
+
     if articles:
         missing=[a for a in articles if not a.get("image_url")]
         if missing:
