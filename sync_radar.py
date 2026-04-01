@@ -627,6 +627,7 @@ def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":da
 
 # ── Main ──
 def main():
+	print("MAIN DÉMARRÉ", flush=True)
     print("="*50+f"\nRadar v6.1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
@@ -791,5 +792,6 @@ def main():
 
     upd_cfg(db,n)
     print("\n"+"="*50+"\nSync terminée\n"+"="*50)
-
+			
+			print("CONSTANTES OK, lancement main...", flush=True)
 if __name__=="__main__": main()
