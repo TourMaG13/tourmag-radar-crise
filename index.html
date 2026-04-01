@@ -259,7 +259,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 1. HERO
   h+=`<div class="hero fi">`;
   const tl=timeline&&timeline.events?timeline.events:null;
-  if(tl&&tl.length){h+=`<div class="hero-tl"><div class="hero-tl-track">`;tl.slice(-6).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';h+=`<div class="hero-tl-item"><div class="hero-tl-dot"></div><div class="hero-tl-date">${d}</div><div class="hero-tl-ev">${e.event||''}</div></div>`});h+=`</div></div>`}
+  if(tl&&tl.length){const tlSorted=[...tl].sort((a,b)=>(a.date||'').localeCompare(b.date||''));h+=`<div class="hero-tl"><div class="hero-tl-track">`;tlSorted.slice(-6).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';h+=`<div class="hero-tl-item"><div class="hero-tl-dot"></div><div class="hero-tl-date">${d}</div><div class="hero-tl-ev">${e.event||''}</div></div>`});h+=`</div></div>`}
   h+=`<div class="hero-bottom">`;
   if(br){const c=br.change_pct>=0?'#EF4444':'#34D399';h+=`<div class="hero-ind"><div><div class="hi-lbl">Brent</div><div class="hi-val">${br.currency}${br.current_price}</div><div class="hi-chg" style="color:${c}">${br.change_pct>=0?'▲':'▼'} ${Math.abs(br.change_pct)}%</div></div><div class="hi-spk">${spk(br.history,c,70,22)}</div></div>`}
   if(eu){const c=eu.change_pct>=0?'#34D399':'#EF4444';h+=`<div class="hero-ind"><div><div class="hi-lbl">EUR/USD</div><div class="hi-val">${eu.current_price}</div><div class="hi-chg" style="color:${c}">${eu.change_pct>=0?'▲':'▼'} ${Math.abs(eu.change_pct)}%</div></div><div class="hi-spk">${spk(eu.history,c,70,22)}</div></div>`}
