@@ -13,6 +13,9 @@ from firebase_admin import credentials,firestore
 RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
 GROQ_API_KEY=os.getenv("GROQ_API_KEY","")
+AVIATIONSTACK_API_KEY=os.getenv("AVIATIONSTACK_API_KEY","")
+# Aéroports Moyen-Orient à surveiller dans les vols au départ de CDG
+ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
 MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
 MAE_LABELS={"israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak","syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie","arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar","oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen","chypre":"Chypre","grece":"Grèce"}
@@ -74,16 +77,18 @@ def has_edito_tag(tags):
             if edito_tag in t: return True
     return False
 
-def enrich_tags_existing(db):
-    """Scrape les tags des articles existants qui n'en ont pas, et reclasse en edito si nécessaire."""
+def enrich_tags_existing(db, max_per_run=30):
+    """Scrape les tags des articles existants qui n'en ont pas (max 30 par run), reclasse en edito si nécessaire."""
     ref=db.collection("articles")
     all_docs=list(ref.stream())
-    count=0; reclassed=0
+    count=0; reclassed=0; processed=0
     for doc in all_docs:
+        if processed>=max_per_run: break
         d=doc.to_dict()
         if d.get("tags"): continue
         link=d.get("link","")
         if not link: continue
+        processed+=1
         tags=scrape_tags(link)
         time.sleep(0.3)
         if tags:
@@ -93,11 +98,19 @@ def enrich_tags_existing(db):
                 matched=[t for t in tags if any(et in t for et in EDITO_TAGS)]
                 print(f"  ✎ reclassé edito (tag: {matched}) : {d.get('title','')[:50]}...")
                 reclassed+=1
+            # Aussi vérifier le tag "léa" + "crise golfe"
+            tags_lower=[t.lower() for t in tags]
+            has_lea=any('léa' in t or 'lea' in t for t in tags_lower)
+            has_crise=any('crise golfe' in t or 'crise+golfe' in t for t in tags_lower)
+            if has_lea and has_crise and d.get("category")!="edito":
+                updates["category"]="edito"
+                print(f"  ✎ reclassé edito (léa+crise golfe) : {d.get('title','')[:50]}...")
+                reclassed+=1
             ref.document(doc.id).update(updates)
             count+=1
         else:
             ref.document(doc.id).update({"tags":[]})
-    print(f"  Tags enrichis : {count} articles, {reclassed} reclassés edito")
+    print(f"  Tags enrichis : {count}/{processed} articles traités (max {max_per_run}), {reclassed} reclassés edito")
 def clean_xml(t):
     return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t))
 def vimg(u):
@@ -445,6 +458,53 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
+# ── AviationStack — Vols temps réel au départ de CDG ──
+def fetch_aviationstack():
+    """Récupère les vols au départ de CDG vers le Moyen-Orient via AviationStack."""
+    if not AVIATIONSTACK_API_KEY:
+        print("  AviationStack : pas de clé API, skip")
+        return None
+    try:
+        print("  AviationStack : requête CDG départs...")
+        url="http://api.aviationstack.com/v1/flights"
+        params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":"CDG","flight_status":"scheduled","limit":100}
+        r=requests.get(url,params=params,timeout=30)
+        if r.status_code!=200:
+            print(f"  AviationStack HTTP {r.status_code}")
+            return None
+        data=r.json()
+        if "error" in data:
+            print(f"  AviationStack erreur : {data['error'].get('message','')}")
+            return None
+        flights=data.get("data",[])
+        print(f"  AviationStack : {len(flights)} vols CDG récupérés")
+        # Filtrer les vols vers le Moyen-Orient
+        destinations={}
+        for f in flights:
+            arr=f.get("arrival",{})
+            arr_iata=arr.get("iata","")
+            if arr_iata not in ME_AIRPORTS: continue
+            city=ME_AIRPORTS[arr_iata]
+            if city not in destinations:
+                destinations[city]={"city":city,"iata":arr_iata,"flights":[]}
+            airline_name=f.get("airline",{}).get("name","Inconnu")
+            flight_num=f.get("flight",{}).get("iata","")
+            status=f.get("flight_status","unknown")
+            status_labels={"scheduled":"Programmé","active":"En vol","landed":"Atterri","cancelled":"Annulé","incident":"Incident","diverted":"Dérouté","delayed":"Retardé"}
+            destinations[city]["flights"].append({
+                "airline":airline_name,
+                "flight":flight_num,
+                "status":status,
+                "status_label":status_labels.get(status,status)
+            })
+        result={"destinations":sorted(destinations.values(),key=lambda d:d["city"]),"last_check":datetime.now(timezone.utc).isoformat(),"source":"AviationStack"}
+        me_count=sum(len(d["flights"]) for d in result["destinations"])
+        print(f"  AviationStack : {me_count} vols Moyen-Orient vers {len(result['destinations'])} destinations")
+        return result
+    except Exception as e:
+        print(f"  AviationStack ERREUR : {e}")
+        return None
+
 # ── Finance ──
 def fetch_fin():
     res={}
@@ -536,7 +596,10 @@ def sync_mae(db,d,ex):
         db.collection("mae_alerts").document(k).set(v)
 def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
-def sync_airlines(db,a): db.collection("config").document("airlines").set({"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_airlines(db,a,realtime=None):
+    doc={"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()}
+    if realtime: doc["realtime"]=realtime
+    db.collection("config").document("airlines").set(doc)
 def sync_intro(db,t): db.collection("config").document("intro").set({"text":t,"generated_at":datetime.now(timezone.utc).isoformat()})
 def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_articles":n},merge=True)
 
@@ -646,13 +709,22 @@ def main():
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
 
-    # Airlines Groq
+    # Airlines Groq + AviationStack temps réel
+    realtime_data=None
+    if AVIATIONSTACK_API_KEY:
+        print("\n--- AviationStack (temps réel) ---")
+        realtime_data=fetch_aviationstack()
+
     if articles and GROQ_API_KEY:
-        print("\n--- Airlines ---")
+        print("\n--- Airlines (Groq) ---")
         al=airlines_groq(articles)
-        if al: sync_airlines(db,al)
+        if al: sync_airlines(db,al,realtime_data)
+        elif realtime_data: sync_airlines(db,[],realtime_data)
         print(f"  ⏳ Pause {GROQ_PAUSE_BETWEEN_BLOCKS}s...")
         time.sleep(GROQ_PAUSE_BETWEEN_BLOCKS)
+    elif realtime_data:
+        # Même sans Groq, on stocke les données temps réel
+        sync_airlines(db,[],realtime_data)
 
     # Introduction Groq
     if articles and GROQ_API_KEY:
