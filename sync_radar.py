@@ -1,25 +1,3 @@
-import sys; print("SCRIPT DÉMARRÉ", flush=True); sys.stdout.flush()
-
-#!/usr/bin/env python3
-"""Radar Crise Moyen-Orient — v6.1"""
-print("1-json", flush=True)
-import json,hashlib,os,re,sys,time
-print("2-datetime", flush=True)
-from datetime import datetime,timezone
-from pathlib import Path
-print("3-feedparser", flush=True)
-import feedparser
-print("4-requests", flush=True)
-import requests
-print("5-yfinance", flush=True)
-import yfinance as yf
-print("6-bs4", flush=True)
-from bs4 import BeautifulSoup
-print("7-firebase", flush=True)
-import firebase_admin
-from firebase_admin import credentials,firestore
-print("IMPORTS OK", flush=True)
-
 #!/usr/bin/env python3
 """Radar Crise Moyen-Orient — v6.1
 Basé sur sync_radar (24).py + fix rate limit Groq (pauses + retry 429)
@@ -627,7 +605,6 @@ def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":da
 
 # ── Main ──
 def main():
-	print("MAIN DÉMARRÉ", flush=True)
     print("="*50+f"\nRadar v6.1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"+"="*50)
     db=init_fb(); kw=load_kw()
 
@@ -710,8 +687,8 @@ def main():
     else: n=0
 
     # Enrichir les tags des articles existants sans tags
-    # print("\n--- Enrichissement tags existants ---")
-    # enrich_tags_existing(db)
+    print("\n--- Enrichissement tags existants ---")
+    enrich_tags_existing(db)
 
     # Synthèse Groq
     if articles and GROQ_API_KEY:
@@ -792,6 +769,5 @@ def main():
 
     upd_cfg(db,n)
     print("\n"+"="*50+"\nSync terminée\n"+"="*50)
-			
-			print("CONSTANTES OK, lancement main...", flush=True)
+
 if __name__=="__main__": main()
