@@ -248,28 +248,27 @@ JSON : [{{"id":0,"citation":"...","nom":"Prénom Nom","fonction":"Poste, Entrepr
 
 def timeline_groq(articles):
     items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}" for a in articles[:25]]
-    prompt=f"""Tu es journaliste français. Extrais 8-10 événements clés de la crise au Moyen-Orient à partir de ces articles, dans l'ordre chronologique.
+    prompt=f"""Tu es journaliste français. Extrais les 6-8 événements LES PLUS RÉCENTS de la crise au Moyen-Orient à partir de ces articles, dans l'ordre chronologique.
 
-RÈGLES DE RÉDACTION :
-- Chaque événement est UNE PHRASE COMPLÈTE en français correct et fluide
-- La phrase a un SUJET, un VERBE conjugué et un COMPLÉMENT
+RÈGLES IMPÉRATIVES :
+- UNIQUEMENT les événements récents (derniers jours/semaines). Pas d'événements anciens.
+- Chaque événement est UNE PHRASE COMPLÈTE en français fluide avec SUJET + VERBE + COMPLÉMENT
 - Utilise des noms propres (Air France, Israël, Emirates, Quai d'Orsay...)
-- 10 à 18 mots par phrase, pas de style télégraphique
+- 10 à 18 mots par phrase
 - Utilise les vraies dates des articles
 
-EXEMPLES DE BONNES PHRASES :
-"Air France suspend tous ses vols vers Beyrouth et Téhéran jusqu'à nouvel ordre."
-"Le Quai d'Orsay déconseille formellement les voyages au Liban et en Iran."
-"Les tour-opérateurs français proposent des reports gratuits vers la Grèce et Chypre."
+BONS EXEMPLES :
+"Air France prolonge la suspension de ses vols vers Téhéran jusqu'en juin 2026."
+"Le Quai d'Orsay relève le niveau d'alerte pour le Liban à formellement déconseillé."
 
-EXEMPLES DE MAUVAISES PHRASES (À NE PAS FAIRE) :
-"Suspension vols Air France Beyrouth" (pas de verbe)
-"Crise impacte tourisme région" (trop vague, pas de sujet)
+MAUVAIS EXEMPLES :
+"Suspension vols Air France" (pas de verbe)
+"Crise impacte tourisme" (trop vague)
 
-Articles :
+Articles (du plus récent au plus ancien) :
 {chr(10).join(items)}
 
-JSON uniquement : [{{"date":"2026-03-01","event":"Air France suspend ses vols vers Beyrouth et Téhéran."}}]"""
+JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspension de ses vols vers Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)}",flush=True); return r
     return None
