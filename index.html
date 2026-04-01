@@ -144,8 +144,8 @@
 .dep-acc-stat.gray{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
 .dep-acc-arrow{font-size:14px;color:rgba(255,255,255,.3);transition:transform .2s;margin-left:8px}
 .dep-acc.open .dep-acc-arrow{transform:rotate(180deg)}
-.dep-acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
-.dep-acc.open .dep-acc-body{max-height:2000px}
+.dep-acc-body{display:none;padding-bottom:12px}
+.dep-acc.open .dep-acc-body{display:block}
 .dep-sep{height:1px;background:rgba(255,255,255,.08);margin:16px 0}
 .dep-groq-hd{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);margin-bottom:10px}
 .dep-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.06);transition:background .15s}.dep-row:hover{background:rgba(255,255,255,.07)}
@@ -301,7 +301,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
       const scheduled=dest.flights?dest.flights.filter(f=>f.status==='scheduled'||f.status==='active').length:0;
       const cancelled=dest.flights?dest.flights.filter(f=>f.status==='cancelled').length:0;
       h+=`<div class="dep-acc">`;
-      h+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open')"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
+      h+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open');if(typeof sendHeight==='function')setTimeout(sendHeight,50)"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
       if(scheduled) h+=`<span class="dep-acc-stat green">${scheduled} programmé${scheduled>1?'s':''}</span>`;
       if(cancelled) h+=`<span class="dep-acc-stat red">${cancelled} annulé${cancelled>1?'s':''}</span>`;
       if(!nf) h+=`<span class="dep-acc-stat gray">Aucun vol</span>`;
