@@ -276,13 +276,11 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
 
-  // 7. AIRLINES — temps réel AviationStack + Groq
-  const al=airlines&&airlines.airlines?airlines.airlines:null;
+  // 7. AIRLINES — temps réel AviationStack uniquement
   const realtime=airlines&&airlines.realtime?airlines.realtime:null;
-  h+=`<div class="sl fi">Statut des compagnies aériennes</div><div class="dep-board fi">`;
-  // Bloc temps réel
   if(realtime&&realtime.destinations&&realtime.destinations.length){
-    h+=`<div class="dep-rt-hd"><span class="dep-rt-badge">✈️ Vols au départ de Paris CDG — temps réel</span><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
+    h+=`<div class="sl fi">Statut des vols vers le Moyen-Orient</div><div class="dep-board fi">`;
+    h+=`<div class="dep-rt-hd"><span class="dep-rt-badge">✈️ Vols au départ de Paris CDG</span><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
     realtime.destinations.forEach(dest=>{
       h+=`<div class="dep-rt-dest"><div class="dep-rt-dest-name">${dest.city} (${dest.iata})</div>`;
       if(dest.flights&&dest.flights.length){
@@ -297,15 +295,8 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
       }
       h+=`</div>`;
     });
-    if(al&&al.length) h+=`<div class="dep-sep"></div>`;
-  }
-  // Bloc Groq
-  if(al&&al.length){
-    h+=`<div class="dep-groq-hd">📰 Analyse des articles TourMaG</div><div class="dep-grid">`;
-    al.forEach(a=>{const st=(a.statut||'').toLowerCase();const cls=st.includes('suspendu')?'suspendu':st.includes('perturb')?'perturbe':'operationnel';h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${a.compagnie||''}</div><div class="dep-det">${a.detail||a.statut||''}</div></div></div>`});
     h+=`</div>`;
   }
-  h+=`</div>`;
 
   // 8. MAP + MAE panel
   h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-mae-row fi"><div class="map-full"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
