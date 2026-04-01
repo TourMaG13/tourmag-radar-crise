@@ -248,9 +248,28 @@ JSON : [{{"id":0,"citation":"...","nom":"Prénom Nom","fonction":"Poste, Entrepr
 
 def timeline_groq(articles):
     items=[f"- [{a.get('pub_date','').isoformat()[:10] if a.get('pub_date') else '?'}] {a['title']}" for a in articles[:25]]
-    prompt=f"""8-10 événements clés crise Moyen-Orient, chronologique. Phrases 8-18 mots, noms propres.
+    prompt=f"""Tu es journaliste français. Extrais 8-10 événements clés de la crise au Moyen-Orient à partir de ces articles, dans l'ordre chronologique.
+
+RÈGLES DE RÉDACTION :
+- Chaque événement est UNE PHRASE COMPLÈTE en français correct et fluide
+- La phrase a un SUJET, un VERBE conjugué et un COMPLÉMENT
+- Utilise des noms propres (Air France, Israël, Emirates, Quai d'Orsay...)
+- 10 à 18 mots par phrase, pas de style télégraphique
+- Utilise les vraies dates des articles
+
+EXEMPLES DE BONNES PHRASES :
+"Air France suspend tous ses vols vers Beyrouth et Téhéran jusqu'à nouvel ordre."
+"Le Quai d'Orsay déconseille formellement les voyages au Liban et en Iran."
+"Les tour-opérateurs français proposent des reports gratuits vers la Grèce et Chypre."
+
+EXEMPLES DE MAUVAISES PHRASES (À NE PAS FAIRE) :
+"Suspension vols Air France Beyrouth" (pas de verbe)
+"Crise impacte tourisme région" (trop vague, pas de sujet)
+
+Articles :
 {chr(10).join(items)}
-JSON : [{{"date":"2026-03-01","event":"Air France suspend ses vols vers Beyrouth."}}]"""
+
+JSON uniquement : [{{"date":"2026-03-01","event":"Air France suspend ses vols vers Beyrouth et Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list): print(f"  Timeline : {len(r)}",flush=True); return r
     return None
@@ -268,10 +287,19 @@ JSON : [{{"compagnie":"Air France","statut":"suspendu","detail":"Vols suspendus 
 
 def mae_groq(mae_data):
     items=[f"- country_key={k} | {v['label']}: {v['level']}. {v.get('full_content',v.get('summary',''))[:400]}" for k,v in mae_data.items()]
-    prompt=f"""Conseil tourisme 2-3 phrases par pays. Vendable ou suspendre, zones à éviter.
-country_key exacte comme "country".
+    prompt=f"""Expert tourisme. Pour chaque pays, rédige un conseil pratique de 2-3 phrases pour un agent de voyage français.
+
+RÈGLES :
+- Mentionne les risques concrets et zones à éviter
+- NE RÉPÈTE PAS le niveau d'alerte (vigilance renforcée, déconseillé, etc.) car il est déjà affiché séparément
+- N'écris PAS en MAJUSCULES (pas de VIGILANCE, SUSPENDU, VENDABLE, etc.)
+- N'utilise PAS les mots "vendable" ou "à suspendre"
+- Donne des conseils pratiques : quoi dire au client, alternatives, précautions
+- Utilise EXACTEMENT la country_key comme "country"
+
+Pays :
 {chr(10).join(items)}
-JSON : [{{"country":"liban","conseil_tourisme":"..."}}]"""
+JSON : [{{"country":"liban","conseil_tourisme":"Les frappes touchent le sud et la banlieue de Beyrouth. L'aéroport fonctionne par intermittence. Orientez les clients vers Chypre ou la Grèce."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=3000))
     if r and isinstance(r,list):
         return {c["country"]:c.get("conseil_tourisme","") for c in r if "country" in c}
@@ -287,24 +315,41 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-def fetch_aviationstack():
+AVIATION_TARGETS=[
+    {"arr_iata":"DXB","city":"Dubaï"},
+    {"arr_iata":"DOH","city":"Doha (Hamad)"},
+    {"arr_iata":"AUH","city":"Abu Dhabi"}
+]
+
+def fetch_aviationstack(db):
     if not AVIATIONSTACK_API_KEY: return None
+    # Vérifier si déjà fait aujourd'hui
     try:
-        print("  AviationStack CDG...",flush=True)
-        r=requests.get("http://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":"CDG","flight_status":"scheduled","limit":100},timeout=30)
-        if r.status_code!=200: return None
-        data=r.json()
-        if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); return None
-        flights=data.get("data",[])
-        dests={}
-        for f in flights:
-            arr_iata=f.get("arrival",{}).get("iata","")
-            if arr_iata not in ME_AIRPORTS: continue
-            city=ME_AIRPORTS[arr_iata]
-            if city not in dests: dests[city]={"city":city,"iata":arr_iata,"flights":[]}
-            dests[city]["flights"].append({"airline":f.get("airline",{}).get("name","?"),"flight":f.get("flight",{}).get("iata",""),"status":f.get("flight_status","unknown"),"status_label":{"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé"}.get(f.get("flight_status",""),"Inconnu")})
-        result={"destinations":sorted(dests.values(),key=lambda d:d["city"]),"last_check":datetime.now(timezone.utc).isoformat()}
-        print(f"  {sum(len(d['flights']) for d in result['destinations'])} vols ME",flush=True)
+        doc=db.collection("config").document("airlines").get()
+        if doc.exists:
+            d=doc.to_dict()
+            rt=d.get("realtime",{})
+            last=rt.get("last_check","")
+            if last and last[:10]==datetime.now(timezone.utc).strftime("%Y-%m-%d"):
+                print("  AviationStack : déjà fait aujourd'hui, skip",flush=True)
+                return rt
+    except: pass
+    try:
+        all_dests=[]
+        for target in AVIATION_TARGETS:
+            print(f"  AviationStack CDG→{target['arr_iata']}...",flush=True)
+            r=requests.get("http://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":"CDG","arr_iata":target["arr_iata"],"limit":100},timeout=30)
+            if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
+            data=r.json()
+            if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
+            flights=data.get("data",[])
+            dest_flights=[]
+            for f in flights:
+                dest_flights.append({"airline":f.get("airline",{}).get("name","?"),"flight":f.get("flight",{}).get("iata",""),"status":f.get("flight_status","unknown"),"status_label":{"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri"}.get(f.get("flight_status",""),"Inconnu")})
+            all_dests.append({"city":target["city"],"iata":target["arr_iata"],"flights":dest_flights})
+            print(f"  → {len(dest_flights)} vols",flush=True)
+            time.sleep(1)
+        result={"destinations":all_dests,"last_check":datetime.now(timezone.utc).isoformat()}
         return result
     except Exception as e: print(f"  AviationStack ERR: {e}",flush=True); return None
 
@@ -471,7 +516,7 @@ def main():
     rt=None
     if AVIATIONSTACK_API_KEY:
         print("\n--- AviationStack ---",flush=True)
-        rt=fetch_aviationstack()
+        rt=fetch_aviationstack(db)
     if articles and ANTHROPIC_API_KEY:
         print("\n--- Airlines ---",flush=True)
         al=airlines_groq(articles)
