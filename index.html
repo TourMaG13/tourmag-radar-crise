@@ -21,8 +21,8 @@
 @keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .tm-btn{margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.3);padding:5px 14px;border-radius:8px;font-size:10px;font-weight:600;color:#FDBA74;letter-spacing:.3px;text-decoration:none;white-space:nowrap;transition:background .2s;flex-shrink:0}.tm-btn:hover{background:rgba(232,132,44,.25)}
 @media(max-width:768px){.header{margin:8px 8px 0;padding:10px 14px;border-radius:12px;gap:8px}.header .logo .logo-title{font-size:18px}.header .logo .logo-sub{font-size:11px}.tm-btn{font-size:9px;padding:4px 10px}}
-.intro-p{font-size:13px;color:var(--text2);line-height:1.75;padding:16px 28px 0;text-align:justify}
-@media(max-width:768px){.intro-p{padding:12px 8px 0;font-size:12px}}
+.intro-p{font-size:16px;color:var(--text2);line-height:1.75;padding:16px 28px 0;text-align:justify}
+@media(max-width:768px){.intro-p{padding:12px 8px 0;font-size:14px}}
 .dash{max-width:1200px;margin:0 auto;padding:24px 28px}
 @media(max-width:768px){.dash{padding:12px 8px}}
 .sl{font-family:'Josefin Sans';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--text3);margin:36px 0 14px;display:flex;align-items:center;gap:8px}.sl::after{content:'';flex:1;height:1px;background:var(--border)}
@@ -125,6 +125,14 @@
 .dep-board{background:var(--pri);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
 .dep-board-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}.dep-board-hd h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}.dep-board-hd .icon{font-size:18px}
 .dep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.dep-rt-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;gap:8px}
+.dep-rt-badge{font-family:'Josefin Sans';font-size:12px;font-weight:700;color:var(--acc);display:flex;align-items:center;gap:8px}
+.dep-rt-upd{font-family:'IBM Plex Mono';font-size:9px;color:rgba(255,255,255,.35)}
+.dep-rt-dest{margin-bottom:12px}
+.dep-rt-dest-name{font-family:'Josefin Sans';font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.dep-rt-flights{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
+.dep-sep{height:1px;background:rgba(255,255,255,.08);margin:16px 0}
+.dep-groq-hd{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);margin-bottom:10px}
 .dep-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.06);transition:background .15s}.dep-row:hover{background:rgba(255,255,255,.07)}
 .dep-status{width:10px;height:10px;border-radius:50%;flex-shrink:0}.dep-status.suspendu{background:#EF4444;box-shadow:0 0 8px rgba(239,68,68,.5);animation:dpls 2s infinite}.dep-status.perturbe{background:var(--amber);box-shadow:0 0 6px rgba(217,119,6,.4)}.dep-status.operationnel{background:var(--green)}
 @keyframes dpls{0%,100%{opacity:1}50%{opacity:.4}}
@@ -268,9 +276,36 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
 
-  // 7. AIRLINES
+  // 7. AIRLINES — temps réel AviationStack + Groq
   const al=airlines&&airlines.airlines?airlines.airlines:null;
-  if(al&&al.length){h+=`<div class="sl fi">Statut des compagnies aériennes</div><div class="dep-board fi"><div class="dep-grid">`;al.forEach(a=>{const st=(a.statut||'').toLowerCase();const cls=st.includes('suspendu')?'suspendu':st.includes('perturb')?'perturbe':'operationnel';h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${a.compagnie||''}</div><div class="dep-det">${a.detail||a.statut||''}</div></div></div>`});h+=`</div></div>`}
+  const realtime=airlines&&airlines.realtime?airlines.realtime:null;
+  h+=`<div class="sl fi">Statut des compagnies aériennes</div><div class="dep-board fi">`;
+  // Bloc temps réel
+  if(realtime&&realtime.destinations&&realtime.destinations.length){
+    h+=`<div class="dep-rt-hd"><span class="dep-rt-badge">✈️ Vols au départ de Paris CDG — temps réel</span><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
+    realtime.destinations.forEach(dest=>{
+      h+=`<div class="dep-rt-dest"><div class="dep-rt-dest-name">${dest.city} (${dest.iata})</div>`;
+      if(dest.flights&&dest.flights.length){
+        h+=`<div class="dep-rt-flights">`;
+        dest.flights.forEach(f=>{
+          const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';
+          h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${f.airline} ${f.flight}</div><div class="dep-det">${f.status_label||f.status}</div></div></div>`;
+        });
+        h+=`</div>`;
+      } else {
+        h+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté vers ${dest.city}</div></div></div>`;
+      }
+      h+=`</div>`;
+    });
+    if(al&&al.length) h+=`<div class="dep-sep"></div>`;
+  }
+  // Bloc Groq
+  if(al&&al.length){
+    h+=`<div class="dep-groq-hd">📰 Analyse des articles TourMaG</div><div class="dep-grid">`;
+    al.forEach(a=>{const st=(a.statut||'').toLowerCase();const cls=st.includes('suspendu')?'suspendu':st.includes('perturb')?'perturbe':'operationnel';h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${a.compagnie||''}</div><div class="dep-det">${a.detail||a.statut||''}</div></div></div>`});
+    h+=`</div>`;
+  }
+  h+=`</div>`;
 
   // 8. MAP + MAE panel
   h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-mae-row fi"><div class="map-full"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
@@ -304,12 +339,15 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 9. EDITO — articles edito + détection par tags Firestore
   const editoAll=byCat['edito']||[];
   // Chercher aussi les articles d'autres catégories qui ont un tag edito OU les mots-clés dans titre/description/auteur
+  // + tag "léa" SEULEMENT si accompagné de "crise golfe"
   const expertArts=articles.filter(a=>{
     if(a.category==='edito')return false;
     const t=((a.title||'')+' '+(a.description||'')+' '+(a.author||'')).toLowerCase();
     const byText=t.includes('futuroscopie')||t.includes('expert communication')||t.includes('josette sicsic');
     const byTags=hasEditoTag(a.tags||[]);
-    return byText||byTags;
+    const tags=(a.tags||[]).map(t=>t.toLowerCase());
+    const byLea=tags.some(t=>t.includes('léa')||t.includes('lea'))&&tags.some(t=>t.includes('crise golfe')||t.includes('crise+golfe'));
+    return byText||byTags||byLea;
   });
   const allExperts=[...editoAll,...expertArts];
   const seenE=new Set();const editoA=allExperts.filter(a=>{if(!vi(a.image_url)||seenE.has(a.link))return false;seenE.add(a.link);return true});
