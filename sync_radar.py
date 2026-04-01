@@ -1,4 +1,4 @@
-print("SCRIPT DÉMARRÉ")
+import sys; print("SCRIPT DÉMARRÉ", flush=True); sys.stdout.flush()
 
 #!/usr/bin/env python3
 """Radar Crise Moyen-Orient — v6.1
