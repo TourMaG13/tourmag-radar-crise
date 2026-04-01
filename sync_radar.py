@@ -514,17 +514,11 @@ def main():
         time.sleep(AI_PAUSE)
 
     rt=None
+    rt=None
     if AVIATIONSTACK_API_KEY:
         print("\n--- AviationStack ---",flush=True)
         rt=fetch_aviationstack(db)
-    if articles and ANTHROPIC_API_KEY:
-        print("\n--- Airlines ---",flush=True)
-        al=airlines_groq(articles)
-        if al: sync_airlines(db,al,rt)
-        elif rt: sync_airlines(db,[],rt)
-        time.sleep(AI_PAUSE)
-    elif rt:
-        sync_airlines(db,[],rt)
+    if rt: sync_airlines(db,[],rt)
 
     print("\n--- Finance ---",flush=True)
     fd=fetch_fin()
