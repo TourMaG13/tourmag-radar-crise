@@ -1,3 +1,5 @@
+print("SCRIPT DÉMARRÉ")
+
 #!/usr/bin/env python3
 """Radar Crise Moyen-Orient — v6.1
 Basé sur sync_radar (24).py + fix rate limit Groq (pauses + retry 429)
