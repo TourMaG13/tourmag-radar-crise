@@ -214,12 +214,31 @@ JSON : [{{"id":0,"cat":"aerien"}}]"""
 
 def synthesis_groq(articles):
     items=[f"- {a['title']}: {a.get('description','')[:200]}" for a in articles[:15]]
-    prompt=f"""Journaliste tourisme. 6 points synthèse crise Moyen-Orient pour agents de voyage.
-Objet JSON avec "tag" et "text". Tags : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL.
-Texte 35-50 mots, analyse concrète. **gras** sur 1-2 mots-clés max.
-Articles :
+    prompt=f"""Tu es un journaliste français spécialisé dans le tourisme professionnel. Rédige 6 points de synthèse sur la crise au Moyen-Orient destinés à des agents de voyage.
+
+CONSIGNES DE RÉDACTION IMPÉRATIVES :
+- Chaque point doit être rédigé dans un français irréprochable, fluide et naturel.
+- Écris des phrases complètes avec sujet, verbe et complément. Ne jamais omettre les pronoms, articles ou prépositions.
+- Utilise des tournures journalistiques élégantes, pas de style télégraphique ni de mots-clés alignés.
+- Chaque point fait entre 35 et 50 mots. C'est une analyse, pas un titre d'article.
+- Mets en **gras** uniquement 1 à 2 mots-clés importants par point (pas plus).
+- Utilise des noms propres (compagnies, pays, institutions) pour être concret.
+
+EXEMPLES DE BON STYLE :
+✅ "**Air France** a décidé de prolonger la suspension de ses liaisons vers Téhéran jusqu'à la fin du mois de juin. Les voyageurs déjà en possession de billets peuvent demander un remboursement intégral ou un report sans frais."
+✅ "Les autorités jordaniennes renforcent les contrôles aux frontières nord du pays. Les agents doivent informer leurs clients que les délais de passage peuvent s'allonger considérablement, en particulier au poste de **Nassib**."
+
+EXEMPLES DE MAUVAIS STYLE (à éviter absolument) :
+❌ "Suspension vols prolongée Téhéran, remboursement possible" (style télégraphique)
+❌ "Compagnies aériennes impactées par tensions géopolitiques croissantes" (pas de sujet, pas de verbe conjugué)
+❌ "Situation reste tendue dans la région" (trop vague, pas de noms propres)
+
+Format : JSON array de 6 objets avec "tag" (parmi : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL) et "text".
+
+Articles récents à synthétiser :
 {chr(10).join(items)}
-JSON array de 6 objets."""
+
+Réponds UNIQUEMENT avec le JSON, sans commentaire."""
     r=pj(gcall([{"role":"user","content":prompt}],mt=2500))
     if r and isinstance(r,list) and len(r)>=3:
         titles={a['title'].lower().strip() for a in articles}
@@ -319,10 +338,21 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-AVIATION_TARGETS=[
-    {"arr_iata":"DXB","city":"Dubaï"},
-    {"arr_iata":"DOH","city":"Doha (Hamad)"},
-    {"arr_iata":"AUH","city":"Abu Dhabi"}
+AVIATION_TARGETS_DEPART=[
+    {"dep_iata":"CDG","arr_iata":"DXB","city":"Dubaï"},
+    {"dep_iata":"CDG","arr_iata":"DOH","city":"Doha (Hamad)"},
+    {"dep_iata":"CDG","arr_iata":"AUH","city":"Abu Dhabi"},
+    {"dep_iata":"CDG","arr_iata":"TLV","city":"Tel-Aviv (Ben Gourion)"},
+    {"dep_iata":"CDG","arr_iata":"MCT","city":"Mascate"},
+    {"dep_iata":"CDG","arr_iata":"AMM","city":"Amman (Queen Alia)"}
+]
+AVIATION_TARGETS_RETOUR=[
+    {"dep_iata":"DXB","arr_iata":"CDG","city":"Dubaï"},
+    {"dep_iata":"DOH","arr_iata":"CDG","city":"Doha (Hamad)"},
+    {"dep_iata":"AUH","arr_iata":"CDG","city":"Abu Dhabi"},
+    {"dep_iata":"TLV","arr_iata":"CDG","city":"Tel-Aviv (Ben Gourion)"},
+    {"dep_iata":"MCT","arr_iata":"CDG","city":"Mascate"},
+    {"dep_iata":"AMM","arr_iata":"CDG","city":"Amman (Queen Alia)"}
 ]
 
 def fetch_aviationstack(db):
@@ -339,21 +369,29 @@ def fetch_aviationstack(db):
                 return rt
     except: pass
     try:
-        all_dests=[]
-        for target in AVIATION_TARGETS:
-            print(f"  AviationStack CDG→{target['arr_iata']}...",flush=True)
-            r=requests.get("http://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":"CDG","arr_iata":target["arr_iata"],"limit":100},timeout=30)
-            if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
-            data=r.json()
-            if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
-            flights=data.get("data",[])
-            dest_flights=[]
-            for f in flights:
-                dest_flights.append({"airline":f.get("airline",{}).get("name","?"),"flight":f.get("flight",{}).get("iata",""),"status":f.get("flight_status","unknown"),"status_label":{"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri"}.get(f.get("flight_status",""),"Inconnu")})
-            all_dests.append({"city":target["city"],"iata":target["arr_iata"],"flights":dest_flights})
-            print(f"  → {len(dest_flights)} vols",flush=True)
-            time.sleep(1)
-        result={"destinations":all_dests,"last_check":datetime.now(timezone.utc).isoformat()}
+        def _fetch_routes(targets,direction_label):
+            dests=[]
+            for target in targets:
+                dep=target["dep_iata"];arr=target["arr_iata"]
+                print(f"  AviationStack {dep}→{arr}...",flush=True)
+                r=requests.get("http://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"limit":100},timeout=30)
+                if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
+                data=r.json()
+                if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
+                flights=data.get("data",[])
+                dest_flights=[]
+                for f in flights:
+                    dest_flights.append({"airline":f.get("airline",{}).get("name","?"),"flight":f.get("flight",{}).get("iata",""),"status":f.get("flight_status","unknown"),"status_label":{"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri"}.get(f.get("flight_status",""),"Inconnu")})
+                dests.append({"city":target["city"],"iata":arr if direction_label=="departs" else dep,"flights":dest_flights})
+                print(f"  → {len(dest_flights)} vols",flush=True)
+                time.sleep(1)
+            return dests
+
+        departs=_fetch_routes(AVIATION_TARGETS_DEPART,"departs")
+        retours=_fetch_routes(AVIATION_TARGETS_RETOUR,"retours")
+        result={"departs":departs,"retours":retours,"last_check":datetime.now(timezone.utc).isoformat()}
+        # Garder "destinations" pour compatibilité (= departs)
+        result["destinations"]=departs
         return result
     except Exception as e: print(f"  AviationStack ERR: {e}",flush=True); return None
 
