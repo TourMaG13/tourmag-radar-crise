@@ -12,17 +12,10 @@
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 .leaflet-container{touch-action:pan-y!important}
 @media(max-width:768px){.leaflet-container{pointer-events:none}.map-touch-overlay{position:absolute;inset:0;z-index:500;background:transparent}}
-.header{background:var(--pri);color:#fff;padding:14px 28px;border-radius:var(--rl);margin:12px 28px 0;display:flex;align-items:center;gap:16px;overflow:hidden}
-.header .logo{font-family:'Josefin Sans';font-weight:700;letter-spacing:.4px;display:flex;flex-direction:column;gap:2px;flex-shrink:1;min-width:0}
-.header .logo .logo-top{display:flex;align-items:center;gap:10px}
-.header .logo .pd{width:10px;height:10px;border-radius:50%;background:var(--acc);animation:pls 1.8s infinite;box-shadow:0 0 10px rgba(232,132,44,.5);flex-shrink:0}
-.header .logo .logo-title{font-size:26px;font-weight:700}
-.header .logo .logo-sub{font-size:14px;font-weight:400;color:rgba(255,255,255,.55);letter-spacing:.2px}
-@keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-.tm-btn{margin-left:auto;display:flex;align-items:center;gap:5px;background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.3);padding:5px 14px;border-radius:8px;font-size:10px;font-weight:600;color:#FDBA74;letter-spacing:.3px;text-decoration:none;white-space:nowrap;transition:background .2s;flex-shrink:0}.tm-btn:hover{background:rgba(232,132,44,.25)}
-@media(max-width:768px){.header{margin:8px 8px 0;padding:10px 14px;border-radius:12px;gap:8px}.header .logo .logo-title{font-size:18px}.header .logo .logo-sub{font-size:11px}.tm-btn{font-size:9px;padding:4px 10px}}
-.intro-p{font-size:16px;color:var(--text2);line-height:1.75;padding:16px 28px 0;text-align:justify}
-@media(max-width:768px){.intro-p{padding:12px 8px 0;font-size:14px}}
+.header{display:none}
+.intro-p{display:none}
+.upd-bar{display:flex;justify-content:flex-end;padding:8px 28px 0;font-family:'IBM Plex Mono';font-size:9px;color:var(--text3)}
+@media(max-width:768px){.upd-bar{padding:6px 8px 0}}
 .dash{max-width:1200px;margin:0 auto;padding:24px 28px}
 @media(max-width:768px){.dash{padding:12px 8px}}
 .sl{font-family:'Josefin Sans';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--text3);margin:36px 0 14px;display:flex;align-items:center;gap:8px}.sl::after{content:'';flex:1;height:1px;background:var(--border)}
@@ -31,23 +24,36 @@
 .hero{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border-radius:var(--rl);padding:28px 36px 24px;margin-bottom:44px;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:-40px;right:-40px;width:340px;height:340px;background:radial-gradient(circle,rgba(232,132,44,.12) 0%,transparent 70%);pointer-events:none}
 .hero::after{content:'';position:absolute;bottom:-30px;left:-30px;width:240px;height:240px;background:radial-gradient(circle,rgba(220,38,38,.08) 0%,transparent 70%);pointer-events:none}
-.hero-tl{position:relative;margin-bottom:20px;padding-top:8px}
+.hero-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative}
+.hero-title{font-family:'Josefin Sans';font-size:22px;font-weight:700;color:#fff}
+.hero-day{display:flex;align-items:center;gap:8px}.hd-num{font-family:'IBM Plex Mono';font-size:24px;font-weight:600;color:var(--acc)}.hd-lbl{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.5px}
+/* Essentiel cards inside hero */
+.hero-ess-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;position:relative}
+@media(max-width:768px){.hero-ess-grid{grid-template-columns:1fr}}
+.hero-ess-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-left:3px solid transparent}
+.hero-ess-card:nth-child(1){border-left-color:#3B82F6}.hero-ess-card:nth-child(2){border-left-color:#DC2626}.hero-ess-card:nth-child(3){border-left-color:#D97706}.hero-ess-card:nth-child(4){border-left-color:#059669}.hero-ess-card:nth-child(5){border-left-color:#7C3AED}.hero-ess-card:nth-child(6){border-left-color:#0891B2}
+.hero-ess-top{display:flex;align-items:center;gap:8px}
+.hero-ess-num{font-family:'Josefin Sans';font-size:20px;font-weight:700;line-height:1}
+.hero-ess-card:nth-child(1) .hero-ess-num{color:#60A5FA}.hero-ess-card:nth-child(2) .hero-ess-num{color:#F87171}.hero-ess-card:nth-child(3) .hero-ess-num{color:#FBBF24}.hero-ess-card:nth-child(4) .hero-ess-num{color:#34D399}.hero-ess-card:nth-child(5) .hero-ess-num{color:#A78BFA}.hero-ess-card:nth-child(6) .hero-ess-num{color:#22D3EE}
+.hero-ess-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.hero-ess-tag[data-t="AÉRIEN"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="GÉOPOLITIQUE"]{background:rgba(248,113,113,.2);color:#FCA5A5}.hero-ess-tag[data-t="DESTINATIONS"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="JURIDIQUE"]{background:rgba(251,191,36,.2);color:#FDE68A}.hero-ess-tag[data-t="TOUR-OPÉRATEURS"]{background:rgba(52,211,153,.2);color:#6EE7B7}.hero-ess-tag[data-t="CONSEIL"]{background:rgba(167,139,250,.2);color:#C4B5FD}.hero-ess-tag[data-t="INFO"]{background:rgba(255,255,255,.1);color:rgba(255,255,255,.5)}
+.hero-ess-txt{font-size:11px;line-height:1.55;color:rgba(255,255,255,.7)}.hero-ess-txt strong{font-weight:700;color:#fff}
+/* Timeline */
+.hero-tl{position:relative;margin-bottom:8px;padding-top:8px}
 .hero-tl-track{display:grid;grid-template-columns:repeat(6,1fr);gap:0;position:relative}
 .hero-tl-track::before{content:'';position:absolute;top:14px;left:0;right:0;height:2px;background:rgba(255,255,255,.15)}
 .hero-tl-item{display:flex;flex-direction:column;align-items:center;padding:0 4px}
 .hero-tl-dot{width:12px;height:12px;border-radius:50%;background:var(--acc);border:3px solid rgba(27,27,47,.8);box-shadow:0 0 0 2px var(--acc);z-index:1;margin-bottom:8px}
 .hero-tl-date{font-family:'IBM Plex Mono';font-size:9px;color:var(--acc);font-weight:600;margin-bottom:3px}
 .hero-tl-ev{font-size:10px;color:rgba(255,255,255,.6);text-align:center;line-height:1.4;font-weight:400}
-@media(max-width:768px){.hero-tl-track{grid-template-columns:repeat(4,1fr)}.hero-tl-item:nth-child(-n+2){display:none}}
-.hero-bottom{display:flex;gap:16px;align-items:center;position:relative;flex-wrap:wrap}
-.hero-ind{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:12px}
-.hero-ind .hi-lbl{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.hero-ind .hi-val{font-family:'Josefin Sans';font-size:18px;font-weight:700;color:#fff}
-.hero-ind .hi-chg{font-size:11px;font-weight:600}
-.hero-ind .hi-spk{margin-top:4px}
-.hero-day{margin-left:auto;display:flex;align-items:center;gap:10px}.hd-num{font-family:'IBM Plex Mono';font-size:26px;font-weight:600;color:var(--acc)}.hd-lbl{font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.5px}
-.hero-fin-btn{background:rgba(232,132,44,.15);border:1px solid rgba(232,132,44,.3);padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;color:#FDBA74;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .2s}.hero-fin-btn:hover{background:rgba(232,132,44,.25)}
-@media(max-width:768px){.hero{padding:20px 12px 18px;margin-bottom:20px;border-radius:12px}.hero-bottom{gap:10px}.hero-ind{padding:8px 10px}.hero-ind .hi-val{font-size:14px}.hero-day{width:100%}.hd-num{font-size:20px}.hero-fin-btn{margin-left:0;width:100%;text-align:center}}
+@media(max-width:768px){.hero-tl-track{grid-template-columns:repeat(4,1fr)}.hero-tl-item:nth-child(-n+2){display:none}.hero-ess-grid{grid-template-columns:1fr}.hero-title{font-size:17px}.hero{padding:20px 12px 18px;margin-bottom:20px;border-radius:12px}}
+/* Indicators under timeline */
+.hero-ind-row{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:4px}
+@media(max-width:768px){.hero-ind-row{grid-template-columns:repeat(4,1fr)}.hero-ind-row .hero-ind-cell:nth-child(-n+2){display:none}}
+.hero-ind-cell{display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;transition:opacity .15s;text-decoration:none}.hero-ind-cell:hover{opacity:.7}
+.hero-ind-cell .hic-lbl{font-size:7px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.3px;font-weight:600;margin-bottom:2px;text-align:center}
+.hero-ind-cell .hic-val{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;color:#fff}
+.hero-ind-cell .hic-chg{font-size:9px;font-weight:600}
 .flash{display:flex;align-items:center;gap:12px;padding:12px 20px;background:linear-gradient(90deg,#7F1D1D,#991B1B);border-radius:var(--rl);margin-bottom:14px;cursor:pointer;transition:box-shadow .15s;overflow:hidden}.flash:hover{box-shadow:0 4px 16px rgba(220,38,38,.2)}
 .flash-badge{font-family:'Josefin Sans';font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--red);padding:4px 12px;border-radius:6px;flex-shrink:0;white-space:nowrap;animation:fpls 2s infinite}
 @keyframes fpls{0%,100%{opacity:1}50%{opacity:.6}}
@@ -154,9 +160,9 @@
 .dep-name{font-family:'IBM Plex Mono';font-size:12px;font-weight:500;color:rgba(255,255,255,.85)}.dep-det{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px}
 .side-col .cd{margin-bottom:14px}
 .cd{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
-.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}.cd .ct{font-family:'Josefin Sans';font-size:13px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto}
+.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:#FEF3C7;color:#92400E}.cd .ct{font-family:'Josefin Sans';font-size:13px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto}
 .cd-aerien{border-top:3px solid #3B82F6}.cd-institutionnel{border-top:3px solid var(--violet)}.cd-croisiere{border-top:3px solid var(--cyan)}.cd-juridique{border-top:3px solid var(--amber)}.cd-solutions{border-top:3px solid var(--green)}.cd-geopolitique{border-top:3px solid #DC2626}.cd-economie{border-top:3px solid #64748B}.cd-destinations{border-top:3px solid #2563EB}
-.ni{padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:center}.ni:first-of-type{border-top:none}.ni:hover{background:#F8FAFC}.ni .nt{font-size:11px;font-weight:500;color:var(--text);line-height:1.35}.ni .nm{font-size:9px;color:var(--text3);margin-top:2px}.ni-body{flex:1;min-width:0}
+.ni{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:center}.ni:first-of-type{border-top:none}.ni:hover{background:#F8FAFC}.ni .nt{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}.ni .nm{font-size:10px;color:var(--text3);margin-top:2px}.ni-body{flex:1;min-width:0}
 .ni-img{width:48px;height:36px;border-radius:5px;object-fit:cover;flex-shrink:0}
 .jur{display:flex;gap:8px;padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:flex-start}.jur:first-of-type{border-top:none}.jur:hover{background:#FFFDF5}.jur-d{width:7px;height:7px;border-radius:50%;background:var(--amber);margin-top:4px;flex-shrink:0}.jur-t{font-size:11px;color:var(--text);line-height:1.35;font-weight:500}.jur-m{font-size:9px;color:var(--text3);margin-top:2px}
 .sol{padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s}.sol:first-of-type{border-top:none}.sol:hover{background:#F0FDF8}.sol-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}.sol-badge{background:#DCFCE7;color:#166534;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px}.sol-t{font-size:11px;font-weight:600}.sol-s{font-size:9px;color:var(--text3)}.sol-d{font-size:10px;color:var(--text2);line-height:1.4;margin-top:3px}
@@ -198,6 +204,7 @@
 <body>
 <div class="header" id="hdr"></div>
 <div class="intro-p" id="intro-p"></div>
+<div class="upd-bar" id="upd-bar"></div>
 <div class="dash" id="app"><div class="ld"><div class="spinner"></div><div class="tx">Chargement du radar...</div></div></div>
 <div class="mo" id="modal" onclick="if(event.target===this)closeMo()"><div class="mo-box"><div class="mo-hd" id="mo-hd"></div><div class="mo-bd" id="mo-bd"></div></div></div>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -221,8 +228,9 @@ const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'
 let ABC={},MAE={},BYCAT={};let pt=null;
 
 function rH(cfg){
-  document.getElementById('hdr').innerHTML=`<div class="logo"><div class="logo-top"><span class="pd"></span><span class="logo-title">Crise au Moyen-Orient</span></div><span class="logo-sub">Quelles répercussions pour le secteur du tourisme\u00a0?</span></div><a class="tm-btn" href="#" onclick="event.preventDefault();document.getElementById('themes').scrollIntoView({behavior:'smooth'})">📰 Tous les articles</a>`;
-  document.getElementById('intro-p').innerHTML=`Depuis le 28 février 2026, une nouvelle phase de tensions au Moyen-Orient entre Israël et l'Iran vient raviver les incertitudes dans une région déjà marquée par une instabilité chronique. Les conséquences se font rapidement sentir sur l'industrie touristique mondiale\u00a0: perturbations du trafic aérien, reconfiguration des flux de voyageurs, ajustements des stratégies des tour-opérateurs et inquiétudes des destinations voisines.`}
+  document.getElementById('hdr').style.display='none';
+  document.getElementById('intro-p').style.display='none';
+  document.getElementById('upd-bar').innerHTML=cfg.last_sync?`Dernière mise à jour : ${fT(cfg.last_sync)}`:''}
 function showP(co,arts){if(pt){clearTimeout(pt);pt=null}const p=document.getElementById('mp');p.classList.add('show');const md=MAE[co];const cm2={red:'#DC2626',orange:'#EA580C',yellow:'#D97706',green:'#059669',gray:'#9CA3AF'};const bgm={red:'#FEF2F2',orange:'#FFF7ED',yellow:'#FFFBEB',green:'#F0FDF4',gray:'#F9FAFB'};const ac=md?cm2[md.color]||'#9CA3AF':'#9CA3AF';const abg=md?bgm[md.color]||'#F9FAFB':'#F9FAFB';const lvl=md?md.level:'';
 document.getElementById('mp-h').innerHTML=`<button class="cls" onclick="hideP(1)">&times;</button><h3>${CN[co]||co}</h3><span class="pc">${arts.length} article${arts.length>1?'s':''}</span>`;
 document.getElementById('mp-a').innerHTML=lvl?`<span class="mp-badge" style="background:${abg};color:${ac};border:1px solid ${ac}30">${lvl}</span>`:'';
@@ -254,28 +262,69 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   if(!uneA&&articles.length)uneA=articles[0];
   const crisisStart=new Date('2026-02-28');const daysSince=Math.floor((Date.now()-crisisStart.getTime())/86400000);
   const br=market['brent'],eu=market['eurusd'];
+  const gold=market['GC=F'],af=market['AF.PA'],air=market['AIR.PA'],ams=market['AMS.MC'];
   let h='';
 
-  // 1. HERO
+  // 0. FLASH (above hero)
+  const flashA=articles.length?articles[0]:null;
+  if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
+
+  // 1. HERO — titre + essentiel + timeline + indicateurs
   h+=`<div class="hero fi">`;
+  h+=`<div class="hero-header"><div class="hero-title">⚡ L'essentiel de la crise</div><div class="hero-day"><span class="hd-num">Jour ${daysSince}</span><span class="hd-lbl">de la crise</span></div></div>`;
+
+  // Essentiel cards (6 points)
+  const pts=synthesis&&synthesis.points?synthesis.points:null;
+  if(pts&&pts.length){
+    h+=`<div class="hero-ess-grid">`;
+    pts.forEach((p,i)=>{
+      const tag=typeof p==='object'&&p.tag?p.tag:'INFO';
+      const txt=typeof p==='object'&&p.text?p.text:(typeof p==='string'?p:'');
+      h+=`<div class="hero-ess-card"><div class="hero-ess-top"><div class="hero-ess-num">${String(i+1).padStart(2,'0')}</div><span class="hero-ess-tag" data-t="${tag}">${tag}</span></div><div class="hero-ess-txt">${txt}</div></div>`;
+    });
+    h+=`</div>`;
+  }
+
+  // Timeline
   const tl=timeline&&timeline.events?timeline.events:null;
-  if(tl&&tl.length){const tlSorted=[...tl].sort((a,b)=>(a.date||'').localeCompare(b.date||''));h+=`<div class="hero-tl"><div class="hero-tl-track">`;tlSorted.slice(-6).forEach(e=>{const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';h+=`<div class="hero-tl-item"><div class="hero-tl-dot"></div><div class="hero-tl-date">${d}</div><div class="hero-tl-ev">${e.event||''}</div></div>`});h+=`</div></div>`}
-  h+=`<div class="hero-bottom">`;
-  if(br){const c=br.change_pct>=0?'#EF4444':'#34D399';h+=`<div class="hero-ind"><div><div class="hi-lbl">Brent</div><div class="hi-val">${br.currency}${br.current_price}</div><div class="hi-chg" style="color:${c}">${br.change_pct>=0?'▲':'▼'} ${Math.abs(br.change_pct)}%</div></div><div class="hi-spk">${spk(br.history,c,70,22)}</div></div>`}
-  if(eu){const c=eu.change_pct>=0?'#34D399':'#EF4444';h+=`<div class="hero-ind"><div><div class="hi-lbl">EUR/USD</div><div class="hi-val">${eu.current_price}</div><div class="hi-chg" style="color:${c}">${eu.change_pct>=0?'▲':'▼'} ${Math.abs(eu.change_pct)}%</div></div><div class="hi-spk">${spk(eu.history,c,70,22)}</div></div>`}
-  h+=`<a class="hero-fin-btn" href="#" onclick="event.preventDefault();document.getElementById('finance').scrollIntoView({behavior:'smooth'})">📊 Tous les indicateurs</a>`;
-  h+=`<div class="hero-day"><span class="hd-num">Jour ${daysSince}</span><span class="hd-lbl">de la crise</span></div>`;
-  h+=`</div></div>`;
+  if(tl&&tl.length){
+    const tlSorted=[...tl].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const tl6=tlSorted.slice(-6);
+    h+=`<div class="hero-tl"><div class="hero-tl-track">`;
+    tl6.forEach(e=>{
+      const d=e.date?new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+      h+=`<div class="hero-tl-item"><div class="hero-tl-dot"></div><div class="hero-tl-date">${d}</div><div class="hero-tl-ev">${e.event||''}</div></div>`;
+    });
+    h+=`</div></div>`;
+  }
+
+  // 6 indicateurs sous la timeline (alignés avec les 6 colonnes)
+  const heroInds=[
+    {key:eu,lbl:'EUR/USD',isFx:true},
+    {key:br,lbl:'Brent'},
+    {key:gold,lbl:'Or'},
+    {key:af,lbl:'Air France-KLM'},
+    {key:air,lbl:'Airbus'},
+    {key:ams,lbl:'Amadeus'}
+  ];
+  h+=`<div class="hero-ind-row">`;
+  heroInds.forEach(ind=>{
+    if(ind.key){
+      const c=ind.key.change_pct>=0?'#34D399':'#F87171';
+      const v=ind.isFx?ind.key.current_price:`${ind.key.currency}${ind.key.current_price}`;
+      h+=`<a class="hero-ind-cell" href="#" onclick="event.preventDefault();document.getElementById('finance').scrollIntoView({behavior:'smooth'})"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">${v}</div><div class="hic-chg" style="color:${c}">${ind.key.change_pct>=0?'▲':'▼'}${Math.abs(ind.key.change_pct)}%</div></a>`;
+    } else {
+      h+=`<div class="hero-ind-cell"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">—</div></div>`;
+    }
+  });
+  h+=`</div>`;
+  h+=`</div>`; // end hero
 
   // START 2-COLUMN LAYOUT
   h+=`<div class="layout">`;
   h+=`<div class="main-col">`;
 
-  // 2. FLASH
-  const flashA=articles.length?articles[0]:null;
-  if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
-
-  // 3. UNE
+  // 2. UNE
   if(!uneA||uneA.link===flashA?.link){uneA=null;for(const a of articles.slice(1,15)){if(vi(a.image_url)){uneA=a;break}}}
   if(uneA){h+=`<div class="une-h fi" onclick="window.open('${uneA.link}','_blank')"><div class="une-h-bg">${vi(uneA.image_url)?`<img src="${uneA.image_url}" alt="">`:''}</div><div class="une-h-ov"></div><div class="une-h-bd"><span class="bdg">À la une</span><h3>${uneA.title}</h3><div class="ch">${uneA.description?uneA.description.substring(0,250)+'...':''}</div><div class="mt">${uneA.author||'TourMaG'} — ${fD(uneA.pub_date)} · <a href="${uneA.link}" target="_blank" onclick="event.stopPropagation()">Lire →</a></div></div></div>`}
 
@@ -283,10 +332,6 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   const usedLinks=new Set([flashA?.link,uneA?.link].filter(Boolean));
   const vignArts=articles.filter(a=>!usedLinks.has(a.link)&&vi(a.image_url)).slice(0,3);
   if(vignArts.length){h+=`<div class="vign-row fi">`;vignArts.forEach(a=>{h+=`<div class="vign" onclick="window.open('${a.link}','_blank')"><div class="vign-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.background='#E5E7EB'"></div><div class="vign-body"><div class="vt">${a.title}${nb(a.pub_date)}</div><div class="vm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`});h+=`</div>`}
-
-  // 5. ESSENTIEL
-  const pts=synthesis&&synthesis.points?synthesis.points:null;
-  if(pts&&pts.length){h+=`<div class="ess2 fi"><div class="ess2-head"><h2>⚡ L'essentiel de la crise</h2></div><div class="ess2-sub">Les ${pts.length} points clés à retenir</div><div class="ess2-grid">`;pts.forEach((p,i)=>{const tag=typeof p==='object'&&p.tag?p.tag:'INFO';const txt=typeof p==='object'&&p.text?p.text:(typeof p==='string'?p:'');h+=`<div class="ess2-card"><div class="ess2-top"><div class="ess2-num">${String(i+1).padStart(2,'0')}</div><span class="ess2-tag" data-t="${tag}">${tag}</span></div><div class="ess2-txt">${txt}</div></div>`});h+=`</div></div>`}
 
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
