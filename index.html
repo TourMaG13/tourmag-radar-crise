@@ -130,6 +130,9 @@
 .act-icon{width:34px;height:34px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;flex-shrink:0}.act-icon svg{width:16px;height:16px}
 .act-card .act-t{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}.act-card .act-d{font-size:10px;color:var(--text2);line-height:1.5}
 .dep-board{background:var(--pri);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
+.dep-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.dep-tab{padding:10px 20px;font-family:'Josefin Sans';font-size:12px;font-weight:700;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;white-space:nowrap}.dep-tab:hover{color:rgba(255,255,255,.6)}.dep-tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.dep-tab-content{display:none}.dep-tab-content.active{display:block}
 .dep-board-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}.dep-board-hd h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}.dep-board-hd .icon{font-size:18px}
 .dep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
 .dep-rt-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;gap:8px}
@@ -252,6 +255,14 @@ function positionModal(){const mo=document.getElementById('modal');mo.classList.
 window.addEventListener('message',function(e){if(e.data&&e.data.type==='radar-position-response'){const mo=document.getElementById('modal');if(mo&&mo.classList.contains('show')){mo.style.top=e.data.offsetTop+'px';mo.style.height=e.data.viewportHeight+'px'}}});
 function closeMo(){document.getElementById('modal').classList.remove('show');document.body.style.overflow=''}
 
+function switchFlightTab(dir){
+  document.querySelectorAll('.dep-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.dep-tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+dir).classList.add('active');
+  document.getElementById('tc-'+dir).classList.add('active');
+  if(typeof sendHeight==='function')setTimeout(sendHeight,50);
+}
+
 
 function render({articles,market,mae,config,synthesis,timeline,airlines}){
   rH(config);MAE=mae;
@@ -356,35 +367,53 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   // 6. CONSEILS
   h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg></div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
 
-  // 7. AIRLINES — temps réel AviationStack en accordéon
+  // 7. AIRLINES — temps réel AviationStack avec onglets départs/retours
   const realtime=airlines&&airlines.realtime?airlines.realtime:null;
-  if(realtime&&realtime.destinations&&realtime.destinations.length){
-    h+=`<div class="sl fi">Statut des vols vers le Moyen-Orient</div><div class="dep-board fi">`;
-    h+=`<div class="dep-rt-hd"><span class="dep-rt-badge">✈️ Vols au départ de Paris CDG</span><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
-    realtime.destinations.forEach((dest,di)=>{
-      const nf=dest.flights?dest.flights.length:0;
-      const scheduled=dest.flights?dest.flights.filter(f=>f.status==='scheduled'||f.status==='active').length:0;
-      const cancelled=dest.flights?dest.flights.filter(f=>f.status==='cancelled').length:0;
-      h+=`<div class="dep-acc">`;
-      h+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open');if(typeof sendHeight==='function')setTimeout(sendHeight,50)"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
-      if(scheduled) h+=`<span class="dep-acc-stat green">${scheduled} programmé${scheduled>1?'s':''}</span>`;
-      if(cancelled) h+=`<span class="dep-acc-stat red">${cancelled} annulé${cancelled>1?'s':''}</span>`;
-      if(!nf) h+=`<span class="dep-acc-stat gray">Aucun vol</span>`;
-      h+=`</div><div class="dep-acc-arrow">▾</div></div>`;
-      h+=`<div class="dep-acc-body">`;
-      if(nf){
-        h+=`<div class="dep-rt-flights">`;
-        dest.flights.forEach(f=>{
-          const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';
-          h+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${f.airline} ${f.flight}</div><div class="dep-det">${f.status_label||f.status}</div></div></div>`;
-        });
-        h+=`</div>`;
-      } else {
-        h+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté vers ${dest.city}</div></div></div>`;
-      }
-      h+=`</div></div>`;
-    });
+  if(realtime){
+    const departs=realtime.departs||realtime.destinations||[];
+    const retours=realtime.retours||[];
+    if(departs.length||retours.length){
+    h+=`<div class="sl fi">Statut des vols — Moyen-Orient</div><div class="dep-board fi">`;
+    h+=`<div class="dep-rt-hd"><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
+    // Tabs
+    h+=`<div class="dep-tabs">`;
+    if(departs.length) h+=`<div class="dep-tab active" onclick="switchFlightTab('dep')" id="tab-dep">✈ Départs CDG →</div>`;
+    if(retours.length) h+=`<div class="dep-tab${departs.length?'':' active'}" onclick="switchFlightTab('ret')" id="tab-ret">✈ → Arrivées CDG</div>`;
     h+=`</div>`;
+
+    // Helper to render accordion list
+    function renderFlightList(dests,direction){
+      let out='';
+      dests.forEach((dest,di)=>{
+        const nf=dest.flights?dest.flights.length:0;
+        const scheduled=dest.flights?dest.flights.filter(f=>f.status==='scheduled'||f.status==='active').length:0;
+        const cancelled=dest.flights?dest.flights.filter(f=>f.status==='cancelled').length:0;
+        out+=`<div class="dep-acc">`;
+        out+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open');if(typeof sendHeight==='function')setTimeout(sendHeight,50)"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
+        if(scheduled) out+=`<span class="dep-acc-stat green">${scheduled} programmé${scheduled>1?'s':''}</span>`;
+        if(cancelled) out+=`<span class="dep-acc-stat red">${cancelled} annulé${cancelled>1?'s':''}</span>`;
+        if(!nf) out+=`<span class="dep-acc-stat gray">Aucun vol</span>`;
+        out+=`</div><div class="dep-acc-arrow">▾</div></div>`;
+        out+=`<div class="dep-acc-body">`;
+        if(nf){
+          out+=`<div class="dep-rt-flights">`;
+          dest.flights.forEach(f=>{
+            const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';
+            out+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${f.airline} ${f.flight}</div><div class="dep-det">${f.status_label||f.status}</div></div></div>`;
+          });
+          out+=`</div>`;
+        } else {
+          out+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté</div></div></div>`;
+        }
+        out+=`</div></div>`;
+      });
+      return out;
+    }
+
+    if(departs.length) h+=`<div class="dep-tab-content active" id="tc-dep">${renderFlightList(departs,'dep')}</div>`;
+    if(retours.length) h+=`<div class="dep-tab-content${departs.length?'':' active'}" id="tc-ret">${renderFlightList(retours,'ret')}</div>`;
+    h+=`</div>`;
+    }
   }
 
   // 8. MAP + MAE panel
