@@ -39,7 +39,7 @@
 .hero-ess-tag[data-t="AÉRIEN"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="GÉOPOLITIQUE"]{background:rgba(248,113,113,.2);color:#FCA5A5}.hero-ess-tag[data-t="DESTINATIONS"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="JURIDIQUE"]{background:rgba(251,191,36,.2);color:#FDE68A}.hero-ess-tag[data-t="TOUR-OPÉRATEURS"]{background:rgba(52,211,153,.2);color:#6EE7B7}.hero-ess-tag[data-t="CONSEIL"]{background:rgba(167,139,250,.2);color:#C4B5FD}.hero-ess-tag[data-t="INFO"]{background:rgba(255,255,255,.1);color:rgba(255,255,255,.5)}
 .hero-ess-txt{font-size:11px;line-height:1.55;color:rgba(255,255,255,.7)}.hero-ess-txt strong{font-weight:700;color:#fff}
 /* Timeline */
-.hero-tl{position:relative;margin-bottom:8px;padding-top:8px}
+.hero-tl{position:relative;margin-bottom:18px;padding-top:8px}
 .hero-tl-track{display:grid;grid-template-columns:repeat(6,1fr);gap:0;position:relative}
 .hero-tl-track::before{content:'';position:absolute;top:14px;left:0;right:0;height:2px;background:rgba(255,255,255,.15)}
 .hero-tl-item{display:flex;flex-direction:column;align-items:center;padding:0 4px}
@@ -48,16 +48,17 @@
 .hero-tl-ev{font-size:10px;color:rgba(255,255,255,.6);text-align:center;line-height:1.4;font-weight:400}
 @media(max-width:768px){.hero-tl-track{grid-template-columns:repeat(4,1fr)}.hero-tl-item:nth-child(-n+2){display:none}.hero-ess-grid{grid-template-columns:1fr}.hero-title{font-size:17px}.hero{padding:20px 12px 18px;margin-bottom:20px;border-radius:12px}}
 /* Indicators under timeline */
-.hero-ind-row{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:4px}
-@media(max-width:768px){.hero-ind-row{grid-template-columns:repeat(4,1fr)}.hero-ind-row .hero-ind-cell:nth-child(-n+2){display:none}}
-.hero-ind-cell{display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;transition:opacity .15s;text-decoration:none}.hero-ind-cell:hover{opacity:.7}
-.hero-ind-cell .hic-lbl{font-size:7px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.3px;font-weight:600;margin-bottom:2px;text-align:center}
-.hero-ind-cell .hic-val{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;color:#fff}
+.hero-ind-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
+@media(max-width:768px){.hero-ind-row{grid-template-columns:repeat(3,1fr)}}
+.hero-ind-cell{display:flex;flex-direction:column;padding:8px 10px;cursor:pointer;transition:opacity .15s;text-decoration:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px}.hero-ind-cell:hover{opacity:.85}
+.hero-ind-cell .hic-lbl{font-size:7px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.3px;font-weight:600;margin-bottom:3px}
+.hero-ind-cell .hic-val{font-family:'IBM Plex Mono';font-size:12px;font-weight:700;color:#fff;margin-bottom:1px}
 .hero-ind-cell .hic-chg{font-size:9px;font-weight:600}
+.hero-ind-cell .hic-spark{margin-top:4px;display:flex;justify-content:flex-end}
 .flash{display:flex;align-items:center;gap:12px;padding:12px 20px;background:linear-gradient(90deg,#7F1D1D,#991B1B);border-radius:var(--rl);margin-bottom:14px;cursor:pointer;transition:box-shadow .15s;overflow:hidden}.flash:hover{box-shadow:0 4px 16px rgba(220,38,38,.2)}
 .flash-badge{font-family:'Josefin Sans';font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--red);padding:4px 12px;border-radius:6px;flex-shrink:0;white-space:nowrap;animation:fpls 2s infinite}
 @keyframes fpls{0%,100%{opacity:1}50%{opacity:.6}}
-.flash-text{font-size:13px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4}
+.flash-text{font-size:15px;font-weight:500;color:rgba(255,255,255,.9);flex:1;line-height:1.4}
 .flash-date{font-family:'IBM Plex Mono';font-size:10px;color:rgba(255,255,255,.4);flex-shrink:0;white-space:nowrap}
 @media(max-width:768px){.flash{flex-wrap:wrap;gap:8px;padding:10px 12px}.flash-text{font-size:12px;order:3;flex-basis:100%}.flash-date{order:2}}
 .layout{display:grid;grid-template-columns:1fr 320px;gap:28px;align-items:start}
@@ -126,7 +127,7 @@
 .act-box h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#78350F;margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .act-card{background:#fff;border:1px solid #FBBF24;border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
-.act-icon{width:34px;height:34px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.act-icon{width:34px;height:34px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;flex-shrink:0}.act-icon svg{width:16px;height:16px}
 .act-card .act-t{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}.act-card .act-d{font-size:10px;color:var(--text2);line-height:1.5}
 .dep-board{background:var(--pri);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
 .dep-board-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}.dep-board-hd h3{font-family:'Josefin Sans';font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}.dep-board-hd .icon{font-size:18px}
@@ -160,12 +161,12 @@
 .dep-name{font-family:'IBM Plex Mono';font-size:12px;font-weight:500;color:rgba(255,255,255,.85)}.dep-det{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px}
 .side-col .cd{margin-bottom:14px}
 .cd{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
-.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:#FEF3C7;color:#92400E}.cd .ct{font-family:'Josefin Sans';font-size:13px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto}
+.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#FEF3C7;color:#92400E}.cd .ci svg{width:16px;height:16px}.cd .ct{font-family:'Josefin Sans';font-size:15px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto}
 .cd-aerien{border-top:3px solid #3B82F6}.cd-institutionnel{border-top:3px solid var(--violet)}.cd-croisiere{border-top:3px solid var(--cyan)}.cd-juridique{border-top:3px solid var(--amber)}.cd-solutions{border-top:3px solid var(--green)}.cd-geopolitique{border-top:3px solid #DC2626}.cd-economie{border-top:3px solid #64748B}.cd-destinations{border-top:3px solid #2563EB}
 .ni{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:center}.ni:first-of-type{border-top:none}.ni:hover{background:#F8FAFC}.ni .nt{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}.ni .nm{font-size:10px;color:var(--text3);margin-top:2px}.ni-body{flex:1;min-width:0}
 .ni-img{width:48px;height:36px;border-radius:5px;object-fit:cover;flex-shrink:0}
-.jur{display:flex;gap:8px;padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:flex-start}.jur:first-of-type{border-top:none}.jur:hover{background:#FFFDF5}.jur-d{width:7px;height:7px;border-radius:50%;background:var(--amber);margin-top:4px;flex-shrink:0}.jur-t{font-size:11px;color:var(--text);line-height:1.35;font-weight:500}.jur-m{font-size:9px;color:var(--text3);margin-top:2px}
-.sol{padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s}.sol:first-of-type{border-top:none}.sol:hover{background:#F0FDF8}.sol-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}.sol-badge{background:#DCFCE7;color:#166534;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px}.sol-t{font-size:11px;font-weight:600}.sol-s{font-size:9px;color:var(--text3)}.sol-d{font-size:10px;color:var(--text2);line-height:1.4;margin-top:3px}
+.jur{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:flex-start}.jur:first-of-type{border-top:none}.jur:hover{background:#FFFDF5}.jur-d{width:7px;height:7px;border-radius:50%;background:var(--amber);margin-top:5px;flex-shrink:0}.jur-t{font-size:13px;color:var(--text);line-height:1.4;font-weight:500}.jur-m{font-size:10px;color:var(--text3);margin-top:2px}
+.sol{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s}.sol:first-of-type{border-top:none}.sol:hover{background:#F0FDF8}.sol-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}.sol-badge{background:#DCFCE7;color:#166534;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px}.sol-t{font-size:13px;font-weight:600;line-height:1.4}.sol-s{font-size:9px;color:var(--text3)}.sol-d{font-size:10px;color:var(--text2);line-height:1.4;margin-top:3px}
 .voir-plus{display:block;padding:8px 14px;font-size:10px;font-weight:600;color:var(--acc2);text-align:center;cursor:pointer;border-top:1px solid var(--border);transition:background .1s}.voir-plus:hover{background:#FFF7ED}
 .edito-trib{background:var(--pri);border-radius:var(--rl);padding:28px 32px;margin-bottom:20px;position:relative;overflow:hidden;max-width:100%;box-sizing:border-box}
 .edito-trib::before{content:'«';position:absolute;top:10px;left:20px;font-family:'Playfair Display',serif;font-size:160px;color:rgba(255,255,255,.06);line-height:1;pointer-events:none}
@@ -189,7 +190,7 @@
 .mo-box{background:var(--card);border-radius:var(--rl);width:100%;max-width:600px;max-height:75vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
 @media(max-width:768px){.mo{padding:10px}.mo-box{max-height:85vh;max-width:100%;border-radius:12px}}
 .mo-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
-.mo-hd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.mo-hd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .mo-hd .mt{font-family:'Josefin Sans';font-size:14px;font-weight:700;flex:1}.mo-hd .mc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px}
 .mo-hd .cls{background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:8px}.mo-hd .cls:hover{background:var(--bg)}
 .mo-bd{overflow-y:auto;flex:1}
@@ -224,7 +225,7 @@ function isNew(d){if(!d)return false;const t=d.toDate?d.toDate():new Date(d);ret
 function nb(d){return isNew(d)?'<span class="bdg-new">NOUVEAU</span>':''}
 const CN={israel:'Israël',liban:'Liban',iran:'Iran',irak:'Irak',syrie:'Syrie',jordanie:'Jordanie',egypte:'Égypte',turquie:'Turquie',arabie_saoudite:'Arabie Saoudite',emirats:'Émirats',qatar:'Qatar',oman:'Oman',bahrein:'Bahreïn',koweit:'Koweït',yemen:'Yémen',chypre:'Chypre',grece:'Grèce'};
 const CC={israel:[31.5,34.8],liban:[33.9,35.8],iran:[32.4,53.7],irak:[33.2,43.7],syrie:[35,38.5],jordanie:[31.2,36.5],egypte:[26.8,30.8],turquie:[39,35.2],arabie_saoudite:[23.9,45.1],emirats:[24.5,54.4],qatar:[25.3,51.2],oman:[21.5,56],bahrein:[26.1,50.5],koweit:[29.3,47.5],yemen:[15.5,48.5],chypre:[35.1,33.4],grece:[39,22]};
-const CATS={aerien:{l:'Aérien',i:'✈️',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'🏛',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'⚓',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'⚖️',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'💡',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'🌍',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'📊',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'🗺️',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres actualités',i:'📰',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
+const CATS={aerien:{l:'Aérien',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15l5-1 3-6 4-1v4l4 2 4-1v3l-4 1-4 2H9l-3 1-4-4z"/></svg>',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h1c1.5 0 2.5-1 4-1s2.5 1 4 1 2.5-1 4-1 2.5 1 4 1h1"/><path d="M5 18V8l7-4 7 4v10"/><line x1="12" y1="4" x2="12" y2="18"/><path d="M8 12h8"/></svg>',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7l7-4 7 4"/><path d="M5 7v4c0 1.1.9 2 2 2h2M19 7v4c0 1.1-.9 2-2 2h-2M8 21h8"/></svg>',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2v1"/><path d="M15.5 5.5A5 5 0 0 0 7 9c0 2.5 1.5 4 3 5v4h4v-4c1.5-1 3-2.5 3-5a5 5 0 0 0-1.5-3.5z"/></svg>',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres actualités',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
 let ABC={},MAE={},BYCAT={};let pt=null;
 
 function rH(cfg){
@@ -312,7 +313,8 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
     if(ind.key){
       const c=ind.key.change_pct>=0?'#34D399':'#F87171';
       const v=ind.isFx?ind.key.current_price:`${ind.key.currency}${ind.key.current_price}`;
-      h+=`<a class="hero-ind-cell" href="#" onclick="event.preventDefault();document.getElementById('finance').scrollIntoView({behavior:'smooth'})"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">${v}</div><div class="hic-chg" style="color:${c}">${ind.key.change_pct>=0?'▲':'▼'}${Math.abs(ind.key.change_pct)}%</div></a>`;
+      const spark=ind.key.history?spk(ind.key.history,c,60,18):'';
+      h+=`<a class="hero-ind-cell" href="#" onclick="event.preventDefault();document.getElementById('finance').scrollIntoView({behavior:'smooth'})"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">${v}</div><div class="hic-chg" style="color:${c}">${ind.key.change_pct>=0?'▲':'▼'} ${Math.abs(ind.key.change_pct)}%</div><div class="hic-spark">${spark}</div></a>`;
     } else {
       h+=`<div class="hero-ind-cell"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">—</div></div>`;
     }
@@ -333,8 +335,26 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   const vignArts=articles.filter(a=>!usedLinks.has(a.link)&&vi(a.image_url)).slice(0,3);
   if(vignArts.length){h+=`<div class="vign-row fi">`;vignArts.forEach(a=>{h+=`<div class="vign" onclick="window.open('${a.link}','_blank')"><div class="vign-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.background='#E5E7EB'"></div><div class="vign-body"><div class="vt">${a.title}${nb(a.pub_date)}</div><div class="vm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`});h+=`</div>`}
 
+  // EDITO — L'avis de nos experts (moved here, after vignettes)
+  const editoAll=byCat['edito']||[];
+  const expertArts=articles.filter(a=>{
+    if(a.category==='edito')return false;
+    const txt=((a.title||'')+' '+(a.description||'')+' '+(a.author||'')).toLowerCase();
+    const byText=txt.includes('futuroscopie')||txt.includes('expert communication')||txt.includes('josette sicsic');
+    const byTags=hasEditoTag(a.tags||[]);
+    const atags=(a.tags||[]).map(x=>x.toLowerCase());
+    const byLea=atags.some(x=>x.includes('léa')||x.includes('lea'))&&atags.some(x=>x.includes('crise golfe')||x.includes('crise+golfe'));
+    return byText||byTags||byLea;
+  });
+  const allExperts=[...editoAll,...expertArts];
+  const seenE=new Set();const editoA=allExperts.filter(a=>{if(!vi(a.image_url)||seenE.has(a.link))return false;seenE.add(a.link);return true});
+  if(editoA.length){h+=`<div class="sl fi">L'avis de nos experts</div><div class="edito-trib fi"><div class="edito-grid">`;
+  editoA.slice(0,6).forEach(a=>{
+  h+=`<div class="edito-trib-card" onclick="window.open('${a.link}','_blank')"><div class="et-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.display='none'"></div><div class="et-content"><div class="et-title">${a.title}</div><div class="et-desc">${a.description?a.description.substring(0,150)+'...':''}</div><div><span class="et-author">${a.author||'La rédaction'}</span><span class="et-date"> · ${fS(a.pub_date)}</span></div></div></div>`});
+  h+=`</div></div>`}
+
   // 6. CONSEILS
-  h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon">📋</div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon">🗺️</div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon">🏛</div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
+  h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid"><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div><div class="act-t">Vérifier les conditions d'annulation</div><div class="act-d">Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs.</div></div></div><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><div class="act-t">Proposer des alternatives</div><div class="act-d">Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles.</div></div></div><div class="act-card"><div class="act-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg></div><div><div class="act-t">Suivre les alertes MAE</div><div class="act-d">Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes.</div></div></div></div></div>`;
 
   // 7. AIRLINES — temps réel AviationStack en accordéon
   const realtime=airlines&&airlines.realtime?airlines.realtime:null;
@@ -396,26 +416,6 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   h+=`</div></div></div>`;
   h+=`<div class="mae-bar fi">`;mE.forEach(m=>{h+=`<div class="mae-chip" onclick="window.open('${m.url}','_blank')"><span class="md ${m.color}"></span><span>${m.label}</span></div>`});h+=`</div>`;
 
-  // 9. EDITO — articles edito + détection par tags Firestore
-  const editoAll=byCat['edito']||[];
-  // Chercher aussi les articles d'autres catégories qui ont un tag edito OU les mots-clés dans titre/description/auteur
-  // + tag "léa" SEULEMENT si accompagné de "crise golfe"
-  const expertArts=articles.filter(a=>{
-    if(a.category==='edito')return false;
-    const txt=((a.title||'')+' '+(a.description||'')+' '+(a.author||'')).toLowerCase();
-    const byText=txt.includes('futuroscopie')||txt.includes('expert communication')||txt.includes('josette sicsic');
-    const byTags=hasEditoTag(a.tags||[]);
-    const atags=(a.tags||[]).map(x=>x.toLowerCase());
-    const byLea=atags.some(x=>x.includes('léa')||x.includes('lea'))&&atags.some(x=>x.includes('crise golfe')||x.includes('crise+golfe'));
-    return byText||byTags||byLea;
-  });
-  const allExperts=[...editoAll,...expertArts];
-  const seenE=new Set();const editoA=allExperts.filter(a=>{if(!vi(a.image_url)||seenE.has(a.link))return false;seenE.add(a.link);return true});
-  if(editoA.length){h+=`<div class="sl fi">L'avis de nos experts</div><div class="edito-trib fi"><div class="edito-grid">`;
-  editoA.slice(0,6).forEach(a=>{
-  h+=`<div class="edito-trib-card" onclick="window.open('${a.link}','_blank')"><div class="et-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.display='none'"></div><div class="et-content"><div class="et-title">${a.title}</div><div class="et-desc">${a.description?a.description.substring(0,150)+'...':''}</div><div><span class="et-author">${a.author||'La rédaction'}</span><span class="et-date"> · ${fS(a.pub_date)}</span></div></div></div>`});
-  h+=`</div></div>`}
-
   // 10. FINANCE — Brent, EUR/USD, Or en cartes fixes + Amadeus & Booking en liste
   const allFin=Object.entries(market);
   if(allFin.length){
@@ -444,7 +444,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines}){
   themeCats.sort((a,b)=>{if(a==='general')return 1;if(b==='general')return -1;return(CATS[a]||CATS.general).l.localeCompare((CATS[b]||CATS.general).l,'fr')});
   themeCats.forEach(cat=>{
     const arts=byCat[cat]||[];if(!arts.length)return;const cf=CATS[cat]||CATS.general;
-    h+=`<div class="cd cd-${cat}"><div class="hd"><div class="ci" style="background:${cf.bg};color:${cf.c}">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc" style="background:${cf.cc}">${arts.length}</span></div>`;
+    h+=`<div class="cd cd-${cat}"><div class="hd"><div class="ci" style="background:#FEF3C7;color:#92400E">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc" style="background:${cf.cc}">${arts.length}</span></div>`;
     if(cat==='juridique'){arts.slice(0,3).forEach(a=>{h+=`<div class="jur" onclick="window.open('${a.link}','_blank')"><span class="jur-d"></span><div><div class="jur-t">${a.title}${nb(a.pub_date)}</div><div class="jur-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
     else if(cat==='solutions'){arts.slice(0,3).forEach(a=>{h+=`<div class="sol" onclick="window.open('${a.link}','_blank')"><div class="sol-top"><span class="sol-badge">SOLUTION</span><span class="sol-s">${a.author||''} · ${fS(a.pub_date)}</span></div><div class="sol-t">${a.title}${nb(a.pub_date)}</div></div>`})}
     else{arts.slice(0,3).forEach(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="ni-img" onerror="this.remove()">`:'';h+=`<div class="ni" onclick="window.open('${a.link}','_blank')">${img}<div class="ni-body"><div class="nt">${a.title}${nb(a.pub_date)}</div><div class="nm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
