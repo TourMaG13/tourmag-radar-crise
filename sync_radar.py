@@ -165,7 +165,6 @@ def scrape_article_content(url):
 
 def gcall(msgs,mt=2000,retries=3):
     if not ANTHROPIC_API_KEY: return None
-    # Convertir le format messages OpenAI → Anthropic
     user_content=""
     for m in msgs:
         if m["role"]=="user": user_content+=m["content"]+"\n"
@@ -293,7 +292,6 @@ Articles (du plus récent au plus ancien) :
 JSON uniquement : [{{"date":"2026-03-28","event":"Air France prolonge la suspension de ses vols vers Téhéran."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list):
-        # Trier par date chronologique
         for ev in r:
             if not ev.get("date"): ev["date"]="9999-99-99"
         r.sort(key=lambda e:e.get("date","9999"))
@@ -360,21 +358,21 @@ AVIATION_TARGETS_RETOUR=[
 
 def fetch_aviationstack(db):
     if not AVIATIONSTACK_API_KEY: return None
-    # Vérifier si déjà fait aujourd'hui
+    # Vérifier si dernier check < 3h (permet 6 exécutions/jour entre 6h et 22h)
     try:
         doc=db.collection("config").document("airlines").get()
         if doc.exists:
             d=doc.to_dict()
             rt=d.get("realtime",{})
             last=rt.get("last_check","")
-if last:
-    try:
-        last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
-        diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
-        if diff<10800:
-            print(f"  AviationStack : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
-            return rt
-    except: pass
+            if last:
+                try:
+                    last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
+                    diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
+                    if diff<10800:
+                        print(f"  AviationStack : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
+                        return rt
+                except: pass
     except: pass
     try:
         def _fetch_routes(targets,direction_label):
