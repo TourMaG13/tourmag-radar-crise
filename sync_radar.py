@@ -367,9 +367,14 @@ def fetch_aviationstack(db):
             d=doc.to_dict()
             rt=d.get("realtime",{})
             last=rt.get("last_check","")
-            if last and last[:10]==datetime.now(timezone.utc).strftime("%Y-%m-%d"):
-                print("  AviationStack : déjà fait aujourd'hui, skip",flush=True)
-                return rt
+if last:
+    try:
+        last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
+        diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
+        if diff<10800:
+            print(f"  AviationStack : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
+            return rt
+    except: pass
     except: pass
     try:
         def _fetch_routes(targets,direction_label):
@@ -377,7 +382,7 @@ def fetch_aviationstack(db):
             for target in targets:
                 dep=target["dep_iata"];arr=target["arr_iata"]
                 print(f"  AviationStack {dep}→{arr}...",flush=True)
-                r=requests.get("http://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"limit":100},timeout=30)
+                r=requests.get("https://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"limit":100},timeout=30)
                 if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
                 data=r.json()
                 if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
