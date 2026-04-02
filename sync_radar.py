@@ -220,20 +220,23 @@ CONSIGNES DE RÉDACTION IMPÉRATIVES :
 - Chaque point doit être rédigé dans un français irréprochable, fluide et naturel.
 - Écris des phrases complètes avec sujet, verbe et complément. Ne jamais omettre les pronoms, articles ou prépositions.
 - Utilise des tournures journalistiques élégantes, pas de style télégraphique ni de mots-clés alignés.
-- Chaque point fait entre 35 et 50 mots. C'est une analyse, pas un titre d'article.
+- Chaque point fait 40 mots MAXIMUM. Sois concis mais élégant.
 - Mets en **gras** uniquement 1 à 2 mots-clés importants par point (pas plus).
 - Utilise des noms propres (compagnies, pays, institutions) pour être concret.
+- Varie les tags : n'utilise pas deux fois le même tag dans les 6 points.
 
 EXEMPLES DE BON STYLE :
-✅ "**Air France** a décidé de prolonger la suspension de ses liaisons vers Téhéran jusqu'à la fin du mois de juin. Les voyageurs déjà en possession de billets peuvent demander un remboursement intégral ou un report sans frais."
-✅ "Les autorités jordaniennes renforcent les contrôles aux frontières nord du pays. Les agents doivent informer leurs clients que les délais de passage peuvent s'allonger considérablement, en particulier au poste de **Nassib**."
+✅ "**Air France** prolonge la suspension de ses vols vers Téhéran jusqu'en juin. Les passagers peuvent obtenir un remboursement intégral ou un report sans frais supplémentaires."
+✅ "Les contrôles aux frontières jordaniennes se renforcent au nord du pays. Les agents doivent prévenir leurs clients de **délais rallongés** au poste de Nassib."
 
 EXEMPLES DE MAUVAIS STYLE (à éviter absolument) :
-❌ "Suspension vols prolongée Téhéran, remboursement possible" (style télégraphique)
+❌ "Suspension vols prolongée Téhéran, remboursement possible" (style télégraphique, pas de verbe)
 ❌ "Compagnies aériennes impactées par tensions géopolitiques croissantes" (pas de sujet, pas de verbe conjugué)
 ❌ "Situation reste tendue dans la région" (trop vague, pas de noms propres)
 
-Format : JSON array de 6 objets avec "tag" (parmi : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL) et "text".
+Tags disponibles (choisis le plus pertinent pour chaque point) : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL, CROISIÈRE, ÉCONOMIE, HÔTELLERIE, ASSURANCE, COMPAGNIES, TECHNOLOGIE.
+
+Format : JSON array de 6 objets avec "tag" et "text".
 
 Articles récents à synthétiser :
 {chr(10).join(items)}
