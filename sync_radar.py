@@ -385,13 +385,13 @@ def fetch_aviationstack(db):
                 data=r.json()
                 if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
                 flights=data.get("data",[])
-                STATUS_PRIORITY={"active":5,"delayed":4,"scheduled":3,"landed":2,"cancelled":1,"unknown":0}
-                STATUS_LABELS={"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri"}
+                STATUS_PRIORITY={"active":6,"delayed":5,"diverted":4,"scheduled":3,"landed":2,"cancelled":1,"incident":1,"redirected":3,"unknown":0}
+                STATUS_LABELS={"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri","diverted":"Dérouté","incident":"Incident","redirected":"Redirigé"}
                 seen_flights={}
                 for f in flights:
                     fn=f.get("flight",{}).get("iata","")
                     if not fn: continue
-                    st=f.get("flight_status","unknown")
+                    st=f.get("flight_status") or "unknown"
                     entry={"airline":f.get("airline",{}).get("name","?"),"flight":fn,"status":st,"status_label":STATUS_LABELS.get(st,"Inconnu")}
                     if fn not in seen_flights or STATUS_PRIORITY.get(st,0)>STATUS_PRIORITY.get(seen_flights[fn]["status"],0):
                         seen_flights[fn]=entry
