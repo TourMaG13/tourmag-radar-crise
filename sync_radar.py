@@ -23,7 +23,7 @@ ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("
 MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants français à l'étranger","appel à la vigilance maximale"]
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
-EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola"]
+EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola","duthion","camille le guilloux","cousin","jean pinard","messager","habibou","du boucher","daniel borja","delporte","gallo","jansen","pointet","ramond","rodolphe lenoir","guillaume vigneron"]
 AI_PAUSE=5
 
 def init_fb():
@@ -469,11 +469,51 @@ def sync_mae(db,d,ex):
         db.collection("mae_alerts").document(k).set(v)
 def sync_synth(db,p): db.collection("config").document("synthesis").set({"points":p,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_timeline(db,t): db.collection("config").document("timeline").set({"events":t,"generated_at":datetime.now(timezone.utc).isoformat()})
+def sync_conseils(db,c): db.collection("config").document("conseils_pratiques").set({"conseils":c,"generated_at":datetime.now(timezone.utc).isoformat()})
 def sync_airlines(db,a,rt=None):
     doc={"airlines":a,"generated_at":datetime.now(timezone.utc).isoformat()}
     if rt: doc["realtime"]=rt
     db.collection("config").document("airlines").set(doc)
 def upd_cfg(db,n): db.collection("config").document("radar").set({"last_sync":datetime.now(timezone.utc).isoformat(),"conflict_start_date":CONFLICT_START_DATE,"rss_url":RSS_URL,"last_new_articles":n},merge=True)
+
+CONSEILS_ICONS={
+    "annulation":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    "destination":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    "alerte":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',
+    "assurance":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    "client":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    "finance":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+    "information":'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+    "avion":'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>'
+}
+
+def conseils_groq(articles):
+    items=[f"- {a['title']}: {a.get('description','')[:150]}" for a in articles[:15]]
+    icons_list=", ".join(CONSEILS_ICONS.keys())
+    prompt=f"""Tu es un expert du tourisme professionnel français. Génère exactement 3 conseils pratiques et concrets pour les agents de voyage, en lien avec la crise au Moyen-Orient.
+
+CONSIGNES :
+- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (15-25 mots).
+- Les conseils doivent être actionnables et directement utiles pour un agent de voyage.
+- Le ton est professionnel et rassurant, pas alarmiste.
+- Chaque conseil a une icône parmi : {icons_list}
+- Varie les icônes entre les 3 conseils.
+- Base-toi sur les articles récents pour que les conseils soient pertinents par rapport à l'actualité.
+
+Articles récents :
+{chr(10).join(items)}
+
+Réponds UNIQUEMENT en JSON : [{{"icon":"annulation","titre":"Vérifier les CGV","texte":"Consultez les conditions de force majeure de vos TO partenaires avant de confirmer les réservations."}}]"""
+    r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
+    if r and isinstance(r,list) and len(r)>=2:
+        out=[]
+        for c in r[:3]:
+            if isinstance(c,dict) and c.get("titre") and c.get("texte"):
+                icon_key=c.get("icon","information")
+                if icon_key not in CONSEILS_ICONS: icon_key="information"
+                out.append({"icon":icon_key,"titre":c["titre"],"texte":c["texte"]})
+        if len(out)>=2: print(f"  Conseils : {len(out)}",flush=True); return out
+    return None
 
 def main():
     print("="*50,flush=True)
@@ -574,6 +614,12 @@ def main():
         print("\n--- Synthèse ---",flush=True)
         pts=synthesis_groq(all_articles)
         if pts: sync_synth(db,pts)
+        time.sleep(AI_PAUSE)
+
+    if all_articles and ANTHROPIC_API_KEY:
+        print("\n--- Conseils pratiques ---",flush=True)
+        cpr=conseils_groq(all_articles)
+        if cpr: sync_conseils(db,cpr)
         time.sleep(AI_PAUSE)
 
     if all_articles and ANTHROPIC_API_KEY:
