@@ -13,7 +13,7 @@ from firebase_admin import credentials,firestore
 RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
 ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY","")
-AVIATIONSTACK_API_KEY=os.getenv("AVIATIONSTACK_API_KEY","")
+FR24_API_KEY=os.getenv("FR24_API_KEY","")
 ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
 MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
@@ -339,25 +339,14 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-AVIATION_TARGETS_DEPART=[
-    {"dep_iata":"CDG","arr_iata":"DXB","city":"Dubaï"},
-    {"dep_iata":"CDG","arr_iata":"DOH","city":"Doha (Hamad)"},
-    {"dep_iata":"CDG","arr_iata":"AUH","city":"Abu Dhabi"},
-    {"dep_iata":"CDG","arr_iata":"TLV","city":"Tel-Aviv (Ben Gourion)"},
-    {"dep_iata":"CDG","arr_iata":"MCT","city":"Mascate"},
-    {"dep_iata":"CDG","arr_iata":"AMM","city":"Amman (Queen Alia)"}
-]
-AVIATION_TARGETS_RETOUR=[
-    {"dep_iata":"DXB","arr_iata":"CDG","city":"Dubaï"},
-    {"dep_iata":"DOH","arr_iata":"CDG","city":"Doha (Hamad)"},
-    {"dep_iata":"AUH","arr_iata":"CDG","city":"Abu Dhabi"},
-    {"dep_iata":"TLV","arr_iata":"CDG","city":"Tel-Aviv (Ben Gourion)"},
-    {"dep_iata":"MCT","arr_iata":"CDG","city":"Mascate"},
-    {"dep_iata":"AMM","arr_iata":"CDG","city":"Amman (Queen Alia)"}
-]
+AVIATION_ROUTES_DEPART=["CDG-DXB","CDG-DOH","CDG-AUH","CDG-TLV","CDG-MCT","CDG-AMM"]
+AVIATION_ROUTES_RETOUR=["DXB-CDG","DOH-CDG","AUH-CDG","TLV-CDG","MCT-CDG","AMM-CDG"]
+AVIATION_CITY_NAMES={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)","CDG":"Paris CDG"}
+# ICAO airline codes → display names
+AIRLINE_NAMES={"AFR":"Air France","UAE":"Emirates","QTR":"Qatar Airways","ETD":"Etihad","RJA":"Royal Jordanian","OMA":"Oman Air","THY":"Turkish Airlines","BAW":"British Airways","DLH":"Lufthansa","KLM":"KLM","EZY":"easyJet","TVF":"Transavia","SWR":"Swiss","AUA":"Austrian","BEL":"Brussels Airlines","RAM":"Royal Air Maroc","SVA":"Saudia","GIA":"Garuda","SIA":"Singapore Airlines","CPA":"Cathay Pacific","ELY":"El Al"}
 
-def fetch_aviationstack(db):
-    if not AVIATIONSTACK_API_KEY: return None
+def fetch_fr24(db):
+    if not FR24_API_KEY: return None
     # Guard horaire : uniquement entre 6h et 22h heure de Paris
     try:
         from zoneinfo import ZoneInfo
@@ -365,9 +354,9 @@ def fetch_aviationstack(db):
         from backports.zoneinfo import ZoneInfo
     paris_now=datetime.now(ZoneInfo("Europe/Paris"))
     if paris_now.hour<6 or paris_now.hour>=22:
-        print(f"  AviationStack : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
+        print(f"  FR24 : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
         return None
-    # Vérifier si dernier check < 3h (permet 6 exécutions/jour entre 6h et 22h)
+    # Vérifier si dernier check < 3h
     try:
         doc=db.collection("config").document("airlines").get()
         if doc.exists:
@@ -379,47 +368,101 @@ def fetch_aviationstack(db):
                     last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
                     diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
                     if diff<10800:
-                        print(f"  AviationStack : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
+                        print(f"  FR24 : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
                         return rt
                 except: pass
     except: pass
     try:
-        def _fetch_routes(targets,direction_label):
+        headers={"Accept":"application/json","Accept-Version":"v1","Authorization":f"Bearer {FR24_API_KEY}"}
+
+        def _classify_flight(f):
+            """Détermine le statut d'un vol à partir de l'altitude et la vitesse"""
+            alt=f.get("alt",0) or 0
+            gspeed=f.get("gspeed",0) or 0
+            eta=f.get("eta","")
+            if alt>5000 and gspeed>200:
+                return "active","En vol"
+            elif alt>0 and gspeed>50:
+                return "active","En vol"
+            elif gspeed>0 and gspeed<=50:
+                return "scheduled","Au sol"
+            else:
+                return "scheduled","Programmé"
+
+        def _get_airline_name(f):
+            """Récupère le nom de la compagnie"""
+            icao=f.get("operating_as") or f.get("painted_as") or ""
+            if icao in AIRLINE_NAMES: return AIRLINE_NAMES[icao]
+            # Extraire depuis le numéro de vol (2-3 premières lettres)
+            flight=f.get("flight","") or ""
+            if flight:
+                prefix=flight[:2] if flight[2:3].isdigit() else flight[:3]
+                # Mapping IATA courants
+                iata_map={"AF":"Air France","EK":"Emirates","QR":"Qatar Airways","EY":"Etihad","RJ":"Royal Jordanian","WY":"Oman Air","TK":"Turkish Airlines","BA":"British Airways","LH":"Lufthansa","KL":"KLM","U2":"easyJet","TO":"Transavia","LX":"Swiss","OS":"Austrian","SN":"Brussels Airlines","AT":"Royal Air Maroc","SV":"Saudia","LY":"El Al"}
+                if prefix in iata_map: return iata_map[prefix]
+            return icao if icao else "Inconnu"
+
+        def _fetch_direction(routes,direction_label):
+            route_str=",".join(routes)
+            print(f"  FR24 {direction_label}: {route_str}",flush=True)
+            r=requests.get("https://fr24api.flightradar24.com/api/live/flight-positions/full",
+                params={"routes":route_str,"categories":"P","limit":300},
+                headers=headers,timeout=30)
+            if r.status_code!=200:
+                print(f"  FR24 HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                return []
+            data=r.json()
+            flights=data.get("data",[])
+            print(f"  → {len(flights)} vols",flush=True)
+
+            # Grouper par destination
+            by_dest={}
+            for f in flights:
+                if direction_label=="departs":
+                    dest_iata=f.get("dest_iata","")
+                    city_key=dest_iata
+                else:
+                    dest_iata=f.get("orig_iata","")
+                    city_key=dest_iata
+                if not city_key: continue
+                if city_key not in by_dest: by_dest[city_key]=[]
+                status,status_label=_classify_flight(f)
+                flight_num=f.get("flight","") or f.get("callsign","")
+                airline=_get_airline_name(f)
+                by_dest[city_key].append({
+                    "airline":airline,
+                    "flight":flight_num,
+                    "status":status,
+                    "status_label":status_label,
+                    "alt":f.get("alt",0),
+                    "gspeed":f.get("gspeed",0)
+                })
+
             dests=[]
-            for target in targets:
-                dep=target["dep_iata"];arr=target["arr_iata"]
-                print(f"  AviationStack {dep}→{arr}...",flush=True)
-                today_str=datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                r=requests.get("https://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"flight_date":today_str,"limit":100},timeout=30)
-                if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
-                data=r.json()
-                if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
-                flights=data.get("data",[])
-                STATUS_PRIORITY={"active":6,"delayed":5,"diverted":4,"scheduled":3,"landed":2,"cancelled":1,"incident":1,"redirected":3,"unknown":0}
-                STATUS_LABELS={"scheduled":"Programmé","active":"En vol","cancelled":"Annulé","delayed":"Retardé","landed":"Atterri","diverted":"Dérouté","incident":"Incident","redirected":"Redirigé"}
-                seen_flights={}
-                for f in flights:
-                    fn=f.get("flight",{}).get("iata","")
+            for iata,fls in by_dest.items():
+                # Dédupliquer par numéro de vol
+                seen={}
+                STATUS_PRIORITY={"active":3,"scheduled":2,"unknown":0}
+                for fl in fls:
+                    fn=fl["flight"]
                     if not fn: continue
-                    raw_st=f.get("flight_status") or ""
-                    st=raw_st.strip().lower() if raw_st else "unknown"
-                    if st and st not in STATUS_LABELS: print(f"    Statut inconnu brut: '{raw_st}' pour vol {fn}",flush=True)
-                    entry={"airline":f.get("airline",{}).get("name","?"),"flight":fn,"status":st,"status_label":STATUS_LABELS.get(st,raw_st.strip().capitalize() if raw_st.strip() else "Inconnu")}
-                    if fn not in seen_flights or STATUS_PRIORITY.get(st,0)>STATUS_PRIORITY.get(seen_flights[fn]["status"],0):
-                        seen_flights[fn]=entry
-                dest_flights=list(seen_flights.values())
-                dests.append({"city":target["city"],"iata":arr if direction_label=="departs" else dep,"flights":dest_flights})
-                print(f"  → {len(dest_flights)} vols",flush=True)
-                time.sleep(1)
+                    if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
+                        seen[fn]=fl
+                deduped=list(seen.values())
+                city=AVIATION_CITY_NAMES.get(iata,iata)
+                dests.append({"city":city,"iata":iata,"flights":deduped})
+                print(f"    {city} ({iata}): {len(deduped)} vols",flush=True)
             return dests
 
-        departs=_fetch_routes(AVIATION_TARGETS_DEPART,"departs")
-        retours=_fetch_routes(AVIATION_TARGETS_RETOUR,"retours")
-        result={"departs":departs,"retours":retours,"last_check":datetime.now(timezone.utc).isoformat()}
-        # Garder "destinations" pour compatibilité (= departs)
-        result["destinations"]=departs
+        departs=_fetch_direction(AVIATION_ROUTES_DEPART,"departs")
+        time.sleep(1)
+        retours=_fetch_direction(AVIATION_ROUTES_RETOUR,"retours")
+
+        result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
         return result
-    except Exception as e: print(f"  AviationStack ERR: {e}",flush=True); return None
+    except Exception as e:
+        print(f"  FR24 ERR: {e}",flush=True)
+        return None
 
 def fetch_fin():
     res={}
@@ -652,9 +695,9 @@ def main():
         time.sleep(AI_PAUSE)
 
     rt=None
-    if AVIATIONSTACK_API_KEY:
-        print("\n--- AviationStack ---",flush=True)
-        rt=fetch_aviationstack(db)
+    if FR24_API_KEY:
+        print("\n--- FlightRadar24 ---",flush=True)
+        rt=fetch_fr24(db)
     if rt: sync_airlines(db,[],rt)
 
     print("\n--- Finance ---",flush=True)
