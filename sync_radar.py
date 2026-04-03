@@ -419,6 +419,9 @@ def fetch_flightaware(db):
 
         def _fetch_by_dest(direction_label):
             print(f"  FlightAware {direction_label}...",flush=True)
+            now_utc=datetime.now(timezone.utc)
+            start_of_day=now_utc.strftime("%Y-%m-%dT00:00:00Z")
+            end_of_day=now_utc.strftime("%Y-%m-%dT23:59:59Z")
             dests=[]
             for iata,city in FLIGHTAWARE_DESTINATIONS.items():
                 if direction_label=="departs":
@@ -427,11 +430,11 @@ def fetch_flightaware(db):
                     url=f"https://aeroapi.flightaware.com/aeroapi/airports/{iata}/flights/to/CDG"
                 print(f"    {city} ({iata})...",flush=True)
                 try:
-                    r=requests.get(url,params={"type":"Airline","max_pages":2},headers=headers,timeout=30)
+                    r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
                     if r.status_code==429:
                         print(f"    Rate limit 429 — attente 60s",flush=True)
                         time.sleep(60)
-                        r=requests.get(url,params={"type":"Airline","max_pages":2},headers=headers,timeout=30)
+                        r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
                     if r.status_code!=200:
                         print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
                         continue
