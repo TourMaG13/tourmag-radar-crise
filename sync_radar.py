@@ -447,6 +447,20 @@ def fetch_flightaware(db):
             data=r.json()
             flights=data.get(list_key,[])
             print(f"  → {len(flights)} vols totaux",flush=True)
+            if flights:
+                f0=flights[0]
+                if direction_label=="departs":
+                    dest0=f0.get("destination",{})
+                    print(f"  Exemple: {f0.get('ident_iata','?')} → dest={dest0.get('code_iata','?')} / {dest0.get('code_icao','?')} / {dest0.get('code','?')} city={dest0.get('city','?')}",flush=True)
+                else:
+                    orig0=f0.get("origin",{})
+                    print(f"  Exemple: {f0.get('ident_iata','?')} ← orig={orig0.get('code_iata','?')} / {orig0.get('code_icao','?')} / {orig0.get('code','?')} city={orig0.get('city','?')}",flush=True)
+                # Lister toutes les destinations/origines pour debug
+                if direction_label=="departs":
+                    all_dests=set(f.get("destination",{}).get("code_iata","") or f.get("destination",{}).get("code","") for f in flights)
+                else:
+                    all_dests=set(f.get("origin",{}).get("code_iata","") or f.get("origin",{}).get("code","") for f in flights)
+                print(f"  Toutes les destinations/origines: {all_dests}",flush=True)
 
             # Filtrer par destinations Moyen-Orient
             by_dest={}
