@@ -278,9 +278,6 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
   const gold=market['GC=F'],af=market['AF.PA'],air=market['AIR.PA'],ams=market['AMS.MC'];
   let h='';
 
-  // 0. FLASH (above hero)
-  const flashA=articles.length?articles[0]:null;
-  if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
 
   // 1. HERO — titre + essentiel + timeline + indicateurs
   h+=`<div class="hero fi">`;
@@ -333,6 +330,12 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
   });
   h+=`</div>`;
   h+=`</div>`; // end hero
+	
+	
+	// 0. FLASH (above hero)
+  const flashA=articles.length?articles[0]:null;
+  if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
+	
 
   // START 2-COLUMN LAYOUT
   h+=`<div class="layout">`;
