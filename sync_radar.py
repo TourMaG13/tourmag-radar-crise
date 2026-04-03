@@ -396,7 +396,7 @@ def fetch_fr24(db):
             return "scheduled","Programmé"
 
         def _get_airline_name(f):
-            icao=f.get("operated_as") or f.get("painted_as") or ""
+            icao=f.get("operating_as") or f.get("painted_as") or ""
             if icao in AIRLINE_NAMES: return AIRLINE_NAMES[icao]
             flight=f.get("flight","") or ""
             if flight:
@@ -443,7 +443,9 @@ def fetch_fr24(db):
                 else:
                     orig_icao=f.get("origin_icao","") or ""
                     iata=ICAO_TO_IATA.get(orig_icao,orig_icao)
-                if not iata: continue
+                if not iata: 
+                    print(f"    SKIP: pas d'IATA pour {f.get('dest_icao','?')}/{f.get('orig_icao','?')}",flush=True)
+                    continue
                 if iata not in by_dest: by_dest[iata]=[]
                 status,status_label=_classify_flight(f)
                 flight_num=f.get("flight","") or f.get("callsign","")
@@ -485,6 +487,7 @@ def fetch_fr24(db):
         retours=_fetch_direction(AVIATION_ROUTES_RETOUR,"retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
+        print(f"  FR24 résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
         return result
     except Exception as e:
         print(f"  FR24 ERR: {e}",flush=True)
@@ -724,7 +727,9 @@ def main():
     if FR24_API_KEY:
         print("\n--- FlightRadar24 ---",flush=True)
         rt=fetch_fr24(db)
-    if rt: sync_airlines(db,[],rt)
+    if rt: 
+        print(f"  Airlines sync: rt contient {len(rt.get('departs',[]))} departs, {len(rt.get('retours',[]))} retours",flush=True)
+        sync_airlines(db,[],rt)
 
     print("\n--- Finance ---",flush=True)
     fd=fetch_fin()
