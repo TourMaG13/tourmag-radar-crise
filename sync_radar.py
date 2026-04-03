@@ -339,11 +339,11 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-AVIATION_ROUTES_DEPART=["CDG-DXB","CDG-DOH","CDG-AUH","CDG-TLV","CDG-MCT","CDG-AMM"]
-AVIATION_ROUTES_RETOUR=["DXB-CDG","DOH-CDG","AUH-CDG","TLV-CDG","MCT-CDG","AMM-CDG"]
+AVIATION_ROUTES_DEPART=["LFPG-OMDB","LFPG-OTHH","LFPG-OMAA","LFPG-LLBG","LFPG-OOMS","LFPG-OJAI"]
+AVIATION_ROUTES_RETOUR=["OMDB-LFPG","OTHH-LFPG","OMAA-LFPG","LLBG-LFPG","OOMS-LFPG","OJAI-LFPG"]
+ICAO_TO_IATA={"LFPG":"CDG","OMDB":"DXB","OTHH":"DOH","OMAA":"AUH","LLBG":"TLV","OOMS":"MCT","OJAI":"AMM"}
 AVIATION_CITY_NAMES={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)","CDG":"Paris CDG"}
-# ICAO airline codes → display names
-AIRLINE_NAMES={"AFR":"Air France","UAE":"Emirates","QTR":"Qatar Airways","ETD":"Etihad","RJA":"Royal Jordanian","OMA":"Oman Air","THY":"Turkish Airlines","BAW":"British Airways","DLH":"Lufthansa","KLM":"KLM","EZY":"easyJet","TVF":"Transavia","SWR":"Swiss","AUA":"Austrian","BEL":"Brussels Airlines","RAM":"Royal Air Maroc","SVA":"Saudia","GIA":"Garuda","SIA":"Singapore Airlines","CPA":"Cathay Pacific","ELY":"El Al"}
+AIRLINE_NAMES={"AFR":"Air France","UAE":"Emirates","QTR":"Qatar Airways","ETD":"Etihad","RJA":"Royal Jordanian","OMA":"Oman Air","THY":"Turkish Airlines","BAW":"British Airways","DLH":"Lufthansa","KLM":"KLM","EZY":"easyJet","TVF":"Transavia","SWR":"Swiss","AUA":"Austrian","BEL":"Brussels Airlines","RAM":"Royal Air Maroc","SVA":"Saudia","ELY":"El Al","TRA":"Transavia","HHN":"Hahn Air"}
 
 def fetch_fr24(db):
     if not FR24_API_KEY: return None
@@ -374,75 +374,99 @@ def fetch_fr24(db):
     except: pass
     try:
         headers={"Accept":"application/json","Accept-Version":"v1","Authorization":f"Bearer {FR24_API_KEY}"}
+        now_utc=datetime.now(timezone.utc)
+        dt_from=now_utc.strftime("%Y-%m-%dT00:00:00")
+        dt_to=now_utc.strftime("%Y-%m-%dT23:59:59")
 
         def _classify_flight(f):
-            """Détermine le statut d'un vol à partir de l'altitude et la vitesse"""
-            alt=f.get("alt",0) or 0
-            gspeed=f.get("gspeed",0) or 0
-            eta=f.get("eta","")
-            if alt>5000 and gspeed>200:
+            """Détermine le statut d'un vol à partir des champs summary"""
+            ended=f.get("flight_ended",None)
+            takeoff=f.get("datetime_takeoff","")
+            landed=f.get("datetime_landed","")
+            if landed and ended==True:
+                return "landed","Atterri"
+            if takeoff and not landed and ended==False:
                 return "active","En vol"
-            elif alt>0 and gspeed>50:
-                return "active","En vol"
-            elif gspeed>0 and gspeed<=50:
-                return "scheduled","Au sol"
-            else:
+            if takeoff and not landed and ended==True:
+                # Vol terminé sans atterrissage détecté = probablement atterri
+                return "landed","Atterri"
+            if not takeoff and ended==False:
+                # Pas encore décollé, en cours de suivi
                 return "scheduled","Programmé"
+            return "scheduled","Programmé"
 
         def _get_airline_name(f):
-            """Récupère le nom de la compagnie"""
-            icao=f.get("operating_as") or f.get("painted_as") or ""
+            icao=f.get("operated_as") or f.get("painted_as") or ""
             if icao in AIRLINE_NAMES: return AIRLINE_NAMES[icao]
-            # Extraire depuis le numéro de vol (2-3 premières lettres)
             flight=f.get("flight","") or ""
             if flight:
-                prefix=flight[:2] if flight[2:3].isdigit() else flight[:3]
-                # Mapping IATA courants
+                prefix=flight[:2] if len(flight)>2 and flight[2:3].isdigit() else flight[:3]
                 iata_map={"AF":"Air France","EK":"Emirates","QR":"Qatar Airways","EY":"Etihad","RJ":"Royal Jordanian","WY":"Oman Air","TK":"Turkish Airlines","BA":"British Airways","LH":"Lufthansa","KL":"KLM","U2":"easyJet","TO":"Transavia","LX":"Swiss","OS":"Austrian","SN":"Brussels Airlines","AT":"Royal Air Maroc","SV":"Saudia","LY":"El Al"}
                 if prefix in iata_map: return iata_map[prefix]
             return icao if icao else "Inconnu"
 
+        def _format_time(dt_str):
+            """Extrait l'heure HH:MM depuis un datetime UTC"""
+            if not dt_str: return ""
+            try:
+                t=datetime.fromisoformat(dt_str.replace("Z","+00:00"))
+                # Convertir en heure Paris
+                try:
+                    from zoneinfo import ZoneInfo as ZI
+                except ImportError:
+                    from backports.zoneinfo import ZoneInfo as ZI
+                t_paris=t.astimezone(ZI("Europe/Paris"))
+                return t_paris.strftime("%Hh%M")
+            except: return ""
+
         def _fetch_direction(routes,direction_label):
             route_str=",".join(routes)
             print(f"  FR24 {direction_label}: {route_str}",flush=True)
-            r=requests.get("https://fr24api.flightradar24.com/api/live/flight-positions/full",
-                params={"routes":route_str,"categories":"P","limit":300},
+            r=requests.get("https://fr24api.flightradar24.com/api/flight-summary/light",
+                params={"flight_datetime_from":dt_from,"flight_datetime_to":dt_to,"routes":route_str,"limit":500,"sort":"asc"},
                 headers=headers,timeout=30)
             if r.status_code!=200:
-                print(f"  FR24 HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                print(f"  FR24 HTTP {r.status_code}: {r.text[:300]}",flush=True)
                 return []
             data=r.json()
             flights=data.get("data",[])
             print(f"  → {len(flights)} vols",flush=True)
 
-            # Grouper par destination
+            # Grouper par destination/origine
             by_dest={}
             for f in flights:
                 if direction_label=="departs":
-                    dest_iata=f.get("dest_iata","")
-                    city_key=dest_iata
+                    dest_icao=f.get("destination_icao","") or ""
+                    iata=ICAO_TO_IATA.get(dest_icao,dest_icao)
                 else:
-                    dest_iata=f.get("orig_iata","")
-                    city_key=dest_iata
-                if not city_key: continue
-                if city_key not in by_dest: by_dest[city_key]=[]
+                    orig_icao=f.get("origin_icao","") or ""
+                    iata=ICAO_TO_IATA.get(orig_icao,orig_icao)
+                if not iata: continue
+                if iata not in by_dest: by_dest[iata]=[]
                 status,status_label=_classify_flight(f)
                 flight_num=f.get("flight","") or f.get("callsign","")
                 airline=_get_airline_name(f)
-                by_dest[city_key].append({
+                takeoff=f.get("datetime_takeoff","")
+                landed=f.get("datetime_landed","")
+                detail=status_label
+                if status=="scheduled" and not takeoff:
+                    detail="Programmé"
+                elif status=="active":
+                    detail=f"En vol · Départ {_format_time(takeoff)}" if takeoff else "En vol"
+                elif status=="landed":
+                    detail=f"Atterri · {_format_time(landed)}" if landed else "Atterri"
+                by_dest[iata].append({
                     "airline":airline,
                     "flight":flight_num,
                     "status":status,
-                    "status_label":status_label,
-                    "alt":f.get("alt",0),
-                    "gspeed":f.get("gspeed",0)
+                    "status_label":detail
                 })
 
             dests=[]
             for iata,fls in by_dest.items():
                 # Dédupliquer par numéro de vol
                 seen={}
-                STATUS_PRIORITY={"active":3,"scheduled":2,"unknown":0}
+                STATUS_PRIORITY={"active":3,"scheduled":2,"landed":1,"unknown":0}
                 for fl in fls:
                     fn=fl["flight"]
                     if not fn: continue
