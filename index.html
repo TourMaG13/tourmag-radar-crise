@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-:root{--pri:#1B1B2F;--acc:#E8842C;--acc2:#D4731D;--blue:#0C6CA1;--green:#059669;--orange:#EA580C;--red:#DC2626;--amber:#D97706;--violet:#7C3AED;--cyan:#0891B2;--bg:#FFFFFF;--card:#FFF;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;--border:#E5E7EB;--rl:16px;--shadow:0 2px 12px rgba(0,0,0,.06)}
+:root{--pri:#1B1B2F;--acc:#E8842C;--acc2:#D4731D;--blue:#0C6CA1;--green:#059669;--orange:#EA580C;--red:#DC2626;--amber:#D97706;--violet:#7C3AED;--cyan:#0891B2;--bg:#FFFFFF;--card:#FFF;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;--border:#E5E7EB;--rl:16px;--shadow:0 2px 12px rgba(0,0,0,.06);--hero-color:#2D1B4E}
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 .leaflet-container{touch-action:pan-y!important}
 @media(max-width:768px){.leaflet-container{pointer-events:none}.map-touch-overlay{position:absolute;inset:0;z-index:500;background:transparent}}
@@ -21,13 +21,12 @@
 .sl{font-family:'Josefin Sans';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--text3);margin:36px 0 14px;display:flex;align-items:center;gap:8px}.sl::after{content:'';flex:1;height:1px;background:var(--border)}
 .fi{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}.fi.vis{opacity:1;transform:translateY(0)}
 .bdg-new{display:inline-block;font-size:8px;font-weight:700;color:#fff;background:var(--acc);padding:2px 8px;border-radius:4px;margin-left:6px;letter-spacing:.5px;vertical-align:middle}
-.hero{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border-radius:var(--rl);padding:28px 36px 24px;margin-bottom:44px;position:relative;overflow:hidden}
+.hero{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border-radius:var(--rl);padding:28px 36px 24px;margin-bottom:28px;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:-40px;right:-40px;width:340px;height:340px;background:radial-gradient(circle,rgba(232,132,44,.12) 0%,transparent 70%);pointer-events:none}
 .hero::after{content:'';position:absolute;bottom:-30px;left:-30px;width:240px;height:240px;background:radial-gradient(circle,rgba(220,38,38,.08) 0%,transparent 70%);pointer-events:none}
 .hero-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative}
 .hero-title{font-family:'Josefin Sans';font-size:22px;font-weight:700;color:#fff}
 .hero-day{display:flex;align-items:center;gap:8px}.hd-num{font-family:'IBM Plex Mono';font-size:24px;font-weight:600;color:var(--acc)}.hd-lbl{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1.5px}
-/* Essentiel cards inside hero */
 .hero-ess-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;position:relative}
 @media(max-width:768px){.hero-ess-grid{grid-template-columns:1fr}}
 .hero-ess-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-left:3px solid transparent}
@@ -38,7 +37,6 @@
 .hero-ess-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:2px 6px;border-radius:3px;white-space:nowrap}
 .hero-ess-tag[data-t="AÉRIEN"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="GÉOPOLITIQUE"]{background:rgba(248,113,113,.2);color:#FCA5A5}.hero-ess-tag[data-t="DESTINATIONS"]{background:rgba(96,165,250,.2);color:#93C5FD}.hero-ess-tag[data-t="JURIDIQUE"]{background:rgba(251,191,36,.2);color:#FDE68A}.hero-ess-tag[data-t="TOUR-OPÉRATEURS"]{background:rgba(52,211,153,.2);color:#6EE7B7}.hero-ess-tag[data-t="CONSEIL"]{background:rgba(167,139,250,.2);color:#C4B5FD}.hero-ess-tag[data-t="CROISIÈRE"]{background:rgba(34,211,238,.2);color:#67E8F9}.hero-ess-tag[data-t="ÉCONOMIE"]{background:rgba(148,163,184,.2);color:#CBD5E1}.hero-ess-tag[data-t="HÔTELLERIE"]{background:rgba(251,146,60,.2);color:#FDBA74}.hero-ess-tag[data-t="ASSURANCE"]{background:rgba(244,114,182,.2);color:#F9A8D4}.hero-ess-tag[data-t="COMPAGNIES"]{background:rgba(129,140,248,.2);color:#A5B4FC}.hero-ess-tag[data-t="TECHNOLOGIE"]{background:rgba(45,212,191,.2);color:#5EEAD4}.hero-ess-tag[data-t="INFO"]{background:rgba(255,255,255,.1);color:rgba(255,255,255,.5)}
 .hero-ess-txt{font-size:11px;line-height:1.55;color:rgba(255,255,255,.7)}.hero-ess-txt strong{font-weight:700;color:#fff}
-/* Timeline */
 .hero-tl{position:relative;margin-bottom:18px;padding-top:8px}
 .hero-tl-track{display:grid;grid-template-columns:repeat(6,1fr);gap:0;position:relative}
 .hero-tl-track::before{content:'';position:absolute;top:14px;left:0;right:0;height:2px;background:rgba(255,255,255,.15)}
@@ -46,8 +44,7 @@
 .hero-tl-dot{width:12px;height:12px;border-radius:50%;background:var(--acc);border:3px solid rgba(27,27,47,.8);box-shadow:0 0 0 2px var(--acc);z-index:1;margin-bottom:8px}
 .hero-tl-date{font-family:'IBM Plex Mono';font-size:9px;color:var(--acc);font-weight:600;margin-bottom:3px}
 .hero-tl-ev{font-size:10px;color:rgba(255,255,255,.6);text-align:center;line-height:1.4;font-weight:400}
-@media(max-width:768px){.hero-tl-track{grid-template-columns:repeat(4,1fr)}.hero-tl-item:nth-child(-n+2){display:none}.hero-ess-grid{grid-template-columns:1fr}.hero-title{font-size:17px}.hero{padding:20px 12px 18px;margin-bottom:20px;border-radius:12px}}
-/* Indicators under timeline */
+@media(max-width:768px){.hero-tl-track{grid-template-columns:repeat(4,1fr)}.hero-tl-item:nth-child(-n+2){display:none}.hero-ess-grid{grid-template-columns:1fr}.hero-title{font-size:17px}.hero{padding:20px 12px 18px;margin-bottom:10px;border-radius:12px}}
 .hero-ind-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
 @media(max-width:768px){.hero-ind-row{grid-template-columns:repeat(3,1fr)}}
 .hero-ind-cell{display:flex;flex-direction:column;padding:8px 10px;cursor:pointer;transition:opacity .15s;text-decoration:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px}.hero-ind-cell:hover{opacity:.85}
@@ -80,7 +77,6 @@
 .vign-img{height:120px;overflow:hidden;background:#F1F5F9}.vign-img img{width:100%;height:100%;object-fit:cover}
 .vign-body{padding:12px 14px}.vign-body .vt{font-size:12px;font-weight:600;line-height:1.4;color:var(--text);margin-bottom:4px}.vign-body .vm{font-size:10px;color:var(--text3)}
 .vign-row{margin-bottom:32px}
-/* Map + MAE panel layout */
 .map-mae-row{display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:8px}
 @media(max-width:960px){.map-mae-row{grid-template-columns:1fr}}
 .map-full{border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;height:420px;position:relative;box-shadow:var(--shadow)}
@@ -89,7 +85,7 @@
 .mae-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;max-height:420px}
 .mae-panel-hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
 .mae-panel-hd h3{font-family:'Josefin Sans';font-size:12px;font-weight:700;color:var(--pri)}
-.mae-panel-hd .mae-count{font-size:9px;font-weight:700;color:#fff;background:var(--red);padding:2px 8px;border-radius:20px;margin-left:auto}
+.mae-panel-hd .mae-count{font-size:9px;font-weight:700;color:#fff;background:var(--hero-color);padding:2px 8px;border-radius:20px;margin-left:auto}
 .mae-panel-list{overflow-y:auto;flex:1}
 .mae-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}.mae-item:last-child{border-bottom:none}.mae-item:hover{background:#F8FAFC}
 .mae-item-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -107,7 +103,6 @@
 .mae-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:20px}
 .mae-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:9px;font-weight:500;cursor:pointer;transition:background .1s;white-space:nowrap}.mae-chip:hover{background:#FAFBFD}
 .mae-chip .md{width:7px;height:7px;border-radius:50%;flex-shrink:0}.mae-chip .md.red{background:var(--red)}.mae-chip .md.orange{background:var(--orange)}.mae-chip .md.yellow{background:var(--amber)}.mae-chip .md.green{background:var(--green)}.mae-chip .md.gray{background:#9CA3AF}
-/* Essentiel — même fond que hero/timeline */
 .ess2{background:linear-gradient(135deg,#1B1B2F 0%,#2D1B4E 40%,#1B1B2F 100%);border:none;border-radius:var(--rl);padding:28px 32px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.15);position:relative;overflow:hidden}
 .ess2::before{content:'';position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(232,132,44,.1) 0%,transparent 70%);pointer-events:none}
 .ess2-head{margin-bottom:6px;position:relative}.ess2-head h2{font-family:'Josefin Sans';font-size:18px;font-weight:700;color:#fff}
@@ -122,7 +117,6 @@
 .ess2-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap;text-align:center}
 .ess2-tag[data-t="AÉRIEN"]{background:#DBEAFE;color:#1E40AF}.ess2-tag[data-t="GÉOPOLITIQUE"]{background:#FEE2E2;color:#991B1B}.ess2-tag[data-t="DESTINATIONS"]{background:#DBEAFE;color:#1E3A5F}.ess2-tag[data-t="JURIDIQUE"]{background:#FEF3C7;color:#92400E}.ess2-tag[data-t="TOUR-OPÉRATEURS"]{background:#D1FAE5;color:#065F46}.ess2-tag[data-t="CONSEIL"]{background:#EDE9FE;color:#5B21B6}.ess2-tag[data-t="CROISIÈRE"]{background:#CFFAFE;color:#155E75}.ess2-tag[data-t="ÉCONOMIE"]{background:#F1F5F9;color:#334155}.ess2-tag[data-t="HÔTELLERIE"]{background:#FFEDD5;color:#9A3412}.ess2-tag[data-t="ASSURANCE"]{background:#FCE7F3;color:#9D174D}.ess2-tag[data-t="COMPAGNIES"]{background:#E0E7FF;color:#3730A3}.ess2-tag[data-t="TECHNOLOGIE"]{background:#CCFBF1;color:#115E59}.ess2-tag[data-t="INFO"]{background:#F1F5F9;color:#475569}
 .ess2-txt{font-size:12px;line-height:1.6;color:rgba(255,255,255,.85)}.ess2-txt strong{font-weight:700;color:#FDBA74}
-/* Conseils — jaune/ambre dégradé */
 .act-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:var(--rl);padding:24px 28px;margin-bottom:20px}
 .act-box h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#78350F;margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -142,7 +136,6 @@
 .dep-rt-dest{margin-bottom:12px}
 .dep-rt-dest-name{font-family:'Josefin Sans';font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
 .dep-rt-flights{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
-/* Accordéon destinations */
 .dep-acc{border-bottom:1px solid rgba(255,255,255,.06)}.dep-acc:last-child{border-bottom:none}
 .dep-acc-hd{display:flex;align-items:center;gap:12px;padding:14px 0;cursor:pointer;transition:opacity .15s}.dep-acc-hd:hover{opacity:.8}
 .dep-acc-left{display:flex;align-items:center;gap:10px}
@@ -164,14 +157,20 @@
 @keyframes dpls{0%,100%{opacity:1}50%{opacity:.4}}
 .dep-name{font-family:'IBM Plex Mono';font-size:12px;font-weight:500;color:rgba(255,255,255,.85)}.dep-det{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px}
 .side-col .cd{margin-bottom:14px}
-.cd{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
-.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#FEF3C7;color:#92400E}.cd .ci svg{width:16px;height:16px}.cd .ct{font-family:'Josefin Sans';font-size:15px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto}
-.cd-aerien{border-top:3px solid #3B82F6}.cd-institutionnel{border-top:3px solid var(--violet)}.cd-croisiere{border-top:3px solid var(--cyan)}.cd-juridique{border-top:3px solid var(--amber)}.cd-solutions{border-top:3px solid var(--green)}.cd-geopolitique{border-top:3px solid #DC2626}.cd-economie{border-top:3px solid #64748B}.cd-destinations{border-top:3px solid #2563EB}
+.cd{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow);border-top:3px solid var(--hero-color)}
+.cd .hd{display:flex;align-items:center;gap:8px;padding:12px 14px}.cd .ci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#FEF3C7;color:#92400E}.cd .ci svg{width:16px;height:16px}.cd .ct{font-family:'Josefin Sans';font-size:15px;font-weight:700}.cd .cc{font-size:9px;font-weight:700;color:#fff;padding:2px 8px;border-radius:20px;margin-left:auto;background:var(--hero-color)}
 .ni{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:center}.ni:first-of-type{border-top:none}.ni:hover{background:#F8FAFC}.ni .nt{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}.ni .nm{font-size:10px;color:var(--text3);margin-top:2px}.ni-body{flex:1;min-width:0}
 .ni-img{width:48px;height:36px;border-radius:5px;object-fit:cover;flex-shrink:0}
+/* Config A: 2 articles, bigger images */
+.ni-img.cfg-a{width:100px;height:75px;border-radius:8px}
+/* Config B: no images, 3 articles */
 .jur{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:flex-start}.jur:first-of-type{border-top:none}.jur:hover{background:#FFFDF5}.jur-d{width:7px;height:7px;border-radius:50%;background:var(--amber);margin-top:5px;flex-shrink:0}.jur-t{font-size:13px;color:var(--text);line-height:1.4;font-weight:500}.jur-m{font-size:10px;color:var(--text3);margin-top:2px}
 .sol{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;transition:background .1s}.sol:first-of-type{border-top:none}.sol:hover{background:#F0FDF8}.sol-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}.sol-badge{background:#DCFCE7;color:#166534;font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px}.sol-t{font-size:13px;font-weight:600;line-height:1.4}.sol-s{font-size:9px;color:var(--text3)}.sol-d{font-size:10px;color:var(--text2);line-height:1.4;margin-top:3px}
+/* Accordéon voir plus */
 .voir-plus{display:block;padding:8px 14px;font-size:10px;font-weight:600;color:var(--acc2);text-align:center;cursor:pointer;border-top:1px solid var(--border);transition:background .1s}.voir-plus:hover{background:#FFF7ED}
+.cd-expand{max-height:300px;overflow-y:auto;border-top:1px solid var(--border);display:none}
+.cd-expand.open{display:block}
+.cd-expand::-webkit-scrollbar{width:4px}.cd-expand::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:2px}
 .edito-trib{background:var(--pri);border-radius:var(--rl);padding:28px 32px;margin-bottom:20px;position:relative;overflow:hidden;max-width:100%;box-sizing:border-box}
 .edito-trib::before{content:'«';position:absolute;top:10px;left:20px;font-family:'Playfair Display',serif;font-size:160px;color:rgba(255,255,255,.06);line-height:1;pointer-events:none}
 .edito-trib::after{content:'»';position:absolute;bottom:-20px;right:30px;font-family:'Playfair Display',serif;font-size:160px;color:rgba(255,255,255,.04);line-height:1;pointer-events:none}
@@ -203,6 +202,9 @@
 .mo-it .mi-bd{flex:1;min-width:0}.mo-it .mi-t{font-size:12px;font-weight:500;color:var(--text);line-height:1.35}.mo-it .mi-m{font-size:9px;color:var(--text3);margin-top:2px}
 .mo-pag{display:flex;align-items:center;justify-content:center;gap:5px;padding:10px 20px;border-top:1px solid var(--border);flex-shrink:0}
 .mo-pag-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);transition:background .1s}.mo-pag-btn:hover{background:#F5F6F8}.mo-pag-btn.active{background:var(--acc);color:#fff;border-color:var(--acc)}.mo-pag-btn.disabled{opacity:.3;cursor:default}
+/* Config switcher */
+.cfg-switch{position:fixed;bottom:16px;right:16px;z-index:9999;display:flex;gap:4px;background:var(--pri);padding:6px 8px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.cfg-btn{padding:6px 12px;font-size:10px;font-weight:700;font-family:'Josefin Sans';color:rgba(255,255,255,.5);background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;transition:all .15s}.cfg-btn:hover{color:rgba(255,255,255,.7)}.cfg-btn.active{color:#fff;background:var(--acc);border-color:var(--acc)}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
 </style>
 </head>
@@ -218,6 +220,9 @@
 <script>
 firebase.initializeApp({apiKey:"AIzaSyCfHDITaX1diIWMYixW7ABefgpiRmvPPu8",authDomain:"tourmag-radar-crise.firebaseapp.com",projectId:"tourmag-radar-crise",storageBucket:"tourmag-radar-crise.firebasestorage.app",messagingSenderId:"960868555494",appId:"1:960868555494:web:1e96c9ea31df6c9685b927"});
 const db=firebase.firestore();
+
+let lastRenderData=null;
+
 const EDITO_TAGS=["expert","spokojny","guena","remi duchange","futuroscopie","eric didier","mazzola","duthion","camille le guilloux","cousin","jean pinard","messager","habibou","du boucher","daniel borja","delporte","gallo","jansen","pointet","ramond","rodolphe lenoir","guillaume vigneron"];
 function hasEditoTag(tags){if(!tags||!tags.length)return false;return tags.some(t=>EDITO_TAGS.some(et=>t.toLowerCase().includes(et)))}
 const fD=d=>{if(!d)return'';const t=d.toDate?d.toDate():new Date(d);return t.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})};
@@ -229,8 +234,33 @@ function isNew(d){if(!d)return false;const t=d.toDate?d.toDate():new Date(d);ret
 function nb(d){return isNew(d)?'<span class="bdg-new">NOUVEAU</span>':''}
 const CN={israel:'Israël',liban:'Liban',iran:'Iran',irak:'Irak',syrie:'Syrie',jordanie:'Jordanie',egypte:'Égypte',turquie:'Turquie',arabie_saoudite:'Arabie Saoudite',emirats:'Émirats',qatar:'Qatar',oman:'Oman',bahrein:'Bahreïn',koweit:'Koweït',yemen:'Yémen',chypre:'Chypre',grece:'Grèce'};
 const CC={israel:[31.5,34.8],liban:[33.9,35.8],iran:[32.4,53.7],irak:[33.2,43.7],syrie:[35,38.5],jordanie:[31.2,36.5],egypte:[26.8,30.8],turquie:[39,35.2],arabie_saoudite:[23.9,45.1],emirats:[24.5,54.4],qatar:[25.3,51.2],oman:[21.5,56],bahrein:[26.1,50.5],koweit:[29.3,47.5],yemen:[15.5,48.5],chypre:[35.1,33.4],grece:[39,22]};
-const CATS={aerien:{l:'Aérien',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',bg:'#DBEAFE',c:'#1E40AF',cc:'#3B82F6'},institutionnel:{l:'Institutionnel',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',bg:'#EDE9FE',c:'#5B21B6',cc:'#7C3AED'},croisiere:{l:'Croisière',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M3 17l1.5-5H8V7h3V4h2v3h3v5h3.5L21 17H3zm-1 2c1.5 0 2.5-.8 4-.8s2.5.8 4 .8 2.5-.8 4-.8 2.5.8 4 .8 2.5-.8 4-.8v2c-1.5 0-2.5.8-4 .8s-2.5-.8-4-.8-2.5.8-4 .8-2.5-.8-4-.8-2.5.8-4 .8v-2z"/></svg>',bg:'#CFFAFE',c:'#155E75',cc:'#0891B2'},juridique:{l:'Juridique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7l7-4 7 4"/><path d="M5 7v4c0 1.1.9 2 2 2h2M19 7v4c0 1.1-.9 2-2 2h-2M8 21h8"/></svg>',bg:'#FEF3C7',c:'#92400E',cc:'#D97706'},solutions:{l:'Solutions pros',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2v1"/><path d="M15.5 5.5A5 5 0 0 0 7 9c0 2.5 1.5 4 3 5v4h4v-4c1.5-1 3-2.5 3-5a5 5 0 0 0-1.5-3.5z"/></svg>',bg:'#D1FAE5',c:'#065F46',cc:'#059669'},geopolitique:{l:'Géopolitique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',bg:'#FEE2E2',c:'#991B1B',cc:'#DC2626'},economie:{l:'Économie & données',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',bg:'#F1F5F9',c:'#334155',cc:'#64748B'},destinations:{l:'Destinations',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',bg:'#DBEAFE',c:'#1E3A5F',cc:'#2563EB'},general:{l:'Autres actualités',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>',bg:'#F1F5F9',c:'#6B7280',cc:'#9CA3AF'}};
-let ABC={},MAE={},BYCAT={};let pt=null;
+
+// Keywords for reclassifying "general" articles
+const CAT_KEYWORDS={
+  aerien:['vol','aérien','avion','compagnie','airline','aéroport','airport','air france','emirates','ryanair','lufthansa','easyjet','transavia','airbus','boeing','iata'],
+  croisiere:['croisière','cruise','paquebot','msc','costa','ponant','royal caribbean','carnival','ncl','bateau'],
+  juridique:['juridique','loi','règlement','directive','tribunal','cour','contentieux','litige','indemnisation','remboursement','annulation','cgv','assurance','responsabilité'],
+  solutions:['solution','innovation','outil','plateforme','technologie','digital','application','logiciel','amadeus','sabre','travelport'],
+  geopolitique:['guerre','conflit','frappe','missile','iran','israël','hezbollah','hamas','cessez','sanctions','diplomatie','onu','otan','tensions','militaire','armée','attentat','terrorisme'],
+  institutionnel:['mae','quai d\'orsay','diplomatie','ambassade','consulat','gouvernement','ministère','commission','dgac','préfecture'],
+  economie:['économie','pib','inflation','cours','brent','pétrole','bourse','marché','croissance','récession','chômage','tourisme chiffres','fréquentation'],
+  destinations:['destination','séjour','hôtel','resort','plage','circuit','excursion','voyage','touriste','visiteur','office de tourisme','grèce','chypre','jordanie','égypte','turquie','oman','dubaï','qatar']
+};
+function reclassifyGeneral(articles){
+  articles.forEach(a=>{
+    if(a.category!=='general')return;
+    const txt=((a.title||'')+' '+(a.description||'')).toLowerCase();
+    let bestCat='geopolitique',bestScore=0;
+    for(const[cat,kws]of Object.entries(CAT_KEYWORDS)){
+      const score=kws.reduce((s,kw)=>s+(txt.includes(kw)?1:0),0);
+      if(score>bestScore){bestScore=score;bestCat=cat}
+    }
+    a.category=bestCat;
+  });
+}
+
+const CATS={aerien:{l:'Aérien',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',bg:'#DBEAFE',c:'#1E40AF',cc:'var(--hero-color)'},institutionnel:{l:'Institutionnel',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',bg:'#EDE9FE',c:'#5B21B6',cc:'var(--hero-color)'},croisiere:{l:'Croisière',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M3 17l1.5-5H8V7h3V4h2v3h3v5h3.5L21 17H3zm-1 2c1.5 0 2.5-.8 4-.8s2.5.8 4 .8 2.5-.8 4-.8 2.5.8 4 .8 2.5-.8 4-.8v2c-1.5 0-2.5.8-4 .8s-2.5-.8-4-.8-2.5.8-4 .8-2.5-.8-4-.8-2.5.8-4 .8v-2z"/></svg>',bg:'#CFFAFE',c:'#155E75',cc:'var(--hero-color)'},juridique:{l:'Juridique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7l7-4 7 4"/><path d="M5 7v4c0 1.1.9 2 2 2h2M19 7v4c0 1.1-.9 2-2 2h-2M8 21h8"/></svg>',bg:'#FEF3C7',c:'#92400E',cc:'var(--hero-color)'},solutions:{l:'Solutions pros',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2v1"/><path d="M15.5 5.5A5 5 0 0 0 7 9c0 2.5 1.5 4 3 5v4h4v-4c1.5-1 3-2.5 3-5a5 5 0 0 0-1.5-3.5z"/></svg>',bg:'#D1FAE5',c:'#065F46',cc:'var(--hero-color)'},geopolitique:{l:'Géopolitique',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',bg:'#FEE2E2',c:'#991B1B',cc:'var(--hero-color)'},economie:{l:'Économie & données',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',bg:'#F1F5F9',c:'#334155',cc:'var(--hero-color)'},destinations:{l:'Destinations',i:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',bg:'#DBEAFE',c:'#1E3A5F',cc:'var(--hero-color)'}};
+let ABC={},MAE={},BYCAT={};let pt=null;let mapInstance=null;
 
 function rH(cfg){
   document.getElementById('hdr').style.display='none';
@@ -243,17 +273,18 @@ document.getElementById('mp-b').innerHTML=arts.slice(0,10).map(a=>`<div class="p
 function hideP(f){if(f){document.getElementById('mp').classList.remove('show');pt=null}else{pt=setTimeout(()=>{document.getElementById('mp').classList.remove('show')},300)}}
 function cancelH(){if(pt){clearTimeout(pt);pt=null}}
 
-let moPage=0;const MO_PER_PAGE=8;
-function openMo(cat,page){
-  moPage=page||0;const cf=CATS[cat]||CATS.general;const arts=BYCAT[cat]||[];if(!arts.length)return;
-  const tp=Math.ceil(arts.length/MO_PER_PAGE),pa=arts.slice(moPage*MO_PER_PAGE,(moPage+1)*MO_PER_PAGE);
-  document.getElementById('mo-hd').innerHTML=`<div class="ci" style="background:${cf.bg};color:${cf.c}">${cf.i}</div><span class="mt">${cf.l}</span><span class="mc" style="background:${cf.cc}">${arts.length}</span><button class="cls" onclick="closeMo()">&times;</button>`;
-  let h=pa.map(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="mi-img" onerror="this.remove()">`:'';return`<div class="mo-it" onclick="window.open('${a.link}','_blank')">${img}<div class="mi-bd"><div class="mi-t">${a.title}${nb(a.pub_date)}</div><div class="mi-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`}).join('');
-  if(tp>1){h+=`<div class="mo-pag"><div class="mo-pag-btn ${moPage===0?'disabled':''}" onclick="${moPage>0?`openMo('${cat}',${moPage-1})`:''}">‹</div>`;for(let p=0;p<tp;p++){h+=`<div class="mo-pag-btn ${p===moPage?'active':''}" onclick="openMo('${cat}',${p})">${p+1}</div>`}h+=`<div class="mo-pag-btn ${moPage>=tp-1?'disabled':''}" onclick="${moPage<tp-1?`openMo('${cat}',${moPage+1})`:''}">›</div></div>`}
-  document.getElementById('mo-bd').innerHTML=h;
-  positionModal();document.body.style.overflow='hidden';document.getElementById('mo-bd').scrollTop=0}
-function positionModal(){const mo=document.getElementById('modal');mo.classList.add('show');window.parent.postMessage({type:'radar-get-position'},'*');const st=window.scrollY||0;const vh=window.innerHeight||document.documentElement.clientHeight;mo.style.top=st+'px';mo.style.height=vh+'px'}
-window.addEventListener('message',function(e){if(e.data&&e.data.type==='radar-position-response'){const mo=document.getElementById('modal');if(mo&&mo.classList.contains('show')){mo.style.top=e.data.offsetTop+'px';mo.style.height=e.data.viewportHeight+'px'}}});
+function toggleExpand(cat){
+  const el=document.getElementById('expand-'+cat);
+  const btn=document.getElementById('btn-'+cat);
+  if(!el)return;
+  const isOpen=el.classList.contains('open');
+  el.classList.toggle('open');
+  const total=BYCAT[cat]?BYCAT[cat].length:0;
+  const shown=2;
+  btn.textContent=isOpen?`Voir les ${total-shown} autres ▾`:'Réduire ▴';
+  if(typeof sendHeight==='function')setTimeout(sendHeight,50);
+}
+
 function closeMo(){document.getElementById('modal').classList.remove('show');document.body.style.overflow=''}
 
 function switchFlightTab(dir){
@@ -264,10 +295,12 @@ function switchFlightTab(dir){
   if(typeof sendHeight==='function')setTimeout(sendHeight,50);
 }
 
-
 function render({articles,market,mae,config,synthesis,timeline,airlines,conseils}){
+  lastRenderData={articles,market,mae,config,synthesis,timeline,airlines,conseils};
   rH(config);MAE=mae;
-  const byCat={};articles.forEach(a=>{const c=a.category||'general';if(!byCat[c])byCat[c]=[];byCat[c].push(a)});BYCAT=byCat;
+  // Reclassify "general" into best-matching category
+  reclassifyGeneral(articles);
+  const byCat={};articles.forEach(a=>{const c=a.category||'geopolitique';if(!byCat[c])byCat[c]=[];byCat[c].push(a)});BYCAT=byCat;
   ABC={};articles.forEach(a=>(a.countries||[]).forEach(c=>{if(!ABC[c])ABC[c]=[];ABC[c].push(a)}));
   let uneA=null;
   if(config.featured_article){const fa=config.featured_article;uneA={title:fa.title,link:fa.link,description:fa.description,image_url:fa.image_url,author:fa.author,pub_date:fa.pub_date?new Date(fa.pub_date):null}}
@@ -276,14 +309,12 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
   const crisisStart=new Date('2026-02-28');const daysSince=Math.floor((Date.now()-crisisStart.getTime())/86400000);
   const br=market['brent'],eu=market['eurusd'];
   const gold=market['GC=F'],af=market['AF.PA'],air=market['AIR.PA'],ams=market['AMS.MC'];
+  const SHOW_COUNT=2;
   let h='';
 
-
-  // 1. HERO — titre + essentiel + timeline + indicateurs
+  // 1. HERO
   h+=`<div class="hero fi">`;
   h+=`<div class="hero-header"><div class="hero-title">⚡ L'essentiel de la crise</div><div class="hero-day"><span class="hd-num">Jour ${daysSince}</span><span class="hd-lbl">de la crise</span></div></div>`;
-
-  // Essentiel cards (6 points)
   const pts=synthesis&&synthesis.points?synthesis.points:null;
   if(pts&&pts.length){
     h+=`<div class="hero-ess-grid">`;
@@ -294,8 +325,6 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
     });
     h+=`</div>`;
   }
-
-  // Timeline
   const tl=timeline&&timeline.events?timeline.events:null;
   if(tl&&tl.length){
     const tlSorted=[...tl].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
@@ -307,16 +336,7 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
     });
     h+=`</div></div>`;
   }
-
-  // 6 indicateurs sous la timeline (alignés avec les 6 colonnes)
-  const heroInds=[
-    {key:eu,lbl:'EUR/USD',isFx:true},
-    {key:br,lbl:'Brent'},
-    {key:gold,lbl:'Or'},
-    {key:af,lbl:'Air France-KLM'},
-    {key:air,lbl:'Airbus'},
-    {key:ams,lbl:'Amadeus'}
-  ];
+  const heroInds=[{key:eu,lbl:'EUR/USD',isFx:true},{key:br,lbl:'Brent'},{key:gold,lbl:'Or'},{key:af,lbl:'Air France-KLM'},{key:air,lbl:'Airbus'},{key:ams,lbl:'Amadeus'}];
   h+=`<div class="hero-ind-row">`;
   heroInds.forEach(ind=>{
     if(ind.key){
@@ -328,29 +348,29 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
       h+=`<div class="hero-ind-cell"><div class="hic-lbl">${ind.lbl}</div><div class="hic-val">—</div></div>`;
     }
   });
-  h+=`</div>`;
-  h+=`</div>`; // end hero
-	
-	
-	// 0. FLASH (above hero)
+  h+=`</div></div>`;
+
+  // FLASH
   const flashA=articles.length?articles[0]:null;
   if(flashA){h+=`<div class="flash fi" onclick="window.open('${flashA.link}','_blank')"><span class="flash-badge">DERNIÈRE INFO</span><span class="flash-text">${flashA.title}</span><span class="flash-date">${fS(flashA.pub_date)}</span></div>`}
-	
 
-  // START 2-COLUMN LAYOUT
-  h+=`<div class="layout">`;
-  h+=`<div class="main-col">`;
+  // CONSEILS PRATIQUES (above UNE)
+  const CONSEILS_ICONS={annulation:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',destination:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',alerte:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',assurance:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',client:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',finance:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',information:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',avion:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>'};
+  const conseilsData=conseils&&conseils.conseils&&conseils.conseils.length?conseils.conseils:[{icon:'annulation',titre:"Vérifier les conditions d'annulation",texte:"Consultez les CGV de vos TO partenaires."},{icon:'destination',titre:"Proposer des alternatives",texte:"Grèce, Chypre, Jordanie, Oman."},{icon:'alerte',titre:"Suivre les alertes MAE",texte:"Consultez France Diplomatie quotidiennement."}];
+  // LAYOUT
+  h+=`<div class="layout"><div class="main-col">`;
 
-  // 2. UNE
+  // CONSEILS PRATIQUES (inside main-col, above UNE)
+  h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid">`;
+  conseilsData.forEach(c=>{const ico=CONSEILS_ICONS[c.icon]||CONSEILS_ICONS.information;h+=`<div class="act-card"><div class="act-icon">${ico}</div><div><div class="act-t">${c.titre}</div><div class="act-d">${c.texte}</div></div></div>`});
+  h+=`</div></div>`;
   if(!uneA||uneA.link===flashA?.link){uneA=null;for(const a of articles.slice(1,15)){if(vi(a.image_url)){uneA=a;break}}}
   if(uneA){h+=`<div class="une-h fi" onclick="window.open('${uneA.link}','_blank')"><div class="une-h-bg">${vi(uneA.image_url)?`<img src="${uneA.image_url}" alt="">`:''}</div><div class="une-h-ov"></div><div class="une-h-bd"><span class="bdg">À la une</span><h3>${uneA.title}</h3><div class="ch">${uneA.description?uneA.description.substring(0,250)+'...':''}</div><div class="mt">${uneA.author||'TourMaG'} — ${fD(uneA.pub_date)} · <a href="${uneA.link}" target="_blank" onclick="event.stopPropagation()">Lire →</a></div></div></div>`}
-
-  // 4. 3 VIGNETTES
   const usedLinks=new Set([flashA?.link,uneA?.link].filter(Boolean));
   const vignArts=articles.filter(a=>!usedLinks.has(a.link)&&vi(a.image_url)).slice(0,3);
   if(vignArts.length){h+=`<div class="vign-row fi">`;vignArts.forEach(a=>{h+=`<div class="vign" onclick="window.open('${a.link}','_blank')"><div class="vign-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.background='#E5E7EB'"></div><div class="vign-body"><div class="vt">${a.title}${nb(a.pub_date)}</div><div class="vm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`});h+=`</div>`}
 
-  // EDITO — L'avis de nos experts (moved here, after vignettes)
+  // EDITO
   const editoAll=byCat['edito']||[];
   const expertArts=articles.filter(a=>{
     if(a.category==='edito')return false;
@@ -368,152 +388,114 @@ function render({articles,market,mae,config,synthesis,timeline,airlines,conseils
   h+=`<div class="edito-trib-card" onclick="window.open('${a.link}','_blank')"><div class="et-img"><img src="${a.image_url}" alt="" onerror="this.parentElement.style.display='none'"></div><div class="et-content"><div class="et-title">${a.title}</div><div class="et-desc">${a.description?a.description.substring(0,150)+'...':''}</div><div><span class="et-author">${a.author||'La rédaction'}</span><span class="et-date"> · ${fS(a.pub_date)}</span></div></div></div>`});
   h+=`</div></div>`}
 
-  // 6. CONSEILS — dynamiques depuis Firestore avec fallback
-  const CONSEILS_ICONS={
-    annulation:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
-    destination:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
-    alerte:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',
-    assurance:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
-    client:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
-    finance:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
-    information:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
-    avion:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#92400E" stroke="none"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>'
-  };
-  const conseilsData=conseils&&conseils.conseils&&conseils.conseils.length?conseils.conseils:[
-    {icon:'annulation',titre:"Vérifier les conditions d'annulation",texte:"Consultez les CGV de vos TO partenaires. Les conditions de force majeure varient selon les opérateurs."},
-    {icon:'destination',titre:"Proposer des alternatives",texte:"Grèce, Chypre, Jordanie, Oman : orientez vos clients vers des destinations accessibles."},
-    {icon:'alerte',titre:"Suivre les alertes MAE",texte:"Consultez France Diplomatie quotidiennement. Les niveaux d'alerte impactent vos ventes."}
-  ];
-  h+=`<div class="sl fi">Conseils pratiques pour les agents de voyages</div><div class="act-box fi"><div class="act-grid">`;
-  conseilsData.forEach(c=>{
-    const ico=CONSEILS_ICONS[c.icon]||CONSEILS_ICONS.information;
-    h+=`<div class="act-card"><div class="act-icon">${ico}</div><div><div class="act-t">${c.titre}</div><div class="act-d">${c.texte}</div></div></div>`;
-  });
-  h+=`</div></div>`;
-
-  // 7. AIRLINES — temps réel AviationStack avec onglets départs/retours
+  // AIRLINES
   const realtime=airlines&&airlines.realtime?airlines.realtime:null;
   if(realtime){
-    const departs=realtime.departs||realtime.destinations||[];
-    const retours=realtime.retours||[];
+    const departs=realtime.departs||realtime.destinations||[];const retours=realtime.retours||[];
     if(departs.length||retours.length){
     h+=`<div class="sl fi">Statut des vols — Moyen-Orient</div><div class="dep-board fi">`;
     h+=`<div class="dep-rt-hd"><span class="dep-rt-upd">Vérifié ${realtime.last_check?fT(realtime.last_check):''}</span></div>`;
-    // Tabs
     h+=`<div class="dep-tabs">`;
     if(departs.length) h+=`<div class="dep-tab active" onclick="switchFlightTab('dep')" id="tab-dep">Paris CDG → Moyen-Orient</div>`;
     if(retours.length) h+=`<div class="dep-tab${departs.length?'':' active'}" onclick="switchFlightTab('ret')" id="tab-ret">Moyen-Orient → Paris CDG</div>`;
     h+=`</div>`;
-
-    // Helper to render accordion list
-    function renderFlightList(dests,direction){
+    function renderFlightList(dests){
       let out='';
-      dests.forEach((dest,di)=>{
+      dests.forEach(dest=>{
         const nf=dest.flights?dest.flights.length:0;
         const scheduled=dest.flights?dest.flights.filter(f=>f.status==='scheduled'||f.status==='active').length:0;
         const cancelled=dest.flights?dest.flights.filter(f=>f.status==='cancelled').length:0;
-        out+=`<div class="dep-acc">`;
-        out+=`<div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open');if(typeof sendHeight==='function')setTimeout(sendHeight,50)"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
+        out+=`<div class="dep-acc"><div class="dep-acc-hd" onclick="this.parentElement.classList.toggle('open');if(typeof sendHeight==='function')setTimeout(sendHeight,50)"><div class="dep-acc-left"><div class="dep-acc-city">${dest.city}</div><div class="dep-acc-iata">${dest.iata}</div></div><div class="dep-acc-stats">`;
         if(scheduled) out+=`<span class="dep-acc-stat green">${scheduled} programmé${scheduled>1?'s':''}</span>`;
         if(cancelled) out+=`<span class="dep-acc-stat red">${cancelled} annulé${cancelled>1?'s':''}</span>`;
         if(!nf) out+=`<span class="dep-acc-stat gray">Aucun vol</span>`;
-        out+=`</div><div class="dep-acc-arrow">▾</div></div>`;
-        out+=`<div class="dep-acc-body">`;
-        if(nf){
-          out+=`<div class="dep-rt-flights">`;
-          dest.flights.forEach(f=>{
-            const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';
-            out+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${f.airline} ${f.flight}</div><div class="dep-det">${f.status_label||f.status}</div></div></div>`;
-          });
-          out+=`</div>`;
-        } else {
-          out+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté</div></div></div>`;
-        }
+        out+=`</div><div class="dep-acc-arrow">▾</div></div><div class="dep-acc-body">`;
+        if(nf){out+=`<div class="dep-rt-flights">`;dest.flights.forEach(f=>{const cls=f.status==='scheduled'||f.status==='active'?'operationnel':f.status==='cancelled'?'suspendu':'perturbe';out+=`<div class="dep-row"><div class="dep-status ${cls}"></div><div><div class="dep-name">${f.airline} ${f.flight}</div><div class="dep-det">${f.status_label||f.status}</div></div></div>`});out+=`</div>`}
+        else{out+=`<div class="dep-row"><div class="dep-status suspendu"></div><div><div class="dep-name">Aucun vol programmé</div><div class="dep-det">Pas de vol détecté</div></div></div>`}
         out+=`</div></div>`;
-      });
-      return out;
+      });return out;
     }
-
-    if(departs.length) h+=`<div class="dep-tab-content active" id="tc-dep"><div class="dep-ctx">Vols au départ de Paris Charles de Gaulle à destination de :</div>${renderFlightList(departs,'dep')}</div>`;
-    if(retours.length) h+=`<div class="dep-tab-content${departs.length?'':' active'}" id="tc-ret"><div class="dep-ctx">Vols à destination de Paris Charles de Gaulle au départ de :</div>${renderFlightList(retours,'ret')}</div>`;
+    if(departs.length) h+=`<div class="dep-tab-content active" id="tc-dep"><div class="dep-ctx">Vols au départ de Paris Charles de Gaulle à destination de :</div>${renderFlightList(departs)}</div>`;
+    if(retours.length) h+=`<div class="dep-tab-content${departs.length?'':' active'}" id="tc-ret"><div class="dep-ctx">Vols à destination de Paris Charles de Gaulle au départ de :</div>${renderFlightList(retours)}</div>`;
     h+=`</div>`;
     }
   }
 
-  // 8. MAP + MAE panel
+  // MAP + MAE
   h+=`<div class="sl fi">Zones impactées & conseils aux voyageurs</div><div class="map-mae-row fi"><div class="map-full"><div id="map"></div><div class="mp" id="mp" onmouseenter="cancelH()" onmouseleave="hideP()"><div class="mp-h" id="mp-h"></div><div id="mp-a"></div><div class="mp-b" id="mp-b"></div></div></div>`;
   const mE=Object.values(mae).sort((a,b)=>{const o={red:0,orange:1,yellow:2,green:3,gray:4};return(o[a.color]||4)-(o[b.color]||4)});
   h+=`<div class="mae-panel"><div class="mae-panel-hd"><span>🏛</span><h3>Conseils aux voyageurs</h3><span class="mae-count">${mE.length} pays</span></div><div class="mae-panel-list">`;
   mE.forEach(m=>{
-    // Conseil tourisme Groq, nettoyé du level en doublon
     let conseil='';
-    if(m.conseil_tourisme&&m.conseil_tourisme.length>10){
-      conseil=m.conseil_tourisme;
-      // Retirer le level en début de phrase s'il est dupliqué
-      if(m.level&&conseil.startsWith(m.level)){
-        conseil=conseil.substring(m.level.length).replace(/^[\s.,;:]+/,'');
-      }
-    }
-    if(!conseil||conseil.length<10){
-      // Fallback sur summary, tronqué proprement
-      if(m.summary&&m.summary.length>10){
-        conseil=m.summary.length>200?m.summary.substring(0,200).replace(/\s\S*$/,'')+'…':m.summary;
-      }else{
-        conseil='Consultez France Diplomatie pour les détails.';
-      }
-    }
-    // Première lettre en majuscule
+    if(m.conseil_tourisme&&m.conseil_tourisme.length>10){conseil=m.conseil_tourisme;if(m.level&&conseil.startsWith(m.level))conseil=conseil.substring(m.level.length).replace(/^[\s.,;:]+/,'')}
+    if(!conseil||conseil.length<10){if(m.summary&&m.summary.length>10)conseil=m.summary.length>200?m.summary.substring(0,200).replace(/\s\S*$/,'')+'…':m.summary;else conseil='Consultez France Diplomatie pour les détails.'}
     if(conseil.length>0)conseil=conseil.charAt(0).toUpperCase()+conseil.slice(1);
     h+=`<div class="mae-item" onclick="window.open('${m.url}','_blank')"><div class="mae-item-top"><span class="mae-item-dot ${m.color}"></span><span class="mae-item-name">${m.label}</span></div><div class="mae-item-level">${m.level||''}</div><div class="mae-item-conseil">${conseil}</div></div>`;
   });
   h+=`</div></div></div>`;
   h+=`<div class="mae-bar fi">`;mE.forEach(m=>{h+=`<div class="mae-chip" onclick="window.open('${m.url}','_blank')"><span class="md ${m.color}"></span><span>${m.label}</span></div>`});h+=`</div>`;
 
-  // 10. FINANCE — Brent, EUR/USD, Or en cartes fixes + Amadeus & Booking en liste
+  // FINANCE
   const allFin=Object.entries(market);
   if(allFin.length){
-    const cardKeys=['brent','eurusd','GC=F'];
-    const forceListKeys=['AMS.MC','BKNG'];
+    const cardKeys=['brent','eurusd','GC=F'];const forceListKeys=['AMS.MC','BKNG'];
     const topCards=cardKeys.map(k=>[k,market[k]]).filter(([k,v])=>v);
-    // Ajouter d'autres cartes si moins de 4, en excluant ceux forcés en liste
     const cardKeySet=new Set(cardKeys);const forceListSet=new Set(forceListKeys);
     const remaining=[...allFin].filter(([k])=>!cardKeySet.has(k)&&!forceListSet.has(k)).sort((a,b)=>Math.abs(b[1].change_pct)-Math.abs(a[1].change_pct));
-    while(topCards.length<4&&remaining.length){topCards.push(remaining.shift())}
-    const topKeysFinal=new Set(topCards.map(([k])=>k));
-    const rest=allFin.filter(([k])=>!topKeysFinal.has(k));
-    // S'assurer que Amadeus et Booking sont dans la liste
+    while(topCards.length<4&&remaining.length)topCards.push(remaining.shift());
+    const topKeysFinal=new Set(topCards.map(([k])=>k));const rest=allFin.filter(([k])=>!topKeysFinal.has(k));
     h+=`<div class="sl fi" id="finance">Indicateurs économiques clés</div><div class="fgr fi">`;
     topCards.forEach(([k,v])=>{const c=v.change_pct>=0?'#059669':'#DC2626';h+=`<div class="fc"><div class="lb2">${v.label}</div><div class="vl">${v.currency}${v.current_price}</div><div class="cg ${v.change_pct>=0?'cdn':'cu'}">${v.change_pct>=0?'▲':'▼'} ${Math.abs(v.change_pct)}%</div><div class="sp">${spk(v.history,c)}</div></div>`});
     h+=`</div>`;
     if(rest.length){h+=`<div class="bc fi"><table class="bt"><thead><tr><th>Valeur</th><th style="text-align:right">Cours</th><th style="text-align:right">Variation</th></tr></thead><tbody>`;
     rest.sort((a,b)=>a[1].change_pct-b[1].change_pct);rest.forEach(([k,v])=>{const c=v.change_pct>=0?'#166534':'#991B1B';const sc=v.sector==='aerien'?'sa':v.sector==='hotellerie'?'sh':v.sector==='croisiere'?'scr':v.sector==='to'?'sto':v.sector==='ota'?'sot':v.sector==='forex'?'ste':v.sector==='commodity'?'sto':'ste';h+=`<tr><td><span class="tn">${v.label}</span> <span class="ts2">${v.symbol}<span class="tsc ${sc}">${v.sector||''}</span></span></td><td style="text-align:right;font-weight:600;font-family:'IBM Plex Mono'">${v.currency}${v.current_price}</td><td style="text-align:right;font-weight:600;color:${c}">${v.change_pct>=0?'+':''}${v.change_pct}%</td></tr>`});
-    h+=`</tbody></table></div>`}}
-
+    h+=`</tbody></table></div>`}
+  }
   h+=`</div>`; // end main-col
 
-  // === RIGHT COLUMN (sidebar) ===
+  // === SIDEBAR ===
   h+=`<div class="side-col" id="themes">`;
-  const themeCats=['aerien','institutionnel','croisiere','juridique','solutions','geopolitique','economie','destinations','general'];
-  themeCats.sort((a,b)=>{if(a==='general')return 1;if(b==='general')return -1;return(CATS[a]||CATS.general).l.localeCompare((CATS[b]||CATS.general).l,'fr')});
+  const themeCats=['aerien','institutionnel','croisiere','juridique','solutions','geopolitique','economie','destinations'];
+  themeCats.sort((a,b)=>(CATS[a]||{l:''}).l.localeCompare((CATS[b]||{l:''}).l,'fr'));
   themeCats.forEach(cat=>{
-    const arts=byCat[cat]||[];if(!arts.length)return;const cf=CATS[cat]||CATS.general;
-    h+=`<div class="cd cd-${cat}"><div class="hd"><div class="ci" style="background:#FEF3C7;color:#92400E">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc" style="background:${cf.cc}">${arts.length}</span></div>`;
-    if(cat==='juridique'){arts.slice(0,3).forEach(a=>{h+=`<div class="jur" onclick="window.open('${a.link}','_blank')"><span class="jur-d"></span><div><div class="jur-t">${a.title}${nb(a.pub_date)}</div><div class="jur-m">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
-    else if(cat==='solutions'){arts.slice(0,3).forEach(a=>{h+=`<div class="sol" onclick="window.open('${a.link}','_blank')"><div class="sol-top"><span class="sol-badge">SOLUTION</span><span class="sol-s">${a.author||''} · ${fS(a.pub_date)}</span></div><div class="sol-t">${a.title}${nb(a.pub_date)}</div></div>`})}
-    else{arts.slice(0,3).forEach(a=>{const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="ni-img" onerror="this.remove()">`:'';h+=`<div class="ni" onclick="window.open('${a.link}','_blank')">${img}<div class="ni-body"><div class="nt">${a.title}${nb(a.pub_date)}</div><div class="nm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`})}
-    if(arts.length>3){h+=`<div class="voir-plus" onclick="openMo('${cat}')">Voir les ${arts.length-3} autres ▾</div>`}
-    h+=`</div>`});
-  h+=`</div>`; // end side-col
-  h+=`</div>`; // end layout
+    const arts=byCat[cat]||[];if(!arts.length)return;const cf=CATS[cat]||CATS.geopolitique;
+    h+=`<div class="cd"><div class="hd"><div class="ci" style="background:#FEF3C7;color:#92400E">${cf.i}</div><span class="ct">${cf.l}</span><span class="cc">${arts.length}</span></div>`;
+
+    const visibleArts=arts.slice(0,SHOW_COUNT);
+    const extraArts=arts.slice(SHOW_COUNT);
+
+    // Render visible articles
+    function renderArticle(a){
+        const img=vi(a.image_url)?`<img src="${a.image_url}" alt="" class="ni-img cfg-a" onerror="this.remove()">`:'';
+        return`<div class="ni" onclick="window.open('${a.link}','_blank')">${img}<div class="ni-body"><div class="nt">${a.title}${nb(a.pub_date)}</div><div class="nm">${a.author||''} · ${fS(a.pub_date)}</div></div></div>`;
+    }
+
+    visibleArts.forEach(a=>{h+=renderArticle(a)});
+
+    if(extraArts.length){
+      h+=`<div class="cd-expand" id="expand-${cat}">`;
+      extraArts.forEach(a=>{h+=renderArticle(a)});
+      h+=`</div>`;
+      h+=`<div class="voir-plus" id="btn-${cat}" onclick="toggleExpand('${cat}')">Voir les ${extraArts.length} autres ▾</div>`;
+    }
+    h+=`</div>`;
+  });
+  h+=`</div></div>`; // end side-col + layout
 
   h+=`<div class="ft">Données <a href="https://www.tourmag.com/tags/crise+golfe/" target="_blank">TourMaG</a> · <a href="https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/" target="_blank">France Diplomatie</a> · Yahoo Finance · IA Groq · MàJ auto 3h</div>`;
-  document.getElementById('app').innerHTML=h;initMap(mae)}
+  if(mapInstance){try{mapInstance.remove()}catch(e){}}mapInstance=null;
+  document.getElementById('app').innerHTML=h;
+  try{setTimeout(()=>initMap(mae),50)}catch(e){console.error('Map init error:',e)}
+  // Re-observe fade-in
+  const obs2=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');obs2.unobserve(e.target)}})},{threshold:.08});
+  document.querySelectorAll('.fi').forEach(el=>obs2.observe(el))}
 
 function initMap(mae){
   const isMobile=window.innerWidth<=768;
   const mapOpts={zoomControl:false,attributionControl:false};
   if(isMobile){mapOpts.dragging=false;mapOpts.tap=false;mapOpts.scrollWheelZoom=false;mapOpts.touchZoom=false;mapOpts.doubleClickZoom=false;mapOpts.boxZoom=false;mapOpts.keyboard=false}
-  const map=L.map('map',mapOpts).setView([29,44],4);
+  mapInstance=L.map('map',mapOpts).setView([29,44],4);
+  const map=mapInstance;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:8,attribution:''}).addTo(map);
   if(!isMobile)L.control.zoom({position:'topright'}).addTo(map);
   if(isMobile){const ov=document.createElement('div');ov.className='map-touch-overlay';document.querySelector('.map-full').appendChild(ov)}
