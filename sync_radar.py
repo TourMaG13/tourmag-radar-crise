@@ -431,6 +431,8 @@ def fetch_fr24(db):
             data=r.json()
             flights=data.get("data",[])
             print(f"  → {len(flights)} vols",flush=True)
+            if flights:
+                print(f"  Exemple vol: {json.dumps(flights[0],default=str)[:500]}",flush=True)
 
             # Grouper par destination/origine
             by_dest={}
