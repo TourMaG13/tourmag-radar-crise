@@ -434,17 +434,19 @@ def fetch_fr24(db):
             if flights:
                 print(f"  Exemple vol: {json.dumps(flights[0],default=str)[:500]}",flush=True)
 
-            # Grouper par destination/origine
             by_dest={}
             for f in flights:
+                # Pour départs CDG→X : on groupe par dest_icao (la destination)
+                # Pour retours X→CDG : on groupe par orig_icao (l'origine)
                 if direction_label=="departs":
-                    dest_icao=f.get("destination_icao","") or ""
-                    iata=ICAO_TO_IATA.get(dest_icao,dest_icao)
+                    icao_key=f.get("dest_icao") or f.get("dest_icao_actual") or ""
                 else:
-                    orig_icao=f.get("origin_icao","") or ""
-                    iata=ICAO_TO_IATA.get(orig_icao,orig_icao)
-                if not iata: 
-                    print(f"    SKIP: pas d'IATA pour {f.get('dest_icao','?')}/{f.get('orig_icao','?')}",flush=True)
+                    icao_key=f.get("orig_icao") or ""
+                
+                iata=ICAO_TO_IATA.get(icao_key,"")
+                print(f"    Vol {f.get('flight','?')}: icao_key={icao_key} → iata={iata}",flush=True)
+                if not iata:
+                    print(f"    SKIP: ICAO {icao_key} pas dans le mapping",flush=True)
                     continue
                 if iata not in by_dest: by_dest[iata]=[]
                 status,status_label=_classify_flight(f)
@@ -468,7 +470,6 @@ def fetch_fr24(db):
 
             dests=[]
             for iata,fls in by_dest.items():
-                # Dédupliquer par numéro de vol
                 seen={}
                 STATUS_PRIORITY={"active":3,"scheduled":2,"landed":1,"unknown":0}
                 for fl in fls:
