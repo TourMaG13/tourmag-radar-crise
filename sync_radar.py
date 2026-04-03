@@ -462,7 +462,7 @@ def fetch_flightaware(db):
                     print(f"    → {len(flights)} vols",flush=True)
                     if flights:
                         f0=flights[0]
-                        print(f"    Exemple: {f0.get('ident_iata','?')} status={f0.get('status','?')} cancelled={f0.get('cancelled','?')} sched={f0.get('scheduled_out','?')}",flush=True)
+                        print(f"    Exemple brut: {json.dumps(f0,default=str)[:600]}",flush=True)
                     if not flights: continue
                     dest_flights=[]
                     for f in flights:
