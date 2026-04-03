@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Radar Crise Moyen-Orient — v7
-Basé sur v6.3 (qui fonctionnait) + corrections + AviationStack + 17 indicateurs
+Basé sur v6.3 (qui fonctionnait) + corrections + FlightAware + 17 indicateurs
 """
 import json,hashlib,os,re,sys,time
 from datetime import datetime,timezone,timedelta
@@ -224,16 +224,7 @@ CONSIGNES DE RÉDACTION IMPÉRATIVES :
 - Utilise des noms propres (compagnies, pays, institutions) pour être concret.
 - Varie les tags : n'utilise pas deux fois le même tag dans les 6 points.
 
-EXEMPLES DE BON STYLE :
-✅ "**Air France** prolonge la suspension de ses vols vers Téhéran jusqu'en juin. Les passagers peuvent obtenir un remboursement intégral ou un report sans frais supplémentaires."
-✅ "Les contrôles aux frontières jordaniennes se renforcent au nord du pays. Les agents doivent prévenir leurs clients de **délais rallongés** au poste de Nassib."
-
-EXEMPLES DE MAUVAIS STYLE (à éviter absolument) :
-❌ "Suspension vols prolongée Téhéran, remboursement possible" (style télégraphique, pas de verbe)
-❌ "Compagnies aériennes impactées par tensions géopolitiques croissantes" (pas de sujet, pas de verbe conjugué)
-❌ "Situation reste tendue dans la région" (trop vague, pas de noms propres)
-
-Tags disponibles (choisis le plus pertinent pour chaque point) : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL, CROISIÈRE, ÉCONOMIE, HÔTELLERIE, ASSURANCE, COMPAGNIES, TECHNOLOGIE.
+Tags disponibles : AÉRIEN, GÉOPOLITIQUE, DESTINATIONS, JURIDIQUE, TOUR-OPÉRATEURS, CONSEIL, CROISIÈRE, ÉCONOMIE, HÔTELLERIE, ASSURANCE, COMPAGNIES, TECHNOLOGIE.
 
 Format : JSON array de 6 objets avec "tag" et "text".
 
@@ -277,14 +268,6 @@ RÈGLES IMPÉRATIVES :
 - Utilise des noms propres (Air France, Israël, Emirates, Quai d'Orsay...)
 - 10 à 18 mots par phrase
 - Utilise les vraies dates des articles
-
-BONS EXEMPLES :
-"Air France prolonge la suspension de ses vols vers Téhéran jusqu'en juin 2026."
-"Le Quai d'Orsay relève le niveau d'alerte pour le Liban à formellement déconseillé."
-
-MAUVAIS EXEMPLES :
-"Suspension vols Air France" (pas de verbe)
-"Crise impacte tourisme" (trop vague)
 
 Articles (du plus récent au plus ancien) :
 {chr(10).join(items)}
@@ -339,7 +322,69 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
+# ===================== FLIGHTAWARE =====================
+
 FLIGHTAWARE_DESTINATIONS={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)"}
+
+def _fa_format_time(dt_str):
+    """Convertit un datetime UTC en heure Paris HHhMM"""
+    if not dt_str: return ""
+    try:
+        t=datetime.fromisoformat(dt_str.replace("Z","+00:00"))
+        try:
+            from zoneinfo import ZoneInfo as ZI
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo as ZI
+        return t.astimezone(ZI("Europe/Paris")).strftime("%Hh%M")
+    except: return ""
+
+def _fa_classify(f):
+    """Classifie un vol FlightAware depuis un segment aplati"""
+    if f.get("cancelled"): return "cancelled","Annulé"
+    if f.get("diverted"): return "diverted","Dérouté"
+    actual_off=f.get("actual_off","")
+    actual_on=f.get("actual_on","")
+    progress=f.get("progress_percent",0) or 0
+    if actual_on: return "landed","Atterri"
+    if actual_off: return "active","En vol"
+    return "scheduled","Programmé"
+
+def _fa_build_detail(f,status):
+    """Construit le détail affiché pour un vol"""
+    if status=="cancelled": return "Annulé"
+    if status=="diverted": return "Dérouté"
+    scheduled=f.get("scheduled_out","")
+    actual=f.get("actual_out","") or f.get("actual_off","")
+    estimated=f.get("estimated_out","")
+    progress=f.get("progress_percent",0) or 0
+    delay=f.get("departure_delay",0) or 0
+    if status=="active":
+        dep_time=_fa_format_time(actual or scheduled)
+        detail=f"En vol ({progress}%)" if progress else "En vol"
+        if dep_time: detail+=f" · Départ {dep_time}"
+        return detail
+    if status=="landed":
+        landed_time=_fa_format_time(f.get("actual_on","") or f.get("actual_in",""))
+        return f"Atterri · {landed_time}" if landed_time else "Atterri"
+    # scheduled
+    sched_time=_fa_format_time(scheduled)
+    if delay and delay>300:
+        est_time=_fa_format_time(estimated)
+        return f"Retardé · {est_time or sched_time} (+{delay//60}min)"
+    gate=f.get("gate_origin","")
+    terminal=f.get("terminal_origin","")
+    detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
+    if terminal: detail+=f" · T{terminal}"
+    if gate: detail+=f" Porte {gate}"
+    return detail
+
+def _fa_get_airline(f):
+    """Récupère le nom de la compagnie"""
+    op=f.get("operator","")
+    if op: return op
+    op_iata=f.get("operator_iata","")
+    if op_iata: return op_iata
+    return f.get("ident_iata","") or f.get("ident","") or "Inconnu"
 
 def fetch_flightaware(db):
     if not FLIGHTAWARE_API_KEY: return None
@@ -368,74 +413,12 @@ def fetch_flightaware(db):
                         return rt
                 except: pass
     except: pass
+
     try:
         headers={"x-apikey":FLIGHTAWARE_API_KEY,"Accept":"application/json"}
-        dest_iatas=set(FLIGHTAWARE_DESTINATIONS.keys())
 
-        def _format_time_fa(dt_str):
-            if not dt_str: return ""
-            try:
-                t=datetime.fromisoformat(dt_str.replace("Z","+00:00"))
-                try:
-                    from zoneinfo import ZoneInfo as ZI
-                except ImportError:
-                    from backports.zoneinfo import ZoneInfo as ZI
-                t_paris=t.astimezone(ZI("Europe/Paris"))
-                return t_paris.strftime("%Hh%M")
-            except: return ""
-
-        def _classify_fa(f):
-            """Classifie un vol FlightAware"""
-            if f.get("cancelled"): return "cancelled","Annulé"
-            if f.get("diverted"): return "diverted","Dérouté"
-            progress=f.get("progress_percent",0) or 0
-            actual_off=f.get("actual_off","")
-            actual_on=f.get("actual_on","")
-            scheduled_out=f.get("scheduled_out","")
-            if actual_on: return "landed","Atterri"
-            if actual_off and progress>0: return "active","En vol"
-            if actual_off and not actual_on: return "active","En vol"
-            return "scheduled","Programmé"
-
-        def _build_detail(f,status,status_label):
-            """Construit le détail affiché"""
-            if status=="cancelled": return "Annulé"
-            if status=="diverted": return "Dérouté"
-            scheduled=f.get("scheduled_out","")
-            actual=f.get("actual_out","") or f.get("actual_off","")
-            estimated=f.get("estimated_out","")
-            progress=f.get("progress_percent",0) or 0
-            delay=f.get("departure_delay",0) or 0
-            if status=="active":
-                dep_time=_format_time_fa(actual or scheduled)
-                detail=f"En vol ({progress}%)"
-                if dep_time: detail+=f" · Départ {dep_time}"
-                return detail
-            if status=="landed":
-                landed_time=_format_time_fa(f.get("actual_on","") or f.get("actual_in",""))
-                return f"Atterri · {landed_time}" if landed_time else "Atterri"
-            # scheduled
-            sched_time=_format_time_fa(scheduled)
-            if delay and delay>300:
-                est_time=_format_time_fa(estimated)
-                return f"Retardé · {est_time or sched_time} (+{delay//60}min)"
-            gate=f.get("gate_origin","")
-            terminal=f.get("terminal_origin","")
-            detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
-            if terminal: detail+=f" · T{terminal}"
-            if gate: detail+=f" Porte {gate}"
-            return detail
-
-        def _get_airline(f):
-            op=f.get("operator","")
-            if op: return op
-            op_iata=f.get("operator_iata","")
-            if op_iata: return op_iata
-            return f.get("ident_iata","") or f.get("ident","") or "Inconnu"
-
-        def _fetch_flights_by_dest(direction_label):
+        def _fetch_by_dest(direction_label):
             print(f"  FlightAware {direction_label}...",flush=True)
-            now_utc=datetime.now(timezone.utc)
             dests=[]
             for iata,city in FLIGHTAWARE_DESTINATIONS.items():
                 if direction_label=="departs":
@@ -445,39 +428,51 @@ def fetch_flightaware(db):
                 print(f"    {city} ({iata})...",flush=True)
                 try:
                     r=requests.get(url,params={"type":"Airline","max_pages":2},headers=headers,timeout=30)
+                    if r.status_code==429:
+                        print(f"    Rate limit 429 — attente 60s",flush=True)
+                        time.sleep(60)
+                        r=requests.get(url,params={"type":"Airline","max_pages":2},headers=headers,timeout=30)
                     if r.status_code!=200:
                         print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
                         continue
                     data=r.json()
-                    print(f"    Clés réponse: {list(data.keys())}",flush=True)
-                    # L'endpoint retourne "flights" comme clé
-                    flights=data.get("flights",data.get("scheduled_departures",data.get("scheduled_arrivals",data.get("departures",[]))))
-                    if not flights:
-                        # Essayer toutes les clés possibles
+                    raw_flights=data.get("flights",[])
+                    if not raw_flights:
+                        # Chercher dans d'autres clés possibles
                         for k in data:
                             if isinstance(data[k],list) and len(data[k])>0:
-                                flights=data[k]
-                                print(f"    Clé utilisée: {k}",flush=True)
-                                break
-                    print(f"    → {len(flights)} vols",flush=True)
-                    if flights:
-                        f0=flights[0]
-                        print(f"    Exemple brut: {json.dumps(f0,default=str)[:600]}",flush=True)
+                                raw_flights=data[k]; break
+
+                    # Aplatir les segments : chaque élément contient "segments"
+                    flights=[]
+                    for item in raw_flights:
+                        segs=item.get("segments",[])
+                        if segs and isinstance(segs,list):
+                            for seg in segs:
+                                flights.append(seg)
+                        elif "ident" in item:
+                            # Pas de segments, format plat
+                            flights.append(item)
+
+                    print(f"    → {len(flights)} vols (aplatis)",flush=True)
                     if not flights: continue
+
+                    # Parser chaque vol
                     dest_flights=[]
                     for f in flights:
                         if f.get("position_only"): continue
-                        status,status_label=_classify_fa(f)
+                        status,status_label=_fa_classify(f)
                         flight_num=f.get("ident_iata","") or f.get("ident","")
-                        airline=_get_airline(f)
-                        detail=_build_detail(f,status,status_label)
+                        airline=_fa_get_airline(f)
+                        detail=_fa_build_detail(f,status)
                         dest_flights.append({
                             "airline":airline,
                             "flight":flight_num,
                             "status":status,
                             "status_label":detail
                         })
-                    # Dédupliquer
+
+                    # Dédupliquer par numéro de vol
                     seen={}
                     STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"diverted":3,"scheduled":2,"unknown":0}
                     for fl in dest_flights:
@@ -488,15 +483,15 @@ def fetch_flightaware(db):
                     deduped=list(seen.values())
                     if deduped:
                         dests.append({"city":city,"iata":iata,"flights":deduped})
-                        print(f"    → {len(deduped)} vols (dédupliqués)",flush=True)
+                        print(f"    → {len(deduped)} vols uniques",flush=True)
                 except Exception as e:
                     print(f"    ERR {iata}: {e}",flush=True)
                 time.sleep(10)
             return dests
 
-        departs=_fetch_flights_by_dest("departs")
+        departs=_fetch_by_dest("departs")
         time.sleep(10)
-        retours=_fetch_flights_by_dest("retours")
+        retours=_fetch_by_dest("retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
         print(f"  FlightAware résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
@@ -505,6 +500,8 @@ def fetch_flightaware(db):
         print(f"  FlightAware ERR: {e}",flush=True)
         import traceback; traceback.print_exc()
         return None
+
+# ===================== FIN FLIGHTAWARE =====================
 
 def fetch_fin():
     res={}
@@ -606,7 +603,6 @@ CONSIGNES :
 - Le ton est professionnel et rassurant, pas alarmiste.
 - Chaque conseil a une icône parmi : {icons_list}
 - Varie les icônes entre les 3 conseils.
-- Base-toi sur les articles récents pour que les conseils soient pertinents par rapport à l'actualité.
 
 Articles récents :
 {chr(10).join(items)}
@@ -638,7 +634,6 @@ def main():
     articles=parse_rss()
     if not articles: print("  Aucun article",flush=True)
 
-    # Complément page HTML (le RSS peut avoir du retard)
     print("  Complément HTML...",flush=True)
     try:
         r=requests.get("https://www.tourmag.com/tags/crise+golfe/",timeout=30,headers=HDR)
@@ -708,7 +703,6 @@ def main():
         n=sync_arts(db,articles,kw,gc,cit)
     else: n=0
 
-    # Charger TOUS les articles en base pour synthèse et timeline
     all_articles=[]
     try:
         for doc in db.collection("articles").order_by("pub_date",direction=firestore.Query.DESCENDING).limit(30).stream():
@@ -740,8 +734,8 @@ def main():
     if FLIGHTAWARE_API_KEY:
         print("\n--- FlightAware ---",flush=True)
         rt=fetch_flightaware(db)
-    if rt: 
-        print(f"  Airlines sync: rt contient {len(rt.get('departs',[]))} departs, {len(rt.get('retours',[]))} retours",flush=True)
+    if rt:
+        print(f"  Airlines sync: {len(rt.get('departs',[]))} departs, {len(rt.get('retours',[]))} retours",flush=True)
         sync_airlines(db,[],rt)
 
     print("\n--- Finance ---",flush=True)
