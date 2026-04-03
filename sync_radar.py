@@ -449,14 +449,20 @@ def fetch_flightaware(db):
                         print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
                         continue
                     data=r.json()
+                    print(f"    Clés réponse: {list(data.keys())}",flush=True)
                     # L'endpoint retourne "flights" comme clé
                     flights=data.get("flights",data.get("scheduled_departures",data.get("scheduled_arrivals",data.get("departures",[]))))
                     if not flights:
                         # Essayer toutes les clés possibles
                         for k in data:
                             if isinstance(data[k],list) and len(data[k])>0:
-                                flights=data[k]; break
+                                flights=data[k]
+                                print(f"    Clé utilisée: {k}",flush=True)
+                                break
                     print(f"    → {len(flights)} vols",flush=True)
+                    if flights:
+                        f0=flights[0]
+                        print(f"    Exemple: {f0.get('ident_iata','?')} status={f0.get('status','?')} cancelled={f0.get('cancelled','?')} sched={f0.get('scheduled_out','?')}",flush=True)
                     if not flights: continue
                     dest_flights=[]
                     for f in flights:
@@ -485,11 +491,11 @@ def fetch_flightaware(db):
                         print(f"    → {len(deduped)} vols (dédupliqués)",flush=True)
                 except Exception as e:
                     print(f"    ERR {iata}: {e}",flush=True)
-                time.sleep(7)
+                time.sleep(10)
             return dests
 
         departs=_fetch_flights_by_dest("departs")
-        time.sleep(7)
+        time.sleep(10)
         retours=_fetch_flights_by_dest("retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
