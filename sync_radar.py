@@ -433,77 +433,64 @@ def fetch_flightaware(db):
             if op_iata: return op_iata
             return f.get("ident_iata","") or f.get("ident","") or "Inconnu"
 
-        def _fetch_flights(endpoint,direction_label,list_key):
+        def _fetch_flights_by_dest(direction_label):
             print(f"  FlightAware {direction_label}...",flush=True)
             now_utc=datetime.now(timezone.utc)
-            start=now_utc.strftime("%Y-%m-%dT00:00:00Z")
-            end=(now_utc+timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            r=requests.get(f"https://aeroapi.flightaware.com/aeroapi/airports/CDG/flights/{endpoint}",
-                params={"type":"Airline","start":start,"end":end,"max_pages":2},
-                headers=headers,timeout=30)
-            if r.status_code!=200:
-                print(f"  FlightAware HTTP {r.status_code}: {r.text[:300]}",flush=True)
-                return []
-            data=r.json()
-            flights=data.get(list_key,[])
-            print(f"  → {len(flights)} vols totaux",flush=True)
-            if flights:
-                f0=flights[0]
-                if direction_label=="departs":
-                    dest0=f0.get("destination",{})
-                    print(f"  Exemple: {f0.get('ident_iata','?')} → dest={dest0.get('code_iata','?')} / {dest0.get('code_icao','?')} / {dest0.get('code','?')} city={dest0.get('city','?')}",flush=True)
-                else:
-                    orig0=f0.get("origin",{})
-                    print(f"  Exemple: {f0.get('ident_iata','?')} ← orig={orig0.get('code_iata','?')} / {orig0.get('code_icao','?')} / {orig0.get('code','?')} city={orig0.get('city','?')}",flush=True)
-                # Lister toutes les destinations/origines pour debug
-                if direction_label=="departs":
-                    all_dests=set(f.get("destination",{}).get("code_iata","") or f.get("destination",{}).get("code","") for f in flights)
-                else:
-                    all_dests=set(f.get("origin",{}).get("code_iata","") or f.get("origin",{}).get("code","") for f in flights)
-                print(f"  Toutes les destinations/origines: {all_dests}",flush=True)
-
-            # Filtrer par destinations Moyen-Orient
-            by_dest={}
-            for f in flights:
-                if f.get("position_only"): continue
-                if direction_label=="departs":
-                    dest=f.get("destination",{})
-                    iata=dest.get("code_iata","") or ""
-                else:
-                    orig=f.get("origin",{})
-                    iata=orig.get("code_iata","") or ""
-                if iata not in dest_iatas: continue
-                if iata not in by_dest: by_dest[iata]=[]
-                status,status_label=_classify_fa(f)
-                flight_num=f.get("ident_iata","") or f.get("ident","")
-                airline=_get_airline(f)
-                detail=_build_detail(f,status,status_label)
-                by_dest[iata].append({
-                    "airline":airline,
-                    "flight":flight_num,
-                    "status":status,
-                    "status_label":detail
-                })
-
             dests=[]
-            for iata,fls in by_dest.items():
-                # Dédupliquer par numéro de vol (garder le statut le plus avancé)
-                seen={}
-                STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"diverted":3,"scheduled":2,"unknown":0}
-                for fl in fls:
-                    fn=fl["flight"]
-                    if not fn: continue
-                    if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
-                        seen[fn]=fl
-                deduped=list(seen.values())
-                city=FLIGHTAWARE_DESTINATIONS.get(iata,iata)
-                dests.append({"city":city,"iata":iata,"flights":deduped})
-                print(f"    {city} ({iata}): {len(deduped)} vols",flush=True)
+            for iata,city in FLIGHTAWARE_DESTINATIONS.items():
+                if direction_label=="departs":
+                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/CDG/flights/to/{iata}"
+                else:
+                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/{iata}/flights/to/CDG"
+                print(f"    {city} ({iata})...",flush=True)
+                try:
+                    r=requests.get(url,params={"type":"Airline","max_pages":2},headers=headers,timeout=30)
+                    if r.status_code!=200:
+                        print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                        continue
+                    data=r.json()
+                    # L'endpoint retourne "flights" comme clé
+                    flights=data.get("flights",data.get("scheduled_departures",data.get("scheduled_arrivals",data.get("departures",[]))))
+                    if not flights:
+                        # Essayer toutes les clés possibles
+                        for k in data:
+                            if isinstance(data[k],list) and len(data[k])>0:
+                                flights=data[k]; break
+                    print(f"    → {len(flights)} vols",flush=True)
+                    if not flights: continue
+                    dest_flights=[]
+                    for f in flights:
+                        if f.get("position_only"): continue
+                        status,status_label=_classify_fa(f)
+                        flight_num=f.get("ident_iata","") or f.get("ident","")
+                        airline=_get_airline(f)
+                        detail=_build_detail(f,status,status_label)
+                        dest_flights.append({
+                            "airline":airline,
+                            "flight":flight_num,
+                            "status":status,
+                            "status_label":detail
+                        })
+                    # Dédupliquer
+                    seen={}
+                    STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"diverted":3,"scheduled":2,"unknown":0}
+                    for fl in dest_flights:
+                        fn=fl["flight"]
+                        if not fn: continue
+                        if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
+                            seen[fn]=fl
+                    deduped=list(seen.values())
+                    if deduped:
+                        dests.append({"city":city,"iata":iata,"flights":deduped})
+                        print(f"    → {len(deduped)} vols (dédupliqués)",flush=True)
+                except Exception as e:
+                    print(f"    ERR {iata}: {e}",flush=True)
+                time.sleep(0.5)
             return dests
 
-        departs=_fetch_flights("scheduled_departures","departs","scheduled_departures")
+        departs=_fetch_flights_by_dest("departs")
         time.sleep(1)
-        retours=_fetch_flights("scheduled_arrivals","retours","scheduled_arrivals")
+        retours=_fetch_flights_by_dest("retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
         print(f"  FlightAware résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
