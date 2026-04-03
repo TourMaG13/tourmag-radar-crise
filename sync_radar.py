@@ -3,7 +3,7 @@
 Basé sur v6.3 (qui fonctionnait) + corrections + AviationStack + 17 indicateurs
 """
 import json,hashlib,os,re,sys,time
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from pathlib import Path
 import feedparser,requests,yfinance as yf
 from bs4 import BeautifulSoup
@@ -358,6 +358,15 @@ AVIATION_TARGETS_RETOUR=[
 
 def fetch_aviationstack(db):
     if not AVIATIONSTACK_API_KEY: return None
+    # Guard horaire : uniquement entre 6h et 22h heure de Paris
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+    paris_now=datetime.now(ZoneInfo("Europe/Paris"))
+    if paris_now.hour<6 or paris_now.hour>=22:
+        print(f"  AviationStack : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
+        return None
     # Vérifier si dernier check < 3h (permet 6 exécutions/jour entre 6h et 22h)
     try:
         doc=db.collection("config").document("airlines").get()
@@ -380,7 +389,8 @@ def fetch_aviationstack(db):
             for target in targets:
                 dep=target["dep_iata"];arr=target["arr_iata"]
                 print(f"  AviationStack {dep}→{arr}...",flush=True)
-                r=requests.get("https://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"limit":100},timeout=30)
+                today_str=datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                r=requests.get("https://api.aviationstack.com/v1/flights",params={"access_key":AVIATIONSTACK_API_KEY,"dep_iata":dep,"arr_iata":arr,"flight_date":today_str,"limit":100},timeout=30)
                 if r.status_code!=200: print(f"  HTTP {r.status_code}",flush=True); continue
                 data=r.json()
                 if "error" in data: print(f"  Erreur: {data['error'].get('message','')}",flush=True); continue
@@ -391,8 +401,10 @@ def fetch_aviationstack(db):
                 for f in flights:
                     fn=f.get("flight",{}).get("iata","")
                     if not fn: continue
-                    st=f.get("flight_status") or "unknown"
-                    entry={"airline":f.get("airline",{}).get("name","?"),"flight":fn,"status":st,"status_label":STATUS_LABELS.get(st,"Inconnu")}
+                    raw_st=f.get("flight_status") or ""
+                    st=raw_st.strip().lower() if raw_st else "unknown"
+                    if st and st not in STATUS_LABELS: print(f"    Statut inconnu brut: '{raw_st}' pour vol {fn}",flush=True)
+                    entry={"airline":f.get("airline",{}).get("name","?"),"flight":fn,"status":st,"status_label":STATUS_LABELS.get(st,raw_st.strip().capitalize() if raw_st.strip() else "Inconnu")}
                     if fn not in seen_flights or STATUS_PRIORITY.get(st,0)>STATUS_PRIORITY.get(seen_flights[fn]["status"],0):
                         seen_flights[fn]=entry
                 dest_flights=list(seen_flights.values())
