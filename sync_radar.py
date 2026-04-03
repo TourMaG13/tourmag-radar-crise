@@ -485,11 +485,11 @@ def fetch_flightaware(db):
                         print(f"    → {len(deduped)} vols (dédupliqués)",flush=True)
                 except Exception as e:
                     print(f"    ERR {iata}: {e}",flush=True)
-                time.sleep(0.5)
+                time.sleep(7)
             return dests
 
         departs=_fetch_flights_by_dest("departs")
-        time.sleep(1)
+        time.sleep(7)
         retours=_fetch_flights_by_dest("retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
