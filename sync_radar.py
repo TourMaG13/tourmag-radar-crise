@@ -433,47 +433,46 @@ def fetch_aerodatabox(db):
             dests=[]
 
             # 1 appel CDG sur tranche 06h-18h (couvre la majorité des vols)
-            url=f"{base_url}/CDG/{today}T06:00/{today}T17:59"
+            # 1er appel : tranche 18h-23h59 (prioritaire — vols soirée TLV, MCT)
+            url=f"{base_url}/CDG/{today}T18:00/{today}T23:59"
             params={"direction":direction,"withCancelled":"true","withCodeshared":"false","withPrivate":"false"}
-            print(f"    CDG {direction} 06h-18h...",flush=True)
+            print(f"    CDG {direction} 18h-23h59...",flush=True)
             try:
                 r=requests.get(url,headers=headers,params=params,timeout=30)
                 total_api_calls+=1
                 if r.status_code!=200:
                     print(f"    ⚠ HTTP {r.status_code}: {r.text[:300]}",flush=True)
-                    return []
-                data=r.json()
+                    all_flights=[]
+                else:
+                    data=r.json()
+                    flights_key="departures" if direction_label=="departs" else "arrivals"
+                    all_flights=data.get(flights_key,[])
+                    print(f"    → {len(all_flights)} vols bruts CDG 18h-23h59",flush=True)
             except Exception as e:
-                print(f"    ⚠ ERR requête: {e}",flush=True)
-                return []
+                print(f"    ⚠ ERR requête 18h-23h59: {e}",flush=True)
+                all_flights=[]
 
-            # Parser : data peut être {"departures":[...]} ou {"arrivals":[...]}
+            time.sleep(10)
+
+            # 2e appel : tranche 06h-18h (gros volume)
             flights_key="departures" if direction_label=="departs" else "arrivals"
-            all_flights=data.get(flights_key,[])
-            print(f"    → {len(all_flights)} vols bruts CDG 06h-18h",flush=True)
-
-            # 2e appel : tranche 18h-05h59 (vols de soirée/nuit)
-            url2=f"{base_url}/CDG/{today}T18:00/{today}T23:59"
-            print(f"    CDG {direction} 18h-23h59...",flush=True)
+            url2=f"{base_url}/CDG/{today}T06:00/{today}T17:59"
+            print(f"    CDG {direction} 06h-18h...",flush=True)
             try:
                 r2=requests.get(url2,headers=headers,params=params,timeout=30)
                 total_api_calls+=1
                 if r2.status_code==200:
                     data2=r2.json()
                     flights2=data2.get(flights_key,[])
-                    print(f"    → {len(flights2)} vols bruts CDG 18h-23h59",flush=True)
+                    print(f"    → {len(flights2)} vols bruts CDG 06h-18h",flush=True)
                     all_flights.extend(flights2)
                 else:
-                    print(f"    ⚠ HTTP {r2.status_code} sur tranche 18h-23h59: {r2.text[:200]}",flush=True)
+                    print(f"    ⚠ HTTP {r2.status_code} sur tranche 06h-18h: {r2.text[:200]}",flush=True)
             except Exception as e:
-                print(f"    ⚠ ERR tranche 18h-23h59: {e}",flush=True)
-            time.sleep(5)
+                print(f"    ⚠ ERR tranche 06h-18h: {e}",flush=True)
+            time.sleep(10)
 
             print(f"    Total brut CDG: {len(all_flights)} vols",flush=True)
-
-            # DEBUG structure d'un vol
-            if all_flights:
-                print(f"    DEBUG structure premier vol: {json.dumps(all_flights[0],default=str)[:500]}",flush=True)
 
             # Filtrer par destinations Moyen-Orient
             dest_iatas=set(AERO_DESTINATIONS.keys())
@@ -482,6 +481,12 @@ def fetch_aerodatabox(db):
                 # AeroDataBox: "movement" = l'autre aéroport (destination pour départs, origine pour arrivées)
                 dest_iata=f.get("movement",{}).get("airport",{}).get("iata","")
                 if dest_iata not in dest_iatas: continue
+
+                # Log brut de chaque vol ME détecté (avant filtrage codeshare)
+                raw_status=f.get("status","?")
+                raw_cs=f.get("codeshareStatus","?")
+                raw_num=f.get("number","?")
+                print(f"    DEBUG ME brut: {raw_num} → {dest_iata} status={raw_status} cs={raw_cs}",flush=True)
 
                 # Filtrer codeshares
                 cs=f.get("codeshareStatus","")
