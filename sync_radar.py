@@ -468,9 +468,13 @@ def fetch_aerodatabox(db):
                     print(f"    ⚠ HTTP {r2.status_code} sur tranche 18h-23h59: {r2.text[:200]}",flush=True)
             except Exception as e:
                 print(f"    ⚠ ERR tranche 18h-23h59: {e}",flush=True)
-            time.sleep(1)
+            time.sleep(3)
 
             print(f"    Total brut CDG: {len(all_flights)} vols",flush=True)
+
+            # DEBUG structure d'un vol
+            if all_flights:
+                print(f"    DEBUG structure premier vol: {json.dumps(all_flights[0],default=str)[:500]}",flush=True)
 
             # Filtrer par destinations Moyen-Orient
             dest_iatas=set(AERO_DESTINATIONS.keys())
