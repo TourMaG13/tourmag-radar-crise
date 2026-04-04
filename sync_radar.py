@@ -414,66 +414,59 @@ def fetch_airlabs(db):
 
     try:
         def _fetch_direction(direction_label):
-            """1 seul appel API pour toutes les destinations d'une direction"""
-            if direction_label=="departs":
-                params={"dep_iata":"CDG","api_key":AIRLABS_API_KEY}
-            else:
-                params={"arr_iata":"CDG","api_key":AIRLABS_API_KEY}
-            print(f"  AirLabs {direction_label} (1 appel)...",flush=True)
-            r=requests.get(base_url,params=params,timeout=30)
-            if r.status_code!=200:
-                print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
-                return []
-            data=r.json()
-            if data.get("error"):
-                print(f"    API error: {data['error']}",flush=True)
-                return []
-            all_flights=data.get("response",[])
-            print(f"    → {len(all_flights)} vols totaux CDG",flush=True)
-            if not all_flights:
-                print(f"    ⚠ Réponse vide — clés reçues: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
-
-            # Filtrer par destinations Moyen-Orient
-            by_dest={}
-            for f in all_flights:
-                if direction_label=="departs":
-                    arr=f.get("arr_iata","")
-                    if arr not in dest_iatas: continue
-                    dest_key=arr
-                else:
-                    dep=f.get("dep_iata","")
-                    if dep not in dest_iatas: continue
-                    dest_key=dep
-
-                status,status_label=_al_classify(f)
-                flight_num=f.get("flight_iata","") or ""
-                if not flight_num: continue
-                airline=_al_get_airline(f)
-                detail=_al_build_detail(f,status)
-
-                if dest_key not in by_dest: by_dest[dest_key]=[]
-                by_dest[dest_key].append({
-                    "airline":airline,
-                    "flight":flight_num,
-                    "status":status,
-                    "status_label":detail
-                })
-
-            # Dédupliquer par numéro de vol par destination
-            STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"scheduled":2}
+            """1 appel par destination pour une direction donnée"""
+            print(f"  AirLabs {direction_label}...",flush=True)
             dests=[]
-            for iata in sorted(by_dest.keys()):
-                flights=by_dest[iata]
-                seen={}
-                for fl in flights:
-                    fn=fl["flight"]
-                    if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
-                        seen[fn]=fl
-                deduped=list(seen.values())
-                city=AIRLABS_DESTINATIONS.get(iata,iata)
-                dests.append({"city":city,"iata":iata,"flights":deduped})
-                print(f"    {city} ({iata}): {len(deduped)} vols",flush=True)
+            STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"scheduled":2}
+            for iata,city in AIRLABS_DESTINATIONS.items():
+                if direction_label=="departs":
+                    params={"dep_iata":"CDG","arr_iata":iata,"api_key":AIRLABS_API_KEY}
+                else:
+                    params={"dep_iata":iata,"arr_iata":"CDG","api_key":AIRLABS_API_KEY}
+                print(f"    {city} ({iata})...",flush=True)
+                try:
+                    r=requests.get(base_url,params=params,timeout=30)
+                    if r.status_code!=200:
+                        print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                        continue
+                    data=r.json()
+                    if data.get("error"):
+                        print(f"    API error: {data['error']}",flush=True)
+                        continue
+                    flights=data.get("response",[])
+                    if not flights:
+                        print(f"    ⚠ Réponse vide — clés: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
+                        continue
 
+                    dest_flights=[]
+                    for f in flights:
+                        flight_num=f.get("flight_iata","") or ""
+                        if not flight_num: continue
+                        status,status_label=_al_classify(f)
+                        airline=_al_get_airline(f)
+                        detail=_al_build_detail(f,status)
+                        dest_flights.append({
+                            "airline":airline,
+                            "flight":flight_num,
+                            "status":status,
+                            "status_label":detail
+                        })
+
+                    # Dédupliquer par numéro de vol
+                    seen={}
+                    for fl in dest_flights:
+                        fn=fl["flight"]
+                        if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
+                            seen[fn]=fl
+                    deduped=list(seen.values())
+                    if deduped:
+                        dests.append({"city":city,"iata":iata,"flights":deduped})
+                        print(f"    → {len(deduped)} vols",flush=True)
+                    else:
+                        print(f"    → 0 vols",flush=True)
+                except Exception as e:
+                    print(f"    ERR {iata}: {e}",flush=True)
+                time.sleep(2)
             return dests
 
         departs=_fetch_direction("departs")
