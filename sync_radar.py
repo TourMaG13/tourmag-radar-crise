@@ -438,6 +438,10 @@ def fetch_airlabs(db):
                         print(f"    ⚠ Réponse vide — clés: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
                         continue
 
+                    # DEBUG temporaire : voir la structure complète d'un vol
+                    if flights:
+                        print(f"    DEBUG premier vol: {json.dumps(flights[0],default=str)}",flush=True)
+
                     dest_flights=[]
                     for f in flights:
                         flight_num=f.get("flight_iata","") or ""
