@@ -430,6 +430,8 @@ def fetch_airlabs(db):
                 return []
             all_flights=data.get("response",[])
             print(f"    → {len(all_flights)} vols totaux CDG",flush=True)
+            if not all_flights:
+                print(f"    ⚠ Réponse vide — clés reçues: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
 
             # Filtrer par destinations Moyen-Orient
             by_dest={}
