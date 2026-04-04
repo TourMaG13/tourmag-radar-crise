@@ -13,7 +13,7 @@ from firebase_admin import credentials,firestore
 RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
 ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY","")
-FLIGHTAWARE_API_KEY=os.getenv("FLIGHTAWARE_API_KEY","")
+AIRLABS_API_KEY=os.getenv("AIRLABS_API_KEY","")
 ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
 MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
@@ -322,15 +322,20 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-# ===================== FLIGHTAWARE =====================
+# ===================== AIRLABS =====================
 
-FLIGHTAWARE_DESTINATIONS={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)"}
+AIRLABS_DESTINATIONS={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)"}
 
-def _fa_format_time(dt_str):
-    """Convertit un datetime UTC en heure Paris HHhMM"""
+# Fallback dictionnaire IATA → nom compagnie (complété au besoin)
+AIRLINE_NAMES={"AF":"Air France","EK":"Emirates","QR":"Qatar Airways","EY":"Etihad Airways","RJ":"Royal Jordanian","WY":"Oman Air","MS":"EgyptAir","TK":"Turkish Airlines","SV":"Saudia","GF":"Gulf Air","KU":"Kuwait Airways","LH":"Lufthansa","BA":"British Airways","AZ":"ITA Airways","LO":"LOT Polish Airlines","PC":"Pegasus Airlines","ME":"Middle East Airlines","KL":"KLM","OS":"Austrian Airlines","LX":"Swiss","SN":"Brussels Airlines","A3":"Aegean Airlines","FZ":"flydubai","G9":"Air Arabia","XY":"flynas","6E":"IndiGo","AI":"Air India","PK":"PIA","IR":"Iran Air","W5":"Mahan Air","BI":"Royal Brunei","UL":"SriLankan Airlines","WS":"WestJet","DL":"Delta","UA":"United Airlines","AA":"American Airlines"}
+
+def _al_format_time(dt_str):
+    """Convertit un datetime AirLabs en heure Paris HHhMM"""
     if not dt_str: return ""
     try:
+        # AirLabs renvoie "2026-04-04 14:30" ou ISO
         t=datetime.fromisoformat(dt_str.replace("Z","+00:00"))
+        if t.tzinfo is None: t=t.replace(tzinfo=timezone.utc)
         try:
             from zoneinfo import ZoneInfo as ZI
         except ImportError:
@@ -338,56 +343,46 @@ def _fa_format_time(dt_str):
         return t.astimezone(ZI("Europe/Paris")).strftime("%Hh%M")
     except: return ""
 
-def _fa_classify(f):
-    """Classifie un vol FlightAware depuis un segment aplati"""
-    if f.get("cancelled"): return "cancelled","Annulé"
-    if f.get("diverted"): return "diverted","Dérouté"
-    actual_off=f.get("actual_off","")
-    actual_on=f.get("actual_on","")
-    progress=f.get("progress_percent",0) or 0
-    if actual_on: return "landed","Atterri"
-    if actual_off: return "active","En vol"
+def _al_classify(f):
+    """Classifie un vol AirLabs"""
+    s=(f.get("status","") or "").lower()
+    if s=="cancelled": return "cancelled","Annulé"
+    if s=="active": return "active","En vol"
+    if s=="landed": return "landed","Atterri"
     return "scheduled","Programmé"
 
-def _fa_build_detail(f,status):
-    """Construit le détail affiché pour un vol"""
+def _al_build_detail(f,status):
+    """Construit le détail affiché pour un vol AirLabs"""
     if status=="cancelled": return "Annulé"
-    if status=="diverted": return "Dérouté"
-    scheduled=f.get("scheduled_out","")
-    actual=f.get("actual_out","") or f.get("actual_off","")
-    estimated=f.get("estimated_out","")
-    progress=f.get("progress_percent",0) or 0
-    delay=f.get("departure_delay",0) or 0
+    dep_time=_al_format_time(f.get("dep_time",""))
+    dep_delayed=f.get("dep_delayed",0) or 0
+    dep_terminal=f.get("dep_terminal","")
+    dep_gate=f.get("dep_gate","")
     if status=="active":
-        dep_time=_fa_format_time(actual or scheduled)
-        detail=f"En vol ({progress}%)" if progress else "En vol"
+        detail="En vol"
         if dep_time: detail+=f" · Départ {dep_time}"
         return detail
     if status=="landed":
-        landed_time=_fa_format_time(f.get("actual_on","") or f.get("actual_in",""))
-        return f"Atterri · {landed_time}" if landed_time else "Atterri"
+        arr_time=_al_format_time(f.get("arr_time",""))
+        return f"Atterri · {arr_time}" if arr_time else "Atterri"
     # scheduled
-    sched_time=_fa_format_time(scheduled)
-    if delay and delay>300:
-        est_time=_fa_format_time(estimated)
-        return f"Retardé · {est_time or sched_time} (+{delay//60}min)"
-    gate=f.get("gate_origin","")
-    terminal=f.get("terminal_origin","")
-    detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
-    if terminal: detail+=f" · T{terminal}"
-    if gate: detail+=f" Porte {gate}"
+    detail=f"Programmé · {dep_time}" if dep_time else "Programmé"
+    if dep_delayed and dep_delayed>5:
+        detail+=f" (+{dep_delayed}min)"
+    if dep_terminal: detail+=f" · T{dep_terminal}"
+    if dep_gate: detail+=f" Porte {dep_gate}"
     return detail
 
-def _fa_get_airline(f):
-    """Récupère le nom de la compagnie"""
-    op=f.get("operator","")
-    if op: return op
-    op_iata=f.get("operator_iata","")
-    if op_iata: return op_iata
-    return f.get("ident_iata","") or f.get("ident","") or "Inconnu"
+def _al_get_airline(f):
+    """Récupère le nom de la compagnie via airline_name ou fallback IATA"""
+    name=f.get("airline_name","")
+    if name: return name
+    iata=f.get("airline_iata","")
+    if iata and iata in AIRLINE_NAMES: return AIRLINE_NAMES[iata]
+    return iata or f.get("flight_iata","")[:2] or "Inconnu"
 
-def fetch_flightaware(db):
-    if not FLIGHTAWARE_API_KEY: return None
+def fetch_airlabs(db):
+    if not AIRLABS_API_KEY: return None
     # Guard horaire : uniquement entre 6h et 22h heure de Paris
     try:
         from zoneinfo import ZoneInfo
@@ -395,7 +390,7 @@ def fetch_flightaware(db):
         from backports.zoneinfo import ZoneInfo
     paris_now=datetime.now(ZoneInfo("Europe/Paris"))
     if paris_now.hour<6 or paris_now.hour>=22:
-        print(f"  FlightAware : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
+        print(f"  AirLabs : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
         return None
     # Vérifier si dernier check < 3h
     try:
@@ -409,102 +404,89 @@ def fetch_flightaware(db):
                     last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
                     diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
                     if diff<10800:
-                        print(f"  FlightAware : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
+                        print(f"  AirLabs : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
                         return rt
                 except: pass
     except: pass
 
+    dest_iatas=set(AIRLABS_DESTINATIONS.keys())
+    base_url="https://airlabs.co/api/v9/schedules"
+
     try:
-        headers={"x-apikey":FLIGHTAWARE_API_KEY,"Accept":"application/json"}
+        def _fetch_direction(direction_label):
+            """1 seul appel API pour toutes les destinations d'une direction"""
+            if direction_label=="departs":
+                params={"dep_iata":"CDG","api_key":AIRLABS_API_KEY}
+            else:
+                params={"arr_iata":"CDG","api_key":AIRLABS_API_KEY}
+            print(f"  AirLabs {direction_label} (1 appel)...",flush=True)
+            r=requests.get(base_url,params=params,timeout=30)
+            if r.status_code!=200:
+                print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                return []
+            data=r.json()
+            if data.get("error"):
+                print(f"    API error: {data['error']}",flush=True)
+                return []
+            all_flights=data.get("response",[])
+            print(f"    → {len(all_flights)} vols totaux CDG",flush=True)
 
-        def _fetch_by_dest(direction_label):
-            print(f"  FlightAware {direction_label}...",flush=True)
-            now_utc=datetime.now(timezone.utc)
-            start_of_day=now_utc.strftime("%Y-%m-%dT00:00:00Z")
-            end_of_day=now_utc.strftime("%Y-%m-%dT23:59:59Z")
-            dests=[]
-            for iata,city in FLIGHTAWARE_DESTINATIONS.items():
+            # Filtrer par destinations Moyen-Orient
+            by_dest={}
+            for f in all_flights:
                 if direction_label=="departs":
-                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/CDG/flights/to/{iata}"
+                    arr=f.get("arr_iata","")
+                    if arr not in dest_iatas: continue
+                    dest_key=arr
                 else:
-                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/{iata}/flights/to/CDG"
-                print(f"    {city} ({iata})...",flush=True)
-                try:
-                    r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
-                    if r.status_code==429:
-                        print(f"    Rate limit 429 — attente 60s",flush=True)
-                        time.sleep(60)
-                        r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
-                    if r.status_code!=200:
-                        print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
-                        continue
-                    data=r.json()
-                    raw_flights=data.get("flights",[])
-                    if not raw_flights:
-                        # Chercher dans d'autres clés possibles
-                        for k in data:
-                            if isinstance(data[k],list) and len(data[k])>0:
-                                raw_flights=data[k]; break
+                    dep=f.get("dep_iata","")
+                    if dep not in dest_iatas: continue
+                    dest_key=dep
 
-                    # Aplatir les segments : chaque élément contient "segments"
-                    flights=[]
-                    for item in raw_flights:
-                        segs=item.get("segments",[])
-                        if segs and isinstance(segs,list):
-                            for seg in segs:
-                                flights.append(seg)
-                        elif "ident" in item:
-                            # Pas de segments, format plat
-                            flights.append(item)
+                status,status_label=_al_classify(f)
+                flight_num=f.get("flight_iata","") or ""
+                if not flight_num: continue
+                airline=_al_get_airline(f)
+                detail=_al_build_detail(f,status)
 
-                    print(f"    → {len(flights)} vols (aplatis)",flush=True)
-                    if not flights: continue
+                if dest_key not in by_dest: by_dest[dest_key]=[]
+                by_dest[dest_key].append({
+                    "airline":airline,
+                    "flight":flight_num,
+                    "status":status,
+                    "status_label":detail
+                })
 
-                    # Parser chaque vol
-                    dest_flights=[]
-                    for f in flights:
-                        if f.get("position_only"): continue
-                        status,status_label=_fa_classify(f)
-                        flight_num=f.get("ident_iata","") or f.get("ident","")
-                        airline=_fa_get_airline(f)
-                        detail=_fa_build_detail(f,status)
-                        dest_flights.append({
-                            "airline":airline,
-                            "flight":flight_num,
-                            "status":status,
-                            "status_label":detail
-                        })
+            # Dédupliquer par numéro de vol par destination
+            STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"scheduled":2}
+            dests=[]
+            for iata in sorted(by_dest.keys()):
+                flights=by_dest[iata]
+                seen={}
+                for fl in flights:
+                    fn=fl["flight"]
+                    if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
+                        seen[fn]=fl
+                deduped=list(seen.values())
+                city=AIRLABS_DESTINATIONS.get(iata,iata)
+                dests.append({"city":city,"iata":iata,"flights":deduped})
+                print(f"    {city} ({iata}): {len(deduped)} vols",flush=True)
 
-                    # Dédupliquer par numéro de vol
-                    seen={}
-                    STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"diverted":3,"scheduled":2,"unknown":0}
-                    for fl in dest_flights:
-                        fn=fl["flight"]
-                        if not fn: continue
-                        if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
-                            seen[fn]=fl
-                    deduped=list(seen.values())
-                    if deduped:
-                        dests.append({"city":city,"iata":iata,"flights":deduped})
-                        print(f"    → {len(deduped)} vols uniques",flush=True)
-                except Exception as e:
-                    print(f"    ERR {iata}: {e}",flush=True)
-                time.sleep(10)
             return dests
 
-        departs=_fetch_by_dest("departs")
-        time.sleep(10)
-        retours=_fetch_by_dest("retours")
+        departs=_fetch_direction("departs")
+        time.sleep(2)
+        retours=_fetch_direction("retours")
 
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
-        print(f"  FlightAware résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
+        print(f"  AirLabs résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
         return result
     except Exception as e:
-        print(f"  FlightAware ERR: {e}",flush=True)
+        print(f"  AirLabs ERR: {e}",flush=True)
         import traceback; traceback.print_exc()
         return None
 
-# ===================== FIN FLIGHTAWARE =====================
+# ===================== FIN AIRLABS =====================
 
 def fetch_fin():
     res={}
@@ -734,9 +716,9 @@ def main():
         time.sleep(AI_PAUSE)
 
     rt=None
-    if FLIGHTAWARE_API_KEY:
-        print("\n--- FlightAware ---",flush=True)
-        rt=fetch_flightaware(db)
+    if AIRLABS_API_KEY:
+        print("\n--- AirLabs ---",flush=True)
+        rt=fetch_airlabs(db)
     if rt:
         print(f"  Airlines sync: {len(rt.get('departs',[]))} departs, {len(rt.get('retours',[]))} retours",flush=True)
         sync_airlines(db,[],rt)
