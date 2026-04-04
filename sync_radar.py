@@ -364,11 +364,14 @@ def _al_build_detail(f,status):
         return detail
     if status=="landed":
         arr_time=_al_format_time(f.get("arr_time",""))
-        return f"Atterri · {arr_time}" if arr_time else "Atterri"
+        arr_estimated=_al_format_time(f.get("arr_estimated",""))
+        return f"Atterri · {arr_estimated or arr_time}" if (arr_estimated or arr_time) else "Atterri"
     # scheduled
-    detail=f"Programmé · {dep_time}" if dep_time else "Programmé"
     if dep_delayed and dep_delayed>5:
-        detail+=f" (+{dep_delayed}min)"
+        dep_est=_al_format_time(f.get("dep_estimated",""))
+        detail=f"Retardé · {dep_est or dep_time} (+{dep_delayed}min)" if (dep_est or dep_time) else f"Retardé (+{dep_delayed}min)"
+    else:
+        detail=f"Programmé · {dep_time}" if dep_time else "Programmé"
     if dep_terminal: detail+=f" · T{dep_terminal}"
     if dep_gate: detail+=f" Porte {dep_gate}"
     return detail
@@ -438,12 +441,10 @@ def fetch_airlabs(db):
                         print(f"    ⚠ Réponse vide — clés: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
                         continue
 
-                    # DEBUG temporaire : voir la structure complète d'un vol
-                    if flights:
-                        print(f"    DEBUG premier vol: {json.dumps(flights[0],default=str)}",flush=True)
-
                     dest_flights=[]
                     for f in flights:
+                        # Filtrer les codeshares : si cs_flight_iata existe, c'est un codeshare → skip
+                        if f.get("cs_flight_iata"): continue
                         flight_num=f.get("flight_iata","") or ""
                         if not flight_num: continue
                         status,status_label=_al_classify(f)
