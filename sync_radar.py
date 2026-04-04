@@ -441,6 +441,12 @@ def fetch_airlabs(db):
                         print(f"    ⚠ Réponse vide — clés: {list(data.keys())} — extrait: {str(data)[:300]}",flush=True)
                         continue
 
+                    # DEBUG : tous les vols reçus avant filtrage
+                    print(f"    DEBUG {iata}: {len(flights)} vols bruts reçus",flush=True)
+                    for df in flights:
+                        cs=df.get("cs_flight_iata","—")
+                        print(f"      {df.get('flight_iata','?')} dep={df.get('dep_time','?')} cs={cs} status={df.get('status','?')}",flush=True)
+
                     dest_flights=[]
                     for f in flights:
                         # Filtrer les codeshares : si cs_flight_iata existe, c'est un codeshare → skip
