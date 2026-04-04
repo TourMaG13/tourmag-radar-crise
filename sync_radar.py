@@ -348,34 +348,33 @@ def _adb_format_time(time_obj):
 def _adb_classify(f):
     """Classifie un vol AeroDataBox"""
     s=(f.get("status","") or "").lower()
-    if s=="cancelled": return "cancelled","Annulé"
-    if s=="departed" or s=="enroute" or s=="active": return "active","En vol"
-    if s=="landed" or s=="arrived": return "landed","Atterri"
+    if s in ("cancelled","canceled"): return "cancelled","Annulé"
+    if s in ("departed","enroute","active"): return "active","En vol"
+    if s in ("landed","arrived"): return "landed","Atterri"
     return "scheduled","Programmé"
 
 def _adb_build_detail(f,status):
     """Construit le détail affiché pour un vol AeroDataBox"""
     if status=="cancelled": return "Annulé"
-    dep=f.get("departure",{})
-    arr=f.get("arrival",{})
-    dep_time=_adb_format_time(dep.get("scheduledTime"))
-    dep_revised=_adb_format_time(dep.get("revisedTime",dep.get("predictedTime")))
-    dep_terminal=dep.get("terminal","")
-    dep_gate=dep.get("gate","")
+    mv=f.get("movement",{})
+    sched_time=_adb_format_time(mv.get("scheduledTime"))
+    revised_time=_adb_format_time(mv.get("revisedTime"))
+    actual_time=_adb_format_time(mv.get("runwayTime",mv.get("actualTime")))
+    terminal=mv.get("terminal","")
+    gate=mv.get("gate","")
     if status=="active":
         detail="En vol"
-        if dep_revised or dep_time: detail+=f" · Départ {dep_revised or dep_time}"
+        if actual_time or sched_time: detail+=f" · Départ {actual_time or sched_time}"
         return detail
     if status=="landed":
-        arr_time=_adb_format_time(arr.get("actualTime",arr.get("scheduledTime")))
-        return f"Atterri · {arr_time}" if arr_time else "Atterri"
+        return f"Atterri · {actual_time or revised_time or sched_time}" if (actual_time or revised_time or sched_time) else "Atterri"
     # scheduled / expected
-    if dep_revised and dep_revised!=dep_time and dep_time:
-        detail=f"Retardé · {dep_revised}"
+    if revised_time and revised_time!=sched_time and sched_time:
+        detail=f"Retardé · {revised_time}"
     else:
-        detail=f"Programmé · {dep_time}" if dep_time else "Programmé"
-    if dep_terminal: detail+=f" · T{dep_terminal}"
-    if dep_gate: detail+=f" Porte {dep_gate}"
+        detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
+    if terminal: detail+=f" · T{terminal}"
+    if gate: detail+=f" Porte {gate}"
     return detail
 
 def _adb_get_airline(f):
@@ -468,7 +467,7 @@ def fetch_aerodatabox(db):
                     print(f"    ⚠ HTTP {r2.status_code} sur tranche 18h-23h59: {r2.text[:200]}",flush=True)
             except Exception as e:
                 print(f"    ⚠ ERR tranche 18h-23h59: {e}",flush=True)
-            time.sleep(3)
+            time.sleep(5)
 
             print(f"    Total brut CDG: {len(all_flights)} vols",flush=True)
 
@@ -480,13 +479,8 @@ def fetch_aerodatabox(db):
             dest_iatas=set(AERO_DESTINATIONS.keys())
             by_dest={}
             for f in all_flights:
-                # Identifier la destination/origine
-                if direction_label=="departs":
-                    arr_info=f.get("arrival",{}).get("airport",{})
-                    dest_iata=arr_info.get("iata","")
-                else:
-                    dep_info=f.get("departure",{}).get("airport",{})
-                    dest_iata=dep_info.get("iata","")
+                # AeroDataBox: "movement" = l'autre aéroport (destination pour départs, origine pour arrivées)
+                dest_iata=f.get("movement",{}).get("airport",{}).get("iata","")
                 if dest_iata not in dest_iatas: continue
 
                 # Filtrer codeshares
