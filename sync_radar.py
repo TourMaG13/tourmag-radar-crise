@@ -466,6 +466,9 @@ def fetch_flightaware(db):
                         if f.get("position_only"): continue
                         status,status_label=_fa_classify(f)
                         flight_num=f.get("ident_iata","") or f.get("ident","")
+                        # Filtrer les codeshares : numéro à 4 chiffres ou plus = codeshare
+                        digits=re.sub(r'[^0-9]','',flight_num)
+                        if len(digits)>=4: continue
                         airline=_fa_get_airline(f)
                         detail=_fa_build_detail(f,status)
                         dest_flights.append({
