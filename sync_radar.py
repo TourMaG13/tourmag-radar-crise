@@ -569,6 +569,7 @@ def scrape_mae():
     for ck,url in all_countries.items():
         try:
             r=requests.get(url,timeout=15,headers=HDR)
+            print(f"  {ck}: HTTP {r.status_code}",flush=True)
             if r.status_code!=200: res[ck]=_mfb(ck,url,f"HTTP {r.status_code}"); continue
             soup=BeautifulSoup(r.content,"html.parser")
             full_text=soup.get_text().replace('\n',' ').lower()
@@ -588,8 +589,10 @@ def scrape_mae():
             upd=""; um=re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})',soup.get_text().replace('\n',' '))
             if um: upd=um.group(1).strip()
             res[ck]={"country":ck,"label":MAE_LABELS.get(ck,ck),"level":ll,"level_code":lc,"color":lcl,"is_partial":ip,"summary":ss,"full_content":fc,"url":url,"last_update_mae":upd,"conseil_tourisme":"","last_scraped":datetime.now(timezone.utc).isoformat()}
-            print(f"  {MAE_LABELS.get(ck,ck)}: {ll} ({lcl}) — {len(rel)} paragraphes, {len(found)} niveaux trouvés",flush=True)
-        except Exception as e: res[ck]=_mfb(ck,url,str(e)[:200])
+            print(f"  → {MAE_LABELS.get(ck,ck)}: {ll} ({lcl}) — {len(rel)} paragraphes, {len(found)} niveaux",flush=True)
+        except Exception as e:
+            print(f"  ⚠ {ck} ERREUR: {str(e)[:300]}",flush=True)
+            res[ck]=_mfb(ck,url,str(e)[:200])
     print(f"  MAE : {len(res)} pays",flush=True); return res
 
 def _mfb(ck,url,msg):
