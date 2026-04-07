@@ -13,13 +13,14 @@ from firebase_admin import credentials,firestore
 RSS_URL=os.getenv("RSS_URL","https://www.tourmag.com/xml/syndication.rss?t=crise+golfe")
 CONFLICT_START_DATE=os.getenv("CONFLICT_START_DATE","2025-10-01")
 ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY","")
-RAPIDAPI_KEY=os.getenv("RAPIDAPI_KEY","")
+FLIGHTAWARE_API_KEY=os.getenv("FLIGHTAWARE_API_KEY","")
 ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
-MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
+MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","yemen":"yemen","chypre":"chypre","grece":"grece"}
+MAE_SLUGS_ALT={"bahrein":"https://www.diplomatie.gouv.fr/fr/dossiers-pays/bahrein/","koweit":"https://www.diplomatie.gouv.fr/fr/dossiers-pays/koweit/"}
 MAE_LABELS={"israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak","syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie","arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar","oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen","chypre":"Chypre","grece":"Grèce"}
 MAE_BASE="https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
-ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
+ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("sont déconseillés","deconseille","orange"),("est déconseillé","deconseille","orange"),("voyages déconseillés","deconseille","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
 MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants français à l'étranger","appel à la vigilance maximale"]
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
@@ -148,6 +149,41 @@ def enrich_images(articles):
             if img: a["image_url"]=img; n+=1
             time.sleep(0.2)
     print(f"  Images enrichies : {n}",flush=True)
+
+def scrape_author(url):
+    """Scrape le vrai nom d'auteur depuis la page article (pattern 'Rédigé par X le...')"""
+    try:
+        r=requests.get(url,timeout=10,headers=HDR)
+        if r.status_code!=200: return ""
+        text=r.text
+        # Pattern : "Rédigé par Prénom NOM le Jour..."
+        m=re.search(r'[Rr]édigé par\s+(.+?)\s+le\s+\w+\s+\d',text)
+        if m:
+            author=m.group(1).strip()
+            # Nettoyer les tags HTML résiduels
+            author=re.sub(r'<[^>]+>','',author).strip()
+            if author and len(author)>3 and len(author)<80:
+                return author
+        # Fallback : chercher dans un tag meta author
+        soup=BeautifulSoup(text,"html.parser")
+        meta=soup.find("meta",attrs={"name":"author"})
+        if meta and meta.get("content"):
+            a=meta["content"].strip()
+            if a and a.lower() not in ("la rédaction","rédaction","tourmag","tourmag.com"):
+                return a
+        return ""
+    except: return ""
+
+def enrich_authors(articles):
+    n=0
+    for a in articles:
+        author=(a.get("author","") or "").strip()
+        if not author or author.lower() in ("la rédaction","rédaction","tourmag","tourmag.com",""):
+            real_author=scrape_author(a["link"])
+            if real_author:
+                a["author"]=real_author; n+=1
+            time.sleep(0.2)
+    print(f"  Auteurs enrichis : {n}",flush=True)
 
 def scrape_article_content(url):
     try:
@@ -322,22 +358,15 @@ def classif_kw(a,kw):
     scores={k:v for k,v in scores.items() if v>0}
     return max(scores,key=scores.get) if scores else "general"
 
-# ===================== AERODATABOX =====================
+# ===================== FLIGHTAWARE =====================
 
-AERO_DESTINATIONS={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)"}
+FLIGHTAWARE_DESTINATIONS={"DXB":"Dubaï","DOH":"Doha (Hamad)","AUH":"Abu Dhabi","TLV":"Tel-Aviv (Ben Gourion)","MCT":"Mascate","AMM":"Amman (Queen Alia)"}
 
-# Destinations avec vols de nuit (après 18h) — 2 tranches nécessaires
-AERO_LATE_DESTS={"TLV"}
-
-def _adb_format_time(time_obj):
-    """Convertit un objet time AeroDataBox en heure Paris HHhMM"""
-    if not time_obj: return ""
+def _fa_format_time(dt_str):
+    """Convertit un datetime UTC en heure Paris HHhMM"""
+    if not dt_str: return ""
     try:
-        utc=time_obj.get("utc","") or time_obj.get("local","")
-        if not utc: return ""
-        utc=utc.replace("Z","+00:00")
-        t=datetime.fromisoformat(utc)
-        if t.tzinfo is None: t=t.replace(tzinfo=timezone.utc)
+        t=datetime.fromisoformat(dt_str.replace("Z","+00:00"))
         try:
             from zoneinfo import ZoneInfo as ZI
         except ImportError:
@@ -345,54 +374,56 @@ def _adb_format_time(time_obj):
         return t.astimezone(ZI("Europe/Paris")).strftime("%Hh%M")
     except: return ""
 
-def _adb_classify(f):
-    """Classifie un vol AeroDataBox"""
-    s=(f.get("status","") or "").lower()
-    if s in ("cancelled","canceled"): return "cancelled","Annulé"
-    if s in ("departed","enroute","active"): return "active","En vol"
-    if s in ("landed","arrived"): return "landed","Atterri"
+def _fa_classify(f):
+    """Classifie un vol FlightAware depuis un segment aplati"""
+    if f.get("cancelled"): return "cancelled","Annulé"
+    if f.get("diverted"): return "diverted","Dérouté"
+    actual_off=f.get("actual_off","")
+    actual_on=f.get("actual_on","")
+    progress=f.get("progress_percent",0) or 0
+    if actual_on: return "landed","Atterri"
+    if actual_off: return "active","En vol"
     return "scheduled","Programmé"
 
-def _adb_build_detail(f,status):
-    """Construit le détail affiché pour un vol AeroDataBox"""
+def _fa_build_detail(f,status):
+    """Construit le détail affiché pour un vol"""
     if status=="cancelled": return "Annulé"
-    mv=f.get("movement",{})
-    sched_time=_adb_format_time(mv.get("scheduledTime"))
-    revised_time=_adb_format_time(mv.get("revisedTime"))
-    actual_time=_adb_format_time(mv.get("runwayTime",mv.get("actualTime")))
-    terminal=mv.get("terminal","")
-    gate=mv.get("gate","")
+    if status=="diverted": return "Dérouté"
+    scheduled=f.get("scheduled_out","")
+    actual=f.get("actual_out","") or f.get("actual_off","")
+    estimated=f.get("estimated_out","")
+    progress=f.get("progress_percent",0) or 0
+    delay=f.get("departure_delay",0) or 0
     if status=="active":
-        detail="En vol"
-        if actual_time or sched_time: detail+=f" · Départ {actual_time or sched_time}"
+        dep_time=_fa_format_time(actual or scheduled)
+        detail=f"En vol ({progress}%)" if progress else "En vol"
+        if dep_time: detail+=f" · Départ {dep_time}"
         return detail
     if status=="landed":
-        return f"Atterri · {actual_time or revised_time or sched_time}" if (actual_time or revised_time or sched_time) else "Atterri"
-    # scheduled / expected
-    if revised_time and revised_time!=sched_time and sched_time:
-        detail=f"Retardé · {revised_time}"
-    else:
-        detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
+        landed_time=_fa_format_time(f.get("actual_on","") or f.get("actual_in",""))
+        return f"Atterri · {landed_time}" if landed_time else "Atterri"
+    # scheduled
+    sched_time=_fa_format_time(scheduled)
+    if delay and delay>300:
+        est_time=_fa_format_time(estimated)
+        return f"Retardé · {est_time or sched_time} (+{delay//60}min)"
+    gate=f.get("gate_origin","")
+    terminal=f.get("terminal_origin","")
+    detail=f"Programmé · {sched_time}" if sched_time else "Programmé"
     if terminal: detail+=f" · T{terminal}"
     if gate: detail+=f" Porte {gate}"
     return detail
 
-def _adb_get_airline(f):
+def _fa_get_airline(f):
     """Récupère le nom de la compagnie"""
-    al=f.get("airline",{})
-    name=al.get("name","")
-    if name: return name
-    iata=al.get("iata","")
-    if iata: return iata
-    return "Inconnu"
+    op=f.get("operator","")
+    if op: return op
+    op_iata=f.get("operator_iata","")
+    if op_iata: return op_iata
+    return f.get("ident_iata","") or f.get("ident","") or "Inconnu"
 
-def _adb_get_flight_num(f):
-    """Récupère le numéro de vol formaté"""
-    num=f.get("number","") or ""
-    return num.replace(" ","")
-
-def fetch_aerodatabox(db):
-    if not RAPIDAPI_KEY: return None
+def fetch_flightaware(db):
+    if not FLIGHTAWARE_API_KEY: return None
     # Guard horaire : uniquement entre 6h et 22h heure de Paris
     try:
         from zoneinfo import ZoneInfo
@@ -400,7 +431,7 @@ def fetch_aerodatabox(db):
         from backports.zoneinfo import ZoneInfo
     paris_now=datetime.now(ZoneInfo("Europe/Paris"))
     if paris_now.hour<6 or paris_now.hour>=22:
-        print(f"  AeroDataBox : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
+        print(f"  FlightAware : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
         return None
     # Vérifier si dernier check < 3h
     try:
@@ -414,135 +445,105 @@ def fetch_aerodatabox(db):
                     last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
                     diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
                     if diff<10800:
-                        print(f"  AeroDataBox : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
+                        print(f"  FlightAware : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
                         return rt
                 except: pass
     except: pass
 
-    headers={"x-rapidapi-host":"aerodatabox.p.rapidapi.com","x-rapidapi-key":RAPIDAPI_KEY}
-    base_url="https://aerodatabox.p.rapidapi.com/flights/airports/iata"
-    today=datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"scheduled":2}
-    total_api_calls=0
-
     try:
-        def _fetch_direction(direction_label):
-            nonlocal total_api_calls
-            print(f"  AeroDataBox {direction_label}...",flush=True)
-            direction="Departure" if direction_label=="departs" else "Arrival"
+        headers={"x-apikey":FLIGHTAWARE_API_KEY,"Accept":"application/json"}
+
+        def _fetch_by_dest(direction_label):
+            print(f"  FlightAware {direction_label}...",flush=True)
+            now_utc=datetime.now(timezone.utc)
+            start_of_day=now_utc.strftime("%Y-%m-%dT00:00:00Z")
+            end_of_day=now_utc.strftime("%Y-%m-%dT23:59:59Z")
             dests=[]
-
-            # 1 appel CDG sur tranche 06h-18h (couvre la majorité des vols)
-            # 1er appel : tranche 18h-23h59 (prioritaire — vols soirée TLV, MCT)
-            url=f"{base_url}/CDG/{today}T18:00/{today}T23:59"
-            params={"direction":direction,"withCancelled":"true","withCodeshared":"false","withPrivate":"false"}
-            print(f"    CDG {direction} 18h-23h59...",flush=True)
-            try:
-                r=requests.get(url,headers=headers,params=params,timeout=30)
-                total_api_calls+=1
-                if r.status_code!=200:
-                    print(f"    ⚠ HTTP {r.status_code}: {r.text[:300]}",flush=True)
-                    all_flights=[]
+            for iata,city in FLIGHTAWARE_DESTINATIONS.items():
+                if direction_label=="departs":
+                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/CDG/flights/to/{iata}"
                 else:
+                    url=f"https://aeroapi.flightaware.com/aeroapi/airports/{iata}/flights/to/CDG"
+                print(f"    {city} ({iata})...",flush=True)
+                try:
+                    r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
+                    if r.status_code==429:
+                        print(f"    Rate limit 429 — attente 60s",flush=True)
+                        time.sleep(60)
+                        r=requests.get(url,params={"type":"Airline","start":start_of_day,"end":end_of_day},headers=headers,timeout=30)
+                    if r.status_code!=200:
+                        print(f"    HTTP {r.status_code}: {r.text[:200]}",flush=True)
+                        continue
                     data=r.json()
-                    flights_key="departures" if direction_label=="departs" else "arrivals"
-                    all_flights=data.get(flights_key,[])
-                    print(f"    → {len(all_flights)} vols bruts CDG 18h-23h59",flush=True)
-            except Exception as e:
-                print(f"    ⚠ ERR requête 18h-23h59: {e}",flush=True)
-                all_flights=[]
+                    raw_flights=data.get("flights",[])
+                    if not raw_flights:
+                        # Chercher dans d'autres clés possibles
+                        for k in data:
+                            if isinstance(data[k],list) and len(data[k])>0:
+                                raw_flights=data[k]; break
 
-            time.sleep(10)
+                    # Aplatir les segments : chaque élément contient "segments"
+                    flights=[]
+                    for item in raw_flights:
+                        segs=item.get("segments",[])
+                        if segs and isinstance(segs,list):
+                            for seg in segs:
+                                flights.append(seg)
+                        elif "ident" in item:
+                            # Pas de segments, format plat
+                            flights.append(item)
 
-            # 2e appel : tranche 06h-18h (gros volume)
-            flights_key="departures" if direction_label=="departs" else "arrivals"
-            url2=f"{base_url}/CDG/{today}T06:00/{today}T17:59"
-            print(f"    CDG {direction} 06h-18h...",flush=True)
-            try:
-                r2=requests.get(url2,headers=headers,params=params,timeout=30)
-                total_api_calls+=1
-                if r2.status_code==200:
-                    data2=r2.json()
-                    flights2=data2.get(flights_key,[])
-                    print(f"    → {len(flights2)} vols bruts CDG 06h-18h",flush=True)
-                    all_flights.extend(flights2)
-                else:
-                    print(f"    ⚠ HTTP {r2.status_code} sur tranche 06h-18h: {r2.text[:200]}",flush=True)
-            except Exception as e:
-                print(f"    ⚠ ERR tranche 06h-18h: {e}",flush=True)
-            time.sleep(10)
+                    print(f"    → {len(flights)} vols (aplatis)",flush=True)
+                    if not flights: continue
 
-            print(f"    Total brut CDG: {len(all_flights)} vols",flush=True)
+                    # Parser chaque vol
+                    dest_flights=[]
+                    for f in flights:
+                        if f.get("position_only"): continue
+                        status,status_label=_fa_classify(f)
+                        flight_num=f.get("ident_iata","") or f.get("ident","")
+                        # Filtrer les codeshares : numéro à 4 chiffres ou plus = codeshare
+                        digits=re.sub(r'[^0-9]','',flight_num)
+                        if len(digits)>=4: continue
+                        airline=_fa_get_airline(f)
+                        detail=_fa_build_detail(f,status)
+                        dest_flights.append({
+                            "airline":airline,
+                            "flight":flight_num,
+                            "status":status,
+                            "status_label":detail
+                        })
 
-            # Filtrer par destinations Moyen-Orient
-            dest_iatas=set(AERO_DESTINATIONS.keys())
-            by_dest={}
-            for f in all_flights:
-                # AeroDataBox: "movement" = l'autre aéroport (destination pour départs, origine pour arrivées)
-                dest_iata=f.get("movement",{}).get("airport",{}).get("iata","")
-                if dest_iata not in dest_iatas: continue
-
-                # Log brut de chaque vol ME détecté (avant filtrage codeshare)
-                raw_status=f.get("status","?")
-                raw_cs=f.get("codeshareStatus","?")
-                raw_num=f.get("number","?")
-                print(f"    DEBUG ME brut: {raw_num} → {dest_iata} status={raw_status} cs={raw_cs}",flush=True)
-
-                # Filtrer codeshares
-                cs=f.get("codeshareStatus","")
-                if cs=="IsCodeshared": continue
-
-                flight_num=_adb_get_flight_num(f)
-                if not flight_num: continue
-                status,_=_adb_classify(f)
-                airline=_adb_get_airline(f)
-                detail=_adb_build_detail(f,status)
-
-                if dest_iata not in by_dest: by_dest[dest_iata]=[]
-                by_dest[dest_iata].append({
-                    "airline":airline,
-                    "flight":flight_num,
-                    "status":status,
-                    "status_label":detail
-                })
-
-            # Log détaillé par destination + déduplication
-            for iata in sorted(by_dest.keys()):
-                flights=by_dest[iata]
-                city=AERO_DESTINATIONS.get(iata,iata)
-                print(f"    {city} ({iata}): {len(flights)} vols avant dédup",flush=True)
-                for fl in flights:
-                    print(f"      {fl['flight']} {fl['airline']} — {fl['status_label']}",flush=True)
-                seen={}
-                for fl in flights:
-                    fn=fl["flight"]
-                    if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
-                        seen[fn]=fl
-                deduped=list(seen.values())
-                dests.append({"city":city,"iata":iata,"flights":deduped})
-                print(f"    → {len(deduped)} vols après dédup",flush=True)
-
-            # Destinations sans vols
-            for iata,city in AERO_DESTINATIONS.items():
-                if iata not in by_dest:
-                    print(f"    {city} ({iata}): 0 vols",flush=True)
-
+                    # Dédupliquer par numéro de vol
+                    seen={}
+                    STATUS_PRIORITY={"active":5,"landed":4,"cancelled":3,"diverted":3,"scheduled":2,"unknown":0}
+                    for fl in dest_flights:
+                        fn=fl["flight"]
+                        if not fn: continue
+                        if fn not in seen or STATUS_PRIORITY.get(fl["status"],0)>STATUS_PRIORITY.get(seen[fn]["status"],0):
+                            seen[fn]=fl
+                    deduped=list(seen.values())
+                    if deduped:
+                        dests.append({"city":city,"iata":iata,"flights":deduped})
+                        print(f"    → {len(deduped)} vols uniques",flush=True)
+                except Exception as e:
+                    print(f"    ERR {iata}: {e}",flush=True)
+                time.sleep(10)
             return dests
 
-        departs=_fetch_direction("departs")
-        time.sleep(2)
-        retours=_fetch_direction("retours")
+        departs=_fetch_by_dest("departs")
+        time.sleep(10)
+        retours=_fetch_by_dest("retours")
 
-        print(f"  AeroDataBox: {total_api_calls} appels API consommés ce run",flush=True)
         result={"departs":departs,"retours":retours,"destinations":departs,"last_check":datetime.now(timezone.utc).isoformat()}
-        print(f"  AeroDataBox résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
+        print(f"  FlightAware résultat: {len(departs)} destinations départ, {len(retours)} destinations retour",flush=True)
         return result
     except Exception as e:
-        print(f"  AeroDataBox ERR: {e}",flush=True)
+        print(f"  FlightAware ERR: {e}",flush=True)
         import traceback; traceback.print_exc()
         return None
 
-# ===================== FIN AERODATABOX =====================
+# ===================== FIN FLIGHTAWARE =====================
 
 def fetch_fin():
     res={}
@@ -559,16 +560,25 @@ def fetch_fin():
 
 def scrape_mae():
     res={}
+    # Construire la liste complète des pays avec leur URL
+    all_countries={}
     for ck,slug in MAE_SLUGS.items():
-        url=f"{MAE_BASE}{slug}/"
+        all_countries[ck]=f"{MAE_BASE}{slug}/"
+    for ck,url in MAE_SLUGS_ALT.items():
+        all_countries[ck]=url
+    for ck,url in all_countries.items():
         try:
             r=requests.get(url,timeout=15,headers=HDR)
             if r.status_code!=200: res[ck]=_mfb(ck,url,f"HTTP {r.status_code}"); continue
             soup=BeautifulSoup(r.content,"html.parser")
+            full_text=soup.get_text().replace('\n',' ').lower()
             ap=[p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True))>=15]
             rel=[t for t in ap if any(k in t.lower() for k in ["déconseillé","vigilance","quitter","se rendre","recommandé","risque","frappes","prudence","sécurité","zone","éviter","déplacement","frontière","aéroport"]) and not any(g in t.lower() for g in MAE_GENERIC)]
             rt=" ".join(rel).lower()
             found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in rt]
+            # Fallback : chercher dans le texte complet de la page si rien trouvé dans les paragraphes filtrés
+            if not found:
+                found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in full_text]
             if found:
                 ip=len(found)>1
                 if ip: least,worst=found[-1],found[0]; ll=f"{least[0].capitalize()} (certaines zones : {worst[0]})"; lc,lcl=least[1],least[2]
@@ -578,6 +588,7 @@ def scrape_mae():
             upd=""; um=re.search(r'Dernière mise à jour[^\d]*(\d{1,2}\s+\w+\s+\d{4})',soup.get_text().replace('\n',' '))
             if um: upd=um.group(1).strip()
             res[ck]={"country":ck,"label":MAE_LABELS.get(ck,ck),"level":ll,"level_code":lc,"color":lcl,"is_partial":ip,"summary":ss,"full_content":fc,"url":url,"last_update_mae":upd,"conseil_tourisme":"","last_scraped":datetime.now(timezone.utc).isoformat()}
+            print(f"  {MAE_LABELS.get(ck,ck)}: {ll} ({lcl}) — {len(rel)} paragraphes, {len(found)} niveaux trouvés",flush=True)
         except Exception as e: res[ck]=_mfb(ck,url,str(e)[:200])
     print(f"  MAE : {len(res)} pays",flush=True); return res
 
@@ -597,6 +608,11 @@ def sync_arts(db,articles,kw,gc,cit):
             if not ed.get("image_url") and a.get("image_url"): updates["image_url"]=a["image_url"]
             if not ed.get("tags") and tags: updates["tags"]=tags
             if has_edito_tag(tags) and ed.get("category")!="edito": updates["category"]="edito"
+            # Mettre à jour l'auteur si existant est vide ou "La Rédaction"
+            existing_author=(ed.get("author","") or "").strip().lower()
+            new_author=(a.get("author","") or "").strip()
+            if new_author and existing_author in ("","la rédaction","rédaction","tourmag","tourmag.com") and new_author.lower() not in ("la rédaction","rédaction","tourmag","tourmag.com"):
+                updates["author"]=new_author
             if updates: ref.document(did).update(updates)
             continue
         cat=gc.get(i,classif_kw(a,kw)) if gc else classif_kw(a,kw)
@@ -638,17 +654,28 @@ def conseils_groq(articles):
     icons_list=", ".join(CONSEILS_ICONS.keys())
     prompt=f"""Tu es un expert du tourisme professionnel français. Génère exactement 3 conseils pratiques et concrets pour les agents de voyage, en lien avec la crise au Moyen-Orient.
 
-CONSIGNES :
-- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (15-25 mots).
-- Les conseils doivent être actionnables et directement utiles pour un agent de voyage.
+CONSIGNES DE RÉDACTION IMPÉRATIVES :
+- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (20-30 mots).
+- Le texte explicatif doit être rédigé en PHRASES COMPLÈTES avec sujet, verbe et complément.
+- Écris dans un français fluide et naturel. JAMAIS de style télégraphique ni de mots-clés alignés.
+- N'omets JAMAIS les pronoms, articles ou prépositions. Chaque phrase doit pouvoir être lue à voix haute naturellement.
 - Le ton est professionnel et rassurant, pas alarmiste.
+- Les conseils doivent être actionnables et directement utiles pour un agent de voyage.
 - Chaque conseil a une icône parmi : {icons_list}
 - Varie les icônes entre les 3 conseils.
+
+EXEMPLES DE BON STYLE :
+- "Nous vous recommandons de vérifier les conditions d'annulation auprès de vos tour-opérateurs partenaires avant toute confirmation."
+- "Il est conseillé de proposer des destinations alternatives comme la Grèce ou Chypre à vos clients qui hésitent."
+
+EXEMPLES DE MAUVAIS STYLE (À PROSCRIRE) :
+- "Vérifier CGV TO partenaires."
+- "Alternatives : Grèce, Chypre, Jordanie."
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT en JSON : [{{"icon":"annulation","titre":"Vérifier les CGV","texte":"Consultez les conditions de force majeure de vos TO partenaires avant de confirmer les réservations."}}]"""
+Réponds UNIQUEMENT en JSON : [{{"icon":"annulation","titre":"Vérifier les CGV","texte":"Nous vous recommandons de consulter les conditions de force majeure de vos tour-opérateurs partenaires avant de confirmer les réservations en cours."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list) and len(r)>=2:
         out=[]
@@ -693,6 +720,10 @@ def main():
         if missing:
             print(f"\n--- Images ({len(missing)}) ---",flush=True)
             enrich_images(articles)
+
+    if articles:
+        print(f"\n--- Auteurs ---",flush=True)
+        enrich_authors(articles)
 
     if articles:
         existing_links=set()
@@ -772,9 +803,9 @@ def main():
         time.sleep(AI_PAUSE)
 
     rt=None
-    if RAPIDAPI_KEY:
-        print("\n--- AeroDataBox ---",flush=True)
-        rt=fetch_aerodatabox(db)
+    if FLIGHTAWARE_API_KEY:
+        print("\n--- FlightAware ---",flush=True)
+        rt=fetch_flightaware(db)
     if rt:
         print(f"  Airlines sync: {len(rt.get('departs',[]))} departs, {len(rt.get('retours',[]))} retours",flush=True)
         sync_airlines(db,[],rt)
