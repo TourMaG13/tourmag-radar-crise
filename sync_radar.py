@@ -16,10 +16,11 @@ ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY","")
 FLIGHTAWARE_API_KEY=os.getenv("FLIGHTAWARE_API_KEY","")
 ME_AIRPORTS={"BEY":"Beyrouth","TLV":"Tel-Aviv","THR":"Téhéran","IKA":"Téhéran (Imam Khomeini)","AMM":"Amman","CAI":"Le Caire","IST":"Istanbul","DXB":"Dubaï","DOH":"Doha","RUH":"Riyad","JED":"Djeddah","MCT":"Mascate","BAH":"Bahreïn","KWI":"Koweït","AUH":"Abu Dhabi","SSH":"Charm el-Cheikh","HRG":"Hurghada","LCA":"Larnaca","AYT":"Antalya","BGW":"Bagdad","DAM":"Damas","SAH":"Sanaa"}
 FINANCE_SYMBOLS={"brent":{"symbol":"BZ=F","label":"Brent (baril)","currency":"$","sector":"commodity"},"eurusd":{"symbol":"EURUSD=X","label":"EUR / USD","currency":"","sector":"forex"},"AF.PA":{"symbol":"AF.PA","label":"Air France-KLM","currency":"€","sector":"aerien"},"TUI1.DE":{"symbol":"TUI1.DE","label":"TUI Group","currency":"€","sector":"to"},"AC.PA":{"symbol":"AC.PA","label":"Accor","currency":"€","sector":"hotellerie"},"BKNG":{"symbol":"BKNG","label":"Booking Holdings","currency":"$","sector":"ota"},"CCL":{"symbol":"CCL","label":"Carnival Corp","currency":"$","sector":"croisiere"},"AMS.MC":{"symbol":"AMS.MC","label":"Amadeus IT","currency":"€","sector":"tech"},"AIR.PA":{"symbol":"AIR.PA","label":"Airbus","currency":"€","sector":"aerien"},"RYA.IR":{"symbol":"RYA.IR","label":"Ryanair","currency":"€","sector":"aerien"},"IAG.L":{"symbol":"IAG.L","label":"IAG (British Airways)","currency":"£","sector":"aerien"},"LHA.DE":{"symbol":"LHA.DE","label":"Lufthansa","currency":"€","sector":"aerien"},"EXPE":{"symbol":"EXPE","label":"Expedia","currency":"$","sector":"ota"},"MAR":{"symbol":"MAR","label":"Marriott","currency":"$","sector":"hotellerie"},"RCL":{"symbol":"RCL","label":"Royal Caribbean","currency":"$","sector":"croisiere"},"HLT":{"symbol":"HLT","label":"Hilton","currency":"$","sector":"hotellerie"},"GC=F":{"symbol":"GC=F","label":"Or (once)","currency":"$","sector":"commodity"}}
-MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","bahrein":"bahrein","koweit":"koweit","yemen":"yemen","chypre":"chypre","grece":"grece"}
+MAE_SLUGS={"israel":"israel-palestine","liban":"liban","iran":"iran","irak":"irak","syrie":"syrie","jordanie":"jordanie","egypte":"egypte","turquie":"turquie","arabie_saoudite":"arabie-saoudite","emirats":"emirats-arabes-unis","qatar":"qatar","oman":"oman","yemen":"yemen","chypre":"chypre","grece":"grece"}
+MAE_SLUGS_ALT={"bahrein":"https://www.diplomatie.gouv.fr/fr/dossiers-pays/bahrein/","koweit":"https://www.diplomatie.gouv.fr/fr/dossiers-pays/koweit/"}
 MAE_LABELS={"israel":"Israël / Palestine","liban":"Liban","iran":"Iran","irak":"Irak","syrie":"Syrie","jordanie":"Jordanie","egypte":"Égypte","turquie":"Turquie","arabie_saoudite":"Arabie Saoudite","emirats":"Émirats Arabes Unis","qatar":"Qatar","oman":"Oman","bahrein":"Bahreïn","koweit":"Koweït","yemen":"Yémen","chypre":"Chypre","grece":"Grèce"}
 MAE_BASE="https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/conseils-par-pays-destination/"
-ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
+ALERT_LEVELS=[("formellement déconseillé","formellement_deconseille","red"),("déconseillé sauf raison impérative","deconseille_sauf_ri","orange"),("déconseillé sauf raison","deconseille_sauf_ri","orange"),("sont déconseillés","deconseille","orange"),("est déconseillé","deconseille","orange"),("voyages déconseillés","deconseille","orange"),("vigilance renforcée","vigilance_renforcee","yellow"),("vigilance normale","vigilance_normale","green")]
 MAE_GENERIC=["urgence attentat","vigilance renforcée pour les ressortissants français à l'étranger","appel à la vigilance maximale"]
 HDR={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html,*/*","Accept-Language":"fr-FR,fr;q=0.9"}
 KEYWORDS_PATH=Path(__file__).parent/"keywords.json"
@@ -524,16 +525,25 @@ def fetch_fin():
 
 def scrape_mae():
     res={}
+    # Construire la liste complète des pays avec leur URL
+    all_countries={}
     for ck,slug in MAE_SLUGS.items():
-        url=f"{MAE_BASE}{slug}/"
+        all_countries[ck]=f"{MAE_BASE}{slug}/"
+    for ck,url in MAE_SLUGS_ALT.items():
+        all_countries[ck]=url
+    for ck,url in all_countries.items():
         try:
             r=requests.get(url,timeout=15,headers=HDR)
             if r.status_code!=200: res[ck]=_mfb(ck,url,f"HTTP {r.status_code}"); continue
             soup=BeautifulSoup(r.content,"html.parser")
+            full_text=soup.get_text().replace('\n',' ').lower()
             ap=[p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True))>=15]
             rel=[t for t in ap if any(k in t.lower() for k in ["déconseillé","vigilance","quitter","se rendre","recommandé","risque","frappes","prudence","sécurité","zone","éviter","déplacement","frontière","aéroport"]) and not any(g in t.lower() for g in MAE_GENERIC)]
             rt=" ".join(rel).lower()
             found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in rt]
+            # Fallback : chercher dans le texte complet de la page si rien trouvé dans les paragraphes filtrés
+            if not found:
+                found=[(lt,cd,co) for lt,cd,co in ALERT_LEVELS if lt in full_text]
             if found:
                 ip=len(found)>1
                 if ip: least,worst=found[-1],found[0]; ll=f"{least[0].capitalize()} (certaines zones : {worst[0]})"; lc,lcl=least[1],least[2]
