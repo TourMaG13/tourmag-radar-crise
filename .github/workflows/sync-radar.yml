@@ -1,10 +1,8 @@
 name: Sync Radar Crise
-
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: '0 4,6,8,10,12,14 * * *'
   workflow_dispatch:
-
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -23,6 +21,4 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FLIGHTAWARE_API_KEY: ${{ secrets.FLIGHTAWARE_API_KEY }}
-          run: python -u sync_radar.py
-        run: python sync_radar.py
-        
+        run: python -u sync_radar.py
