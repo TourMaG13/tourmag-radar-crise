@@ -150,6 +150,41 @@ def enrich_images(articles):
             time.sleep(0.2)
     print(f"  Images enrichies : {n}",flush=True)
 
+def scrape_author(url):
+    """Scrape le vrai nom d'auteur depuis la page article (pattern 'Rédigé par X le...')"""
+    try:
+        r=requests.get(url,timeout=10,headers=HDR)
+        if r.status_code!=200: return ""
+        text=r.text
+        # Pattern : "Rédigé par Prénom NOM le Jour..."
+        m=re.search(r'[Rr]édigé par\s+(.+?)\s+le\s+\w+\s+\d',text)
+        if m:
+            author=m.group(1).strip()
+            # Nettoyer les tags HTML résiduels
+            author=re.sub(r'<[^>]+>','',author).strip()
+            if author and len(author)>3 and len(author)<80:
+                return author
+        # Fallback : chercher dans un tag meta author
+        soup=BeautifulSoup(text,"html.parser")
+        meta=soup.find("meta",attrs={"name":"author"})
+        if meta and meta.get("content"):
+            a=meta["content"].strip()
+            if a and a.lower() not in ("la rédaction","rédaction","tourmag","tourmag.com"):
+                return a
+        return ""
+    except: return ""
+
+def enrich_authors(articles):
+    n=0
+    for a in articles:
+        author=(a.get("author","") or "").strip()
+        if not author or author.lower() in ("la rédaction","rédaction","tourmag","tourmag.com",""):
+            real_author=scrape_author(a["link"])
+            if real_author:
+                a["author"]=real_author; n+=1
+            time.sleep(0.2)
+    print(f"  Auteurs enrichis : {n}",flush=True)
+
 def scrape_article_content(url):
     try:
         r=requests.get(url,timeout=15,headers=HDR)
@@ -572,6 +607,11 @@ def sync_arts(db,articles,kw,gc,cit):
             if not ed.get("image_url") and a.get("image_url"): updates["image_url"]=a["image_url"]
             if not ed.get("tags") and tags: updates["tags"]=tags
             if has_edito_tag(tags) and ed.get("category")!="edito": updates["category"]="edito"
+            # Mettre à jour l'auteur si existant est vide ou "La Rédaction"
+            existing_author=(ed.get("author","") or "").strip().lower()
+            new_author=(a.get("author","") or "").strip()
+            if new_author and existing_author in ("","la rédaction","rédaction","tourmag","tourmag.com") and new_author.lower() not in ("la rédaction","rédaction","tourmag","tourmag.com"):
+                updates["author"]=new_author
             if updates: ref.document(did).update(updates)
             continue
         cat=gc.get(i,classif_kw(a,kw)) if gc else classif_kw(a,kw)
@@ -613,17 +653,28 @@ def conseils_groq(articles):
     icons_list=", ".join(CONSEILS_ICONS.keys())
     prompt=f"""Tu es un expert du tourisme professionnel français. Génère exactement 3 conseils pratiques et concrets pour les agents de voyage, en lien avec la crise au Moyen-Orient.
 
-CONSIGNES :
-- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (15-25 mots).
-- Les conseils doivent être actionnables et directement utiles pour un agent de voyage.
+CONSIGNES DE RÉDACTION IMPÉRATIVES :
+- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (20-30 mots).
+- Le texte explicatif doit être rédigé en PHRASES COMPLÈTES avec sujet, verbe et complément.
+- Écris dans un français fluide et naturel. JAMAIS de style télégraphique ni de mots-clés alignés.
+- N'omets JAMAIS les pronoms, articles ou prépositions. Chaque phrase doit pouvoir être lue à voix haute naturellement.
 - Le ton est professionnel et rassurant, pas alarmiste.
+- Les conseils doivent être actionnables et directement utiles pour un agent de voyage.
 - Chaque conseil a une icône parmi : {icons_list}
 - Varie les icônes entre les 3 conseils.
+
+EXEMPLES DE BON STYLE :
+- "Nous vous recommandons de vérifier les conditions d'annulation auprès de vos tour-opérateurs partenaires avant toute confirmation."
+- "Il est conseillé de proposer des destinations alternatives comme la Grèce ou Chypre à vos clients qui hésitent."
+
+EXEMPLES DE MAUVAIS STYLE (À PROSCRIRE) :
+- "Vérifier CGV TO partenaires."
+- "Alternatives : Grèce, Chypre, Jordanie."
 
 Articles récents :
 {chr(10).join(items)}
 
-Réponds UNIQUEMENT en JSON : [{{"icon":"annulation","titre":"Vérifier les CGV","texte":"Consultez les conditions de force majeure de vos TO partenaires avant de confirmer les réservations."}}]"""
+Réponds UNIQUEMENT en JSON : [{{"icon":"annulation","titre":"Vérifier les CGV","texte":"Nous vous recommandons de consulter les conditions de force majeure de vos tour-opérateurs partenaires avant de confirmer les réservations en cours."}}]"""
     r=pj(gcall([{"role":"user","content":prompt}],mt=1500))
     if r and isinstance(r,list) and len(r)>=2:
         out=[]
@@ -668,6 +719,10 @@ def main():
         if missing:
             print(f"\n--- Images ({len(missing)}) ---",flush=True)
             enrich_images(articles)
+
+    if articles:
+        print(f"\n--- Auteurs ---",flush=True)
+        enrich_authors(articles)
 
     if articles:
         existing_links=set()
