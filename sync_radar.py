@@ -151,21 +151,21 @@ def enrich_images(articles):
     print(f"  Images enrichies : {n}",flush=True)
 
 def scrape_author(url):
-    """Scrape le vrai nom d'auteur depuis div.auteur > div.access (pattern 'Rédigé par X le...')"""
+    """Scrape le vrai nom d'auteur depuis la page article (pattern 'Rédigé par X le...')"""
     try:
         r=requests.get(url,timeout=10,headers=HDR)
         if r.status_code!=200: return ""
-        soup=BeautifulSoup(r.content,"html.parser")
-        # Chercher dans div.auteur
-        div_auteur=soup.find("div",class_="auteur")
-        if div_auteur:
-            text=div_auteur.get_text()
-            m=re.search(r'[Rr]édigé par\s+(.+?)\s+le\s',text)
-            if m:
-                author=m.group(1).strip()
-                if author and len(author)>3 and len(author)<80:
-                    return author
+        text=r.text
+        # Pattern : "Rédigé par Prénom NOM le Jour..."
+        m=re.search(r'[Rr]édigé par\s+(.+?)\s+le\s+\w+\s+\d',text)
+        if m:
+            author=m.group(1).strip()
+            # Nettoyer les tags HTML résiduels
+            author=re.sub(r'<[^>]+>','',author).strip()
+            if author and len(author)>3 and len(author)<80:
+                return author
         # Fallback : chercher dans un tag meta author
+        soup=BeautifulSoup(text,"html.parser")
         meta=soup.find("meta",attrs={"name":"author"})
         if meta and meta.get("content"):
             a=meta["content"].strip()
@@ -433,7 +433,7 @@ def fetch_flightaware(db):
     if paris_now.hour<6 or paris_now.hour>=22:
         print(f"  FlightAware : hors plage horaire ({paris_now.strftime('%Hh%M')} Paris), skip",flush=True)
         return None
-    # Vérifier si dernier check < 4h
+    # Vérifier si dernier check < 3h
     try:
         doc=db.collection("config").document("airlines").get()
         if doc.exists:
@@ -444,8 +444,8 @@ def fetch_flightaware(db):
                 try:
                     last_dt=datetime.fromisoformat(last.replace("Z","+00:00"))
                     diff=(datetime.now(timezone.utc)-last_dt).total_seconds()
-                    if diff<14400:
-                        print(f"  FlightAware : dernier check il y a {int(diff//60)}min, skip (min 4h)",flush=True)
+                    if diff<10800:
+                        print(f"  FlightAware : dernier check il y a {int(diff//60)}min, skip (min 3h)",flush=True)
                         return rt
                 except: pass
     except: pass
@@ -654,7 +654,7 @@ def conseils_groq(articles):
     prompt=f"""Tu es un expert du tourisme professionnel français. Génère exactement 3 conseils pratiques et concrets pour les agents de voyage, en lien avec la crise au Moyen-Orient.
 
 CONSIGNES DE RÉDACTION IMPÉRATIVES :
-- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (15-20 mots maximum).
+- Chaque conseil a un titre court (4-6 mots) et un texte explicatif (20-30 mots).
 - Le texte explicatif doit être rédigé en PHRASES COMPLÈTES avec sujet, verbe et complément.
 - Écris dans un français fluide et naturel. JAMAIS de style télégraphique ni de mots-clés alignés.
 - N'omets JAMAIS les pronoms, articles ou prépositions. Chaque phrase doit pouvoir être lue à voix haute naturellement.
