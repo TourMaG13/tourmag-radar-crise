@@ -60,7 +60,7 @@
 @media(max-width:768px){.flash{flex-wrap:wrap;gap:8px;padding:10px 12px}.flash-text{font-size:12px;order:3;flex-basis:100%}.flash-date{order:2}}
 .layout{display:grid;grid-template-columns:1fr 320px;gap:28px;align-items:start}
 @media(max-width:960px){.layout{grid-template-columns:1fr;gap:20px}}
-.main-col{min-width:0}.side-col{min-width:0}
+.main-col{min-width:0;overflow:hidden}.side-col{min-width:0}
 @media(max-width:960px){.side-col{order:10}}
 .une-h{border-radius:var(--rl);overflow:hidden;position:relative;min-height:280px;cursor:pointer;margin-bottom:14px;transition:transform .25s,box-shadow .25s}.une-h:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.2)}
 .une-h-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--pri),#2D2D44)}.une-h-bg img{width:100%;height:100%;object-fit:cover;opacity:.55;transition:opacity .3s}.une-h:hover .une-h-bg img{opacity:.65}
@@ -117,9 +117,9 @@
 .ess2-tag{font-family:'Josefin Sans';font-size:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap;text-align:center}
 .ess2-tag[data-t="AÉRIEN"]{background:#DBEAFE;color:#1E40AF}.ess2-tag[data-t="GÉOPOLITIQUE"]{background:#FEE2E2;color:#991B1B}.ess2-tag[data-t="DESTINATIONS"]{background:#DBEAFE;color:#1E3A5F}.ess2-tag[data-t="JURIDIQUE"]{background:#FEF3C7;color:#92400E}.ess2-tag[data-t="TOUR-OPÉRATEURS"]{background:#D1FAE5;color:#065F46}.ess2-tag[data-t="CONSEIL"]{background:#EDE9FE;color:#5B21B6}.ess2-tag[data-t="CROISIÈRE"]{background:#CFFAFE;color:#155E75}.ess2-tag[data-t="ÉCONOMIE"]{background:#F1F5F9;color:#334155}.ess2-tag[data-t="HÔTELLERIE"]{background:#FFEDD5;color:#9A3412}.ess2-tag[data-t="ASSURANCE"]{background:#FCE7F3;color:#9D174D}.ess2-tag[data-t="COMPAGNIES"]{background:#E0E7FF;color:#3730A3}.ess2-tag[data-t="TECHNOLOGIE"]{background:#CCFBF1;color:#115E59}.ess2-tag[data-t="INFO"]{background:#F1F5F9;color:#475569}
 .ess2-txt{font-size:12px;line-height:1.6;color:rgba(255,255,255,.85)}.ess2-txt strong{font-weight:700;color:#FDBA74}
-.act-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:var(--rl);padding:24px 28px;margin-bottom:20px}
+.act-box{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:var(--rl);padding:24px 28px;margin-bottom:20px;overflow:hidden}
 .act-box h3{font-family:'Josefin Sans';font-size:15px;font-weight:700;color:#78350F;margin-bottom:14px;display:flex;align-items:center;gap:10px}
-.act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:100%}
 .act-card{background:#fff;border:1px solid #FBBF24;border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
 .act-icon{width:34px;height:34px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;flex-shrink:0}.act-icon svg{width:16px;height:16px}
 .act-card .act-t{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}.act-card .act-d{font-size:10px;color:var(--text2);line-height:1.5}
