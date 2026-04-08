@@ -37,6 +37,13 @@ def load_kw():
 def clean_xml(t):
     return re.sub(r'&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)','&amp;',re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]','',t))
 
+def strip_html(t):
+    """Supprime les tags HTML et nettoie les espaces multiples"""
+    if not t: return ""
+    clean=re.sub(r'<[^>]+>','',t)
+    clean=re.sub(r'\s+',' ',clean).strip()
+    return clean
+
 def vimg(u):
     if not u or len(u)<20: return ""
     if any(x in u for x in ["1.gif","pixel","blank","spacer","logo"]): return ""
@@ -103,7 +110,7 @@ def parse_html_fb(hb):
         td=d.find("div",class_="texte")
         if td and td.find("a"): desc=td.find("a").get_text(strip=True)
         img=vimg(d.find("img").get("src","") if d.find("img") else "")
-        arts.append({"title":t,"link":l,"description":desc,"pub_date":pd,"image_url":img,"author":au})
+        arts.append({"title":strip_html(t),"link":l,"description":strip_html(desc),"pub_date":pd,"image_url":img,"author":au})
     print(f"  HTML fallback : {len(arts)} articles",flush=True); return arts
 
 def parse_rss():
@@ -126,7 +133,7 @@ def parse_rss():
                         u=it.get("href",it.get("url",""))
                         if u: img=vimg(u); break
                 if img: break
-            arts.append({"title":e.get("title",""),"link":e.get("link",""),"description":e.get("summary",e.get("description","")),"pub_date":pd,"image_url":img,"author":e.get("author","")})
+            arts.append({"title":strip_html(e.get("title","")),"link":e.get("link",""),"description":strip_html(e.get("summary",e.get("description",""))),"pub_date":pd,"image_url":img,"author":e.get("author","")})
         print(f"  RSS : {len(arts)} articles",flush=True); return arts
     except Exception as ex: print(f"  ERREUR RSS : {ex}",flush=True); return []
 
@@ -621,6 +628,10 @@ def sync_arts(db,articles,kw,gc,cit):
             if not ed.get("image_url") and a.get("image_url"): updates["image_url"]=a["image_url"]
             if not ed.get("tags") and tags: updates["tags"]=tags
             if has_edito_tag(tags) and ed.get("category")!="edito": updates["category"]="edito"
+            # Nettoyer les descriptions contenant du HTML
+            ed_desc=ed.get("description","") or ""
+            if "<" in ed_desc and ">" in ed_desc:
+                updates["description"]=strip_html(ed_desc)
             # Mettre à jour l'auteur si existant est vide ou "La Rédaction"
             existing_author=(ed.get("author","") or "").strip().lower()
             new_author=(a.get("author","") or "").strip()
